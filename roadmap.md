@@ -77,6 +77,32 @@ These are sometimes listed as gaps but already exist, so they are not on this ro
 
 **Size:** Medium, mostly content.
 
+## Platforms
+
+### 8. iPad support
+
+**Gap:** `app.config.ts` sets `ios.supportsTablet: false`, so on an iPad the app runs as a scaled-up iPhone app. Nothing in the app is iPhone-only in a way that blocks iPad: HealthKit is available on iPadOS 17 and later, the Apple Watch bridge already returns early where watch pairing is unsupported, and NFC settings only appear on devices with NFC.
+
+**Proposal:** In two phases.
+
+1. **Run natively, phone layouts in a readable column.** Turn on `supportsTablet`, support every orientation and Split View size, and cap screen content at a comfortable width so cards and lists do not stretch across a 13-inch screen. Check bottom sheets, modals, the keyboard handling and the camera screens at iPad sizes.
+2. **Layouts made for the larger screen.** A sidebar instead of the tab bar, two columns for the dashboard and diary, and list-and-detail views for the library, plus pointer and hardware keyboard support.
+
+**Size:** Phase 1 is small to medium, mostly testing on iPad simulators, which need a Mac. Phase 2 is large. Once an App Store release supports iPad, later releases cannot drop it, and App Store submissions then need iPad screenshots.
+
+### 9. Android without Google Play Services
+
+**Gap:** On Android without Google Play Services (for example GrapheneOS without sandboxed Google Play, or LineageOS without microG), outdoor GPS recording does not work. `expo-location` gets positions only from Google's Fused Location Provider, with no fallback to Android's own `LocationManager`. The rest of the app does not depend on Google Play Services:
+
+- Barcode scanning uses the ML Kit model bundled into the app, not Google's scanner service.
+- Notifications are local. Firebase push is linked but never used.
+- Maps use MapLibre and OpenStreetMap unless the build has a Google Maps key.
+- The Wear OS bridge checks for Google Play Services before using it. A Wear OS watch needs them anyway.
+
+**Proposal:** Record GPS through Android's `LocationManager` when Google Play Services are missing, either by patching `expo-location` or with a small native location module, keeping the foreground service that recording uses today. Show a clear message instead of a silent failure until then.
+
+**Size:** Medium. It needs testing on a real device without Google Play Services.
+
 ## Out of scope
 
 - **Paid human coaching.** SparkyFitness has no paid tier. Family & Friends sharing already lets a trainer view a client's data.
