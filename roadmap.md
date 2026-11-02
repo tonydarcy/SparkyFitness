@@ -141,6 +141,52 @@ The automatic sync also does not look at where a food's nutrition came from, so 
 
 **Size:** Small for the default aliases, medium for the mapping prompt and the refresh action.
 
+## Recovery and daily readiness
+
+Recovery apps such as Athlytic turn watch data into a few daily scores. Some of this is already here: a 0 to 100 readiness score from training form, sleep, resting heart rate and HRV against the person's usual values; sleep stages, sleep need and sleep debt; training load, fitness and fatigue; an AI coach; and the Compare report for seeing what a habit changed. These items fill the gaps. Unlike Athlytic, which is iPhone and Apple Watch only, they would work on Android and Wear OS too.
+
+### 12. Daily exertion and a target for the day
+
+**Gap:** Training load counts logged workouts only. Effort outside a workout (a long walk, a busy day on your feet) never counts, and nothing suggests how hard to train today.
+
+**Proposal:** A daily exertion score from all-day heart rate where the watch provides it, falling back to workouts alone. Show a target exertion range for the day based on readiness, with progress through the day on the dashboard.
+
+**Size:** Medium to large. It needs all-day heart rate samples synced from Apple Health and Health Connect.
+
+### 13. Stress score
+
+**Gap:** There is no measure of daytime stress.
+
+**Proposal:** A daytime stress score from heart rate and HRV readings against the person's resting baseline, shown per hour and per day, and offered as an outcome in the Compare report.
+
+**Size:** Medium.
+
+### 14. Better recovery inputs
+
+**Gap:** HRV readings taken during guided breathing or meditation sessions inflate HRV, and nothing excludes them. Respiratory rate is imported but not used in readiness, and sleeping wrist temperature is not imported at all.
+
+**Proposal:** Exclude HRV readings taken during mindfulness sessions, with a setting to keep them. Flag a raised sleeping respiratory rate or wrist temperature against the person's baseline as a possible sign of illness.
+
+**Size:** Small to medium.
+
+### 15. Readiness on the watch and home screen
+
+**Gap:** Readiness is shown only inside the app. The Apple Watch and Wear OS apps and the home-screen widgets have no readiness or exertion.
+
+**Proposal:** A readiness page on both watch apps, complications and tiles for readiness and exertion, and readiness on a home-screen widget.
+
+**Size:** Medium, across the iOS widget, Android widget, Apple Watch and Wear OS code.
+
+## Diary
+
+### 16. Copy a meal to a specific time
+
+**Gap:** The mobile app's Copy meal sheet has quick Now, Today and Tomorrow targets and a calendar, but copied entries keep the time of day they were logged at. Copying to "now" puts them in the current meal without changing that time.
+
+**Proposal:** Let the copy endpoint take an optional target time and offer a time picker in the sheet, with Now using the current time. Older servers ignore the field, so the app should only offer the time picker when the server supports it.
+
+**Size:** Small.
+
 ## Out of scope
 
 - **Paid human coaching.** SparkyFitness has no paid tier. Family & Friends sharing already lets a trainer view a client's data.
