@@ -126,6 +126,21 @@ The automatic sync also does not look at where a food's nutrition came from, so 
 
 **Size:** Small to medium. It reuses the existing contribution and product-state services; the work is the two actions, the estimate exclusion and tests.
 
+### 11. Custom nutrients filled from food providers
+
+**Gap:** Barcode scans and provider imports already fill custom nutrients: the server matches each nutrient a provider reports against the custom nutrient's name and its "Provider aliases", after lowercasing and treating punctuation as spaces, and converts units. Two things limit it:
+
+- **The names have to match exactly, and providers use their own.** Open Food Facts reports niacin as `vitamin-pp`, total omega-3 as `omega-3-fat`, omega-6 as `omega-6-fat`, ALA as `alpha-linolenic-acid` and folate as `folates`. A custom nutrient called "B3, Niacin" with the aliases "Niacin" and "Vitamin B3" never matches, and nothing tells the person why. The built-in micronutrient catalog does not list these provider names either.
+- **Only new imports are filled.** A food already in the library, including one a barcode scan finds there first, keeps the custom nutrient values it was saved with. Adding a custom nutrient or an alias later never fills it in for foods saved before.
+
+**Proposal:**
+
+- Ship known provider field names (Open Food Facts first, then USDA and the other providers) as default aliases in the micronutrient catalog, and match custom nutrients against them as well as against the person's own aliases.
+- When a scan or import finds provider nutrients that match nothing, list them on the food form so the person can map one to a custom nutrient in a tap; that adds the alias.
+- Add a "Refresh from source" action for a saved food with a provider and barcode, to re-read the provider and fill custom nutrients that are empty. It never overwrites values the person typed.
+
+**Size:** Small for the default aliases, medium for the mapping prompt and the refresh action.
+
 ## Out of scope
 
 - **Paid human coaching.** SparkyFitness has no paid tier. Family & Friends sharing already lets a trainer view a client's data.
