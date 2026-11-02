@@ -163,9 +163,11 @@ Recovery apps such as Athlytic turn watch data into a few daily scores. Some of 
 
 ### 14. Better recovery inputs
 
-**Gap:** HRV readings taken during guided breathing or meditation sessions inflate HRV, and nothing excludes them. Respiratory rate is imported but not used in readiness, and sleeping wrist temperature is not imported at all.
+**Gap:** Readiness takes HRV from the overnight sleep record, so it is not skewed by daytime readings, but a future daytime stress score would be: HRV taken during guided breathing or meditation inflates it. Sleeping wrist temperature is not imported.
 
-**Proposal:** Exclude HRV readings taken during mindfulness sessions, with a setting to keep them. Flag a raised sleeping respiratory rate or wrist temperature against the person's baseline as a possible sign of illness.
+**Progress:** A raised overnight breathing rate is now flagged on the readiness card as a possible sign of illness and keeps readiness off High.
+
+**Proposal (remaining):** Exclude HRV readings taken during mindfulness sessions from the stress score, with a setting to keep them. Import sleeping wrist temperature from Apple Health and Health Connect and flag a rise against the person's baseline the same way.
 
 **Size:** Small to medium.
 
