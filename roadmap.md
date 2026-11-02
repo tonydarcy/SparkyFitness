@@ -103,6 +103,29 @@ These are sometimes listed as gaps but already exist, so they are not on this ro
 
 **Size:** Medium. It needs testing on a real device without Google Play Services.
 
+## Integrations
+
+### 10. Open Food Facts contributions from the MCP connector
+
+**Gap:** Contributing to Open Food Facts already exists, but only through the web app. There is a manual contribution flow and an automatic sync (`auto_contribute_openfoodfacts`, behind the server-wide `allow_openfoodfacts_contributions` setting). The automatic sync submits any eligible custom food: one with a valid barcode and a default serving in grams or millilitres, including foods the MCP connector creates with `create_food`. But through the connector, the assistant cannot:
+
+- check whether a barcode is already on Open Food Facts;
+- submit a food on request, or report whether a submission succeeded;
+- see whether the person has turned contributions on.
+
+The automatic sync also does not look at where a food's nutrition came from, so a food whose values were estimated (from a photo, or on request) would be submitted like one read from the label.
+
+**Proposal:**
+
+- Add two `sparky_manage_food` actions that reuse the existing contribution services, so the same server-wide gate, owner-only rule and rate budget apply:
+  - `check_openfoodfacts`: is this barcode already on Open Food Facts?
+  - `contribute_to_openfoodfacts`: two steps, like the web flow. A preview the assistant shows the person, then a submit only after the person confirms in the conversation.
+- The tool description tells the assistant to offer a contribution only when the product is missing, and only for values read from the package.
+- Exclude estimated nutrition from both the new actions and the automatic sync.
+- Photos are optional at first: the web flow keeps handling front and nutrition-label photos.
+
+**Size:** Small to medium. It reuses the existing contribution and product-state services; the work is the two actions, the estimate exclusion and tests.
+
 ## Out of scope
 
 - **Paid human coaching.** SparkyFitness has no paid tier. Family & Friends sharing already lets a trainer view a client's data.
