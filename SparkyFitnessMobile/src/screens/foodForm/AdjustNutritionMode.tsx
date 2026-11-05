@@ -28,6 +28,7 @@ import type {
 } from '../../types/foodUnitVariants';
 import {
   buildCreateFoodVariantPayload,
+  customNutrientsMatch,
   diffSiblingRows,
   formatServingSizeForDisplay,
   groupEquivalentVariants,
@@ -191,13 +192,25 @@ export function AdjustNutritionMode({
     ): Promise<FoodUnitSelectionResult> => {
       if (selection.kind === 'existing') {
         setPendingUnitSelection(selection);
-        setCurrentVariantId(selection.variant.id ?? variantId);
+        const nextId = selection.variant.id ?? variantId;
+        // Switching to another saved variant loads its custom nutrients, so the
+        // overwrite check and save compare against that variant, not the
+        // previous one.
+        if (nextId !== currentVariantId) {
+          setCurrentCustomNutrients(selection.variant.custom_nutrients ?? null);
+        }
+        setCurrentVariantId(nextId);
         return selection;
       }
       setPendingUnitSelection(selection);
+      // The draft carries the custom nutrients of the variant it was built
+      // from, scaled to its serving. Take them even when empty: a conversion
+      // can start from a variant with none, and keeping the previous values
+      // would save them next to nutrients scaled from another variant.
+      setCurrentCustomNutrients(selection.variant.custom_nutrients ?? {});
       return selection;
     },
-    [variantId]
+    [variantId, currentVariantId]
   );
 
   const isDraftSelection = pendingUnitSelection?.kind === 'draft';
@@ -251,7 +264,11 @@ export function AdjustNutritionMode({
           const createdVariant = await createVariant(
             buildCreateFoodVariantPayload(
               foodId,
-              buildVariantFromFormData(data, draftSelection)
+              buildVariantFromFormData(
+                data,
+                draftSelection,
+                currentCustomNutrients
+              )
             )
           );
           nextUnitSelection = {
@@ -288,7 +305,7 @@ export function AdjustNutritionMode({
             const createdVariant = await createVariant(
               buildCreateFoodVariantPayload(
                 foodId,
-                buildVariantFromFormData(data)
+                buildVariantFromFormData(data, null, currentCustomNutrients)
               )
             );
             nextUnitSelection = { kind: 'existing', variant: createdVariant };
@@ -342,6 +359,8 @@ export function AdjustNutritionMode({
                 customNutrients: currentCustomNutrients,
                 data,
                 variantInitialValues: initialValues,
+                // The variant was just created with these values.
+                variantInitialCustomNutrients: currentCustomNutrients,
                 foodInitialValues: initialValues,
               });
             }
@@ -356,11 +375,19 @@ export function AdjustNutritionMode({
             const variantValues = existingSelection
               ? buildFormValuesFromVariant(existingSelection.variant)
               : null;
+            // Custom nutrients sit outside the form fields; a change to them
+            // alone still differs from the stored variant.
             const nutritionChanged = variantValues
-              ? hasFoodFormChanges(variantValues, data, FOOD_VARIANT_FIELDS)
+              ? hasFoodFormChanges(variantValues, data, FOOD_VARIANT_FIELDS) ||
+                (currentCustomNutrients != null &&
+                  !customNutrientsMatch(
+                    currentCustomNutrients,
+                    existingSelection?.variant.custom_nutrients
+                  ))
               : false;
 
             let saveVariantId = nextVariantId;
+            let savedAsNew = false;
             if (existingSelection && nutritionChanged && foodId) {
               const choice = await confirmVariantOverwrite(
                 `${formatServingSizeForDisplay(existingSelection.variant.serving_size)} ${localizeFoodUnit(existingSelection.variant.serving_unit, t)}`
@@ -371,7 +398,11 @@ export function AdjustNutritionMode({
                   const createdVariant = await createVariant(
                     buildCreateFoodVariantPayload(
                       foodId,
-                      buildVariantFromFormData(data, existingSelection)
+                      buildVariantFromFormData(
+                        data,
+                        existingSelection,
+                        currentCustomNutrients
+                      )
                     )
                   );
                   nextUnitSelection = {
@@ -380,8 +411,18 @@ export function AdjustNutritionMode({
                   };
                   saveVariantId = createdVariant.id;
                   equivDiffVariantId = createdVariant.id;
+                  savedAsNew = true;
                   setPendingUnitSelection(nextUnitSelection);
                   setCurrentVariantId(createdVariant.id);
+                  // The matching-row update below is skipped, so save name and
+                  // brand edits here.
+                  await persistFoodMetadataEdits({
+                    queryClient,
+                    foodId,
+                    data,
+                    initialValues,
+                  });
+                  invalidateFoodCaches(queryClient, foodId);
                   // New variant has no existing siblings — create draft equivalents
                   // directly rather than diffing against a stale snapshot.
                   const cleanEq = equivalentDraft.filter(
@@ -422,29 +463,40 @@ export function AdjustNutritionMode({
                   });
                   return;
                 }
-                // Fall through to persistFoodEdits with the new variant ID so the
-                // cache is populated with the correct nutrition values.
+                // The new variant already holds the edits. Skip the matching-row
+                // update below: the stale variants list still holds the original
+                // row with the same serving, which the user chose not to change.
               }
             }
 
             // Check whether the form's serving size/unit matches an existing DB
             // variant. If not, save as new directly — no dialog needed since the
             // user explicitly toggled save ON and the variant doesn't exist yet.
-            if (saveVariantId && foodId) {
+            if (saveVariantId && foodId && !savedAsNew) {
               const formServingSize = parseDecimalInput(data.servingSize) || 0;
               const formServingUnit = data.servingUnit || 'serving';
-              const matchingDbVariant = (variants ?? []).find(
+              const servingMatches = (variants ?? []).filter(
                 (v) =>
                   Number(v.serving_size) === formServingSize &&
                   v.serving_unit === formServingUnit
               );
+              // Prefer the selected variant when it matches, so another variant
+              // with the same serving is never updated in its place.
+              const matchingDbVariant =
+                servingMatches.find(
+                  (v) => v.id === existingSelection?.variant.id
+                ) ?? servingMatches[0];
 
               if (!matchingDbVariant) {
                 // No DB variant matches these serving values — create a new one.
                 const createdVariant = await createVariant(
                   buildCreateFoodVariantPayload(
                     foodId,
-                    buildVariantFromFormData(data, existingSelection)
+                    buildVariantFromFormData(
+                      data,
+                      existingSelection,
+                      currentCustomNutrients
+                    )
                   )
                 );
                 nextUnitSelection = {
@@ -467,6 +519,8 @@ export function AdjustNutritionMode({
                   customNutrients: currentCustomNutrients,
                   data,
                   variantInitialValues: dbVariantValues,
+                  variantInitialCustomNutrients:
+                    matchingDbVariant.custom_nutrients,
                   foodInitialValues: initialValues,
                 });
                 if (!saved) {
