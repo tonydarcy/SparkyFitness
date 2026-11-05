@@ -9,8 +9,9 @@ interface ExerciseVideoProps {
 }
 
 /**
- * An exercise's demonstration video: YouTube links play inline in a
- * privacy-enhanced embed, anything else is a link that opens in a new tab.
+ * An exercise's demonstration video: YouTube and Vimeo links play inline in a
+ * privacy-enhanced, sandboxed embed; anything else is a link that opens in a
+ * new tab.
  */
 const ExerciseVideo = ({ url, title, className }: ExerciseVideoProps) => {
   const { t } = useTranslation();
@@ -28,7 +29,8 @@ const ExerciseVideo = ({ url, title, className }: ExerciseVideoProps) => {
               name: title,
             })}
             className="h-full w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="encrypted-media; picture-in-picture; fullscreen"
+            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
             allowFullScreen
             loading="lazy"
             referrerPolicy="strict-origin-when-cross-origin"
@@ -42,9 +44,11 @@ const ExerciseVideo = ({ url, title, className }: ExerciseVideoProps) => {
         className="mt-1 inline-flex items-center gap-1 text-sm text-primary hover:underline"
       >
         <ExternalLink className="h-3.5 w-3.5" />
-        {video.embedUrl
+        {video.youtubeId
           ? t('exercise.video.openOnYouTube', 'Open on YouTube')
-          : t('exercise.video.watch', 'Watch demonstration video')}
+          : video.vimeoId
+            ? t('exercise.video.openOnVimeo', 'Open on Vimeo')
+            : t('exercise.video.watch', 'Watch demonstration video')}
       </a>
     </div>
   );

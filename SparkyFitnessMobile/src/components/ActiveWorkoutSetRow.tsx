@@ -18,6 +18,7 @@ import Icon from './Icon';
 import {
   SetCellInput,
   SetSwipeCopyAction,
+  SET_ROW_SWIPE_OFFSET,
   SetSwipeDeleteAction,
   type SetInputField,
   type SetRowAccessoryHandle,
@@ -1528,6 +1529,10 @@ function ActiveWorkoutSetRow({
       leftThreshold={40}
       overshootRight={false}
       rightThreshold={40}
+      // A clear sideways drag before the row moves, so a slightly diagonal
+      // scroll through the log doesn't open copy or delete.
+      dragOffsetFromLeftEdge={SET_ROW_SWIPE_OFFSET}
+      dragOffsetFromRightEdge={SET_ROW_SWIPE_OFFSET}
     >
       {row}
     </ReanimatedSwipeable>

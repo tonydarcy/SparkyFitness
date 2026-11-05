@@ -81,4 +81,28 @@ describe('workout app CSV import', () => {
     const result = read(text, { fallbackWeightUnit: 'lbs' });
     expect(result.sessions[0].sets[0].weightKg).toBe(100);
   });
+
+  it('keeps comma decimal weights from European exports', () => {
+    const text = `Date;Workout Name;Exercise Name;Set Order;Weight;Weight Unit;Reps;Distance;Distance Unit;Seconds;Notes;Workout Notes
+2026-03-04 07:00:00;Push;Bench Press (Barbell);1;82,5;kg;5;;;;;
+2026-03-04 07:00:00;Push;Bench Press (Barbell);2;1.002,5;kg;1;;;;;
+`;
+    const [bench] = read(text, { decimal: 'eu' }).sessions;
+    expect(bench.sets.map((set) => set.weightKg)).toEqual([82.5, 1002.5]);
+  });
+
+  it('skips malformed and empty rows instead of guessing', () => {
+    const text = `Date,Exercise,Category,Weight (kgs),Reps,Distance,Distance Unit,Time,Comment
+2026-03-05,Squat,Legs,82.5,5,,,,
+03/05/2026,Squat,Legs,90,5,,,,
+,,,,,,,,
+2026-03-05,,Legs,90,5,,,,
+`;
+    const result = read(text);
+    expect(result.sessions).toHaveLength(1);
+    expect(result.sessions[0].sets[0].weightKg).toBe(82.5);
+    // A day-first or month-first date can't be told apart, so it is
+    // reported as skipped rather than imported on the wrong day.
+    expect(result.skippedRows).toEqual(expect.arrayContaining([2, 4]));
+  });
 });
