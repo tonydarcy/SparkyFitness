@@ -51,6 +51,7 @@ describe('exerciseVideo', () => {
     ).toEqual({
       url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1m5s',
       youtubeId: 'dQw4w9WgXcQ',
+      vimeoId: null,
       embedUrl:
         'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&start=65',
       thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
@@ -58,13 +59,71 @@ describe('exerciseVideo', () => {
   });
 
   it('keeps other links as plain links and ignores empty values', () => {
-    expect(getExerciseVideoInfo('https://vimeo.com/1')).toEqual({
-      url: 'https://vimeo.com/1',
+    expect(getExerciseVideoInfo('https://example.com/squat.mp4')).toEqual({
+      url: 'https://example.com/squat.mp4',
       youtubeId: null,
+      vimeoId: null,
       embedUrl: null,
       thumbnailUrl: null,
     });
     expect(getExerciseVideoInfo(null)).toBeNull();
     expect(getExerciseVideoInfo('nope')).toBeNull();
+  });
+
+  it('rejects links that hide their real host behind credentials', () => {
+    expect(
+      normalizeExerciseVideoUrl('https://youtube.com@evil.example/watch')
+    ).toBeUndefined();
+    expect(
+      normalizeExerciseVideoUrl('https://user:pass@vimeo.com/76979871')
+    ).toBeUndefined();
+    expect(getExerciseVideoInfo('https://youtube.com@evil.example')).toBeNull();
+  });
+
+  it('rejects script and data schemes', () => {
+    for (const raw of [
+      'javascript:alert(1)',
+      'JAVASCRIPT:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'vbscript:msgbox(1)',
+      'file:///etc/passwd',
+    ]) {
+      expect(normalizeExerciseVideoUrl(raw)).toBeUndefined();
+      expect(getExerciseVideoInfo(raw)).toBeNull();
+    }
+  });
+
+  it('only embeds allowlisted hosts', () => {
+    for (const raw of [
+      'https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ',
+      'https://evilyoutube.com/watch?v=dQw4w9WgXcQ',
+      'https://vimeo.com.evil.example/76979871',
+      'https://example.com/embed/dQw4w9WgXcQ',
+      'https://vimeo.com/channels/staffpicks',
+    ]) {
+      const info = getExerciseVideoInfo(raw);
+      expect(info?.embedUrl).toBeNull();
+      expect(info?.youtubeId).toBeNull();
+      expect(info?.vimeoId).toBeNull();
+    }
+  });
+
+  it('rebuilds embeds from the id, dropping autoplay and other parameters', () => {
+    const yt = getExerciseVideoInfo(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1&onload=alert(1)&t=30'
+    );
+    expect(yt?.embedUrl).toBe(
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&start=30'
+    );
+    const vimeo = getExerciseVideoInfo(
+      'https://vimeo.com/76979871?autoplay=1&background=1'
+    );
+    expect(vimeo?.vimeoId).toBe('76979871');
+    expect(vimeo?.embedUrl).toBe(
+      'https://player.vimeo.com/video/76979871?dnt=1'
+    );
+    expect(
+      getExerciseVideoInfo('https://player.vimeo.com/video/76979871')?.vimeoId
+    ).toBe('76979871');
   });
 });

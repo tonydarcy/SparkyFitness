@@ -391,7 +391,8 @@ const CreatePresetMode: React.FC<CreatePresetModeProps> = ({
   });
   const backupPicker = useBackupExercisePicker(
     setExerciseProgression,
-    exerciseSetEditing.handleAddExercise
+    exerciseSetEditing.handleAddExercise,
+    state.exercises
   );
   useSelectedExercise(route.params, backupPicker.handleSelectedExercise);
 
@@ -710,7 +711,8 @@ const EditPresetMode: React.FC<EditPresetModeProps> = ({
   });
   const backupPicker = useBackupExercisePicker(
     setExerciseProgression,
-    exerciseSetEditing.handleAddExercise
+    exerciseSetEditing.handleAddExercise,
+    state.exercises
   );
   useSelectedExercise(route.params, backupPicker.handleSelectedExercise);
 

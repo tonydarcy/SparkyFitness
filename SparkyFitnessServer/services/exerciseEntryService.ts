@@ -38,32 +38,119 @@ import {
   type HrSample,
 } from '@workspace/shared';
 import heartRateZoneService from './heartRateZoneService.js';
+/** One grouped entry of a history CSV import, as the web importer sends it. */
+interface CsvImportSet {
+  set_number?: number | null;
+  set_type?: string | null;
+  reps?: number | null;
+  weight?: number | string | null;
+  duration_min?: number | string | null;
+  rest_time_sec?: number | null;
+  notes?: string | null;
+}
+interface CsvImportEntry {
+  entry_date?: unknown;
+  exercise_name?: unknown;
+  exercise_source?: string;
+  exercise_category?: string;
+  calories_per_hour?: number | string | null;
+  exercise_description?: string;
+  exercise_force?: string;
+  exercise_level?: string;
+  exercise_mechanic?: string;
+  exercise_equipment?: string[];
+  primary_muscles?: string[];
+  secondary_muscles?: string[];
+  instructions?: string[];
+  distance?: number | string | null;
+  sets?: unknown;
+  preset_name?: string | null;
+  calories_burned?: number | null;
+  entry_notes?: string | null;
+  avg_heart_rate?: number | null;
+  activity_details?: { field_name: string; value: unknown }[];
+}
+type CsvImportFailure = { entry: CsvImportEntry; reason: string };
+
+const errorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+function csvImportProblem(entryGroup: CsvImportEntry): string | null {
+  const entryDate = entryGroup.entry_date;
+  // The web importer sends yyyy-MM-dd calendar days.
+  if (
+    typeof entryDate !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(entryDate) ||
+    !isValid(parseISO(entryDate))
+  ) {
+    return `Invalid date: ${String(entryDate)}. Expected yyyy-MM-dd format.`;
+  }
+  if (
+    typeof entryGroup.exercise_name !== 'string' ||
+    entryGroup.exercise_name.trim() === ''
+  ) {
+    return 'Missing exercise name.';
+  }
+  if (entryGroup.sets !== undefined && !Array.isArray(entryGroup.sets)) {
+    return 'Sets must be a list.';
+  }
+  return null;
+}
+
+function csvImportError(
+  failedEntries: CsvImportFailure[],
+  total: number
+): Error {
+  const error = new Error(
+    'No entries were imported because some entries failed.'
+  ) as Error & { status: number; details: unknown };
+  error.status = 409;
+  error.details = {
+    createdCount: 0,
+    updatedCount: 0,
+    failedCount: failedEntries.length,
+    notImportedCount: total,
+    failedEntries,
+  };
+  return error;
+}
+
+/**
+ * Imports a history CSV all or nothing: every entry is checked first, then
+ * all diary entries are written in one transaction, so a bad row 200 never
+ * leaves rows 1 to 199 behind (and a retry never duplicates them). Exercises
+ * and presets the file names are library items, found again by name on a
+ * retry, so they are created before the transaction.
+ */
 async function importExerciseEntriesFromCsv(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticatedUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  actingUserId: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  entries: any
+  authenticatedUserId: string,
+  actingUserId: string,
+  entries: CsvImportEntry[]
 ) {
-  let createdCount = 0;
-  const updatedCount = 0;
-  let failedCount = 0;
-  const failedEntries = [];
+  const problems: CsvImportFailure[] = [];
   for (const entryGroup of entries) {
+    const reason = csvImportProblem(entryGroup);
+    if (reason) problems.push({ entry: entryGroup, reason });
+  }
+  if (problems.length > 0) throw csvImportError(problems, entries.length);
+
+  const preferences =
+    await preferenceRepository.getUserPreferences(authenticatedUserId);
+  const distanceUnit = preferences?.default_distance_unit || 'km';
+  const weightUnit = preferences?.default_weight_unit || 'kg';
+
+  type PreparedEntry = {
+    entryGroup: CsvImportEntry;
+    entryData: Record<string, unknown>;
+  };
+  const prepared: PreparedEntry[] = [];
+  for (const entryGroup of entries) {
+    const exerciseName = entryGroup.exercise_name as string;
+    const entryDate = entryGroup.entry_date as string;
     try {
-      // 1. Validate and use the already formatted date
-      const entryDate = entryGroup.entry_date;
-      // Ensure the date string is valid by attempting to parse it as ISO.
-      // The frontend now sends yyyy-MM-dd, which is a valid ISO subset.
-      if (!isValid(parseISO(entryDate))) {
-        throw new Error(
-          `Invalid date: ${entryDate}. Expected yyyy-MM-dd format.`
-        );
-      }
-      // 2. Lookup or Create Exercise
+      // 1. Lookup or create the exercise.
       let exercise = await exerciseRepository.findExerciseByNameAndUserId(
-        entryGroup.exercise_name,
+        exerciseName,
         authenticatedUserId
       );
       if (!exercise) {
@@ -72,15 +159,15 @@ async function importExerciseEntriesFromCsv(
           `Creating new exercise from CSV for user ${authenticatedUserId}. entryGroup:`,
           entryGroup
         );
-        const newExerciseData = {
+        exercise = await exerciseRepository.createExercise({
           user_id: authenticatedUserId,
-          name: entryGroup.exercise_name,
+          name: exerciseName,
           is_custom: true,
           shared_with_public: false,
-          source: entryGroup.exercise_source || 'CSV_Import', // Use provided source or default
+          source: entryGroup.exercise_source || 'CSV_Import',
           category: entryGroup.exercise_category,
           calories_per_hour: entryGroup.calories_per_hour
-            ? parseFloat(entryGroup.calories_per_hour)
+            ? parseFloat(String(entryGroup.calories_per_hour))
             : undefined,
           description: entryGroup.exercise_description,
           force: entryGroup.exercise_force,
@@ -104,38 +191,23 @@ async function importExerciseEntriesFromCsv(
             entryGroup.instructions && entryGroup.instructions.length > 0
               ? entryGroup.instructions
               : undefined,
-          // Images are not typically imported via CSV for exercise definitions
-        };
-        log(
-          'debug',
-          'Calling createExercise with newExerciseData:',
-          newExerciseData
-        );
-        exercise = await exerciseRepository.createExercise(newExerciseData);
+        });
       }
-      // 3. Lookup or Create Workout Preset (if preset_name is provided)
-      // 3. Convert Distance and Weight based on user preferences and process sets
-      const preferences =
-        await preferenceRepository.getUserPreferences(authenticatedUserId);
-      const distanceUnit = preferences?.default_distance_unit || 'km'; // Default to km
-      const weightUnit = preferences?.default_weight_unit || 'kg'; // Default to kg
-      let distanceInKm = entryGroup.distance;
-      if (distanceInKm !== undefined && distanceInKm !== null) {
-        if (distanceUnit === 'miles') {
-          distanceInKm = parseFloat(distanceInKm) * 1.60934; // Convert miles to km
-        } else {
-          distanceInKm = parseFloat(distanceInKm);
-        }
+      // 2. Convert distance and weight from the person's units.
+      const rawDistance = entryGroup.distance;
+      let distanceInKm: number | null | undefined =
+        rawDistance === null || rawDistance === undefined
+          ? rawDistance
+          : parseFloat(String(rawDistance));
+      if (typeof distanceInKm === 'number' && distanceUnit === 'miles') {
+        distanceInKm *= 1.60934;
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const setsWithConvertedWeight = entryGroup.sets.map((set: any) => {
+      const sets = (entryGroup.sets ?? []) as CsvImportSet[];
+      const setsWithConvertedWeight = sets.map((set) => {
         let weightInKg = set.weight;
         if (weightInKg !== undefined && weightInKg !== null) {
-          if (weightUnit === 'lbs') {
-            weightInKg = parseFloat(weightInKg) * 0.453592; // Convert lbs to kg
-          } else {
-            weightInKg = parseFloat(weightInKg);
-          }
+          weightInKg = parseFloat(String(weightInKg));
+          if (weightUnit === 'lbs') weightInKg *= 0.453592;
         }
         return {
           ...set,
@@ -145,12 +217,12 @@ async function importExerciseEntriesFromCsv(
             set.duration_min !== null && set.duration_min !== undefined
               ? Math.round(Number(set.duration_min) * 60)
               : null,
-          rest_time: set.rest_time_sec, // Map frontend rest_time_sec to backend rest_time
+          rest_time: set.rest_time_sec,
         };
       });
       const totalDurationMinutes = setsDurationMinutes(setsWithConvertedWeight);
-      // 4. Lookup or Create Workout Preset (if preset_name is provided)
-      let workoutPresetId = null; // Initialize workoutPresetId once
+      // 3. Lookup or create the workout preset, when the row names one.
+      let workoutPresetId = null;
       if (entryGroup.preset_name) {
         let workoutPreset =
           await workoutPresetRepository.getWorkoutPresetByName(
@@ -158,11 +230,6 @@ async function importExerciseEntriesFromCsv(
             entryGroup.preset_name
           );
         if (!workoutPreset) {
-          log(
-            'debug',
-            `Creating new workout preset from CSV for user ${authenticatedUserId}. preset_name: ${entryGroup.preset_name}`
-          );
-          // Create new workout preset and its exercises/sets from current entryGroup
           workoutPreset = await workoutPresetRepository.createWorkoutPreset({
             user_id: authenticatedUserId,
             name: entryGroup.preset_name,
@@ -171,12 +238,9 @@ async function importExerciseEntriesFromCsv(
             exercises: [
               {
                 exercise_id: exercise.id,
-                image_url: null, // CSV doesn't provide exercise image for preset def
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                sets: setsWithConvertedWeight.map((set: any) => ({
-                  // Use the processed sets
+                image_url: null,
+                sets: setsWithConvertedWeight.map((set) => ({
                   set_number: set.set_number,
-
                   set_type: set.set_type,
                   reps: set.reps,
                   weight: set.weight,
@@ -187,75 +251,85 @@ async function importExerciseEntriesFromCsv(
               },
             ],
           });
-        } else {
-          log(
-            'debug',
-            `Linking to existing workout preset from CSV for user ${authenticatedUserId}. preset_name: ${entryGroup.preset_name}`
-          );
         }
         workoutPresetId = workoutPreset.id;
       }
-      // 5. Create Exercise Entry
-      const newEntry = await exerciseEntryRepository.createExerciseEntry(
-        authenticatedUserId,
-        {
+      prepared.push({
+        entryGroup,
+        entryData: {
           exercise_id: exercise.id,
-          duration_minutes: totalDurationMinutes || 0, // Sum of set durations
-          calories_burned: entryGroup.calories_burned || 0, // Default to 0 if not provided
+          duration_minutes: totalDurationMinutes || 0,
+          calories_burned: entryGroup.calories_burned || 0,
           entry_date: entryDate,
           notes: entryGroup.entry_notes,
           sets: setsWithConvertedWeight,
           distance: distanceInKm,
           avg_heart_rate: entryGroup.avg_heart_rate,
-          exercise_preset_entry_id: workoutPresetId, // Link to preset if created/found
+          exercise_preset_entry_id: workoutPresetId,
         },
-        actingUserId,
-        'CSV_Import'
-      ); // Add source and actingUserId
-      // 6. Create Activity Details
-      if (
-        entryGroup.activity_details &&
-        entryGroup.activity_details.length > 0
-      ) {
-        for (const detail of entryGroup.activity_details) {
-          await activityDetailsRepository.createActivityDetail(
-            authenticatedUserId,
-            {
-              exercise_entry_id: newEntry.id,
-              provider_name: 'CSV_Import_Custom',
-              detail_type: detail.field_name,
-              detail_data: detail.value,
-              created_by_user_id: actingUserId,
-              updated_by_user_id: actingUserId,
-            }
-          );
-        }
-      }
-      createdCount++;
+      });
     } catch (error) {
       log(
         'error',
-        `Error processing imported exercise entry for user ${authenticatedUserId}: ${entryGroup.exercise_name} on ${entryGroup.entry_date}`,
+        `Error preparing imported exercise entry for user ${authenticatedUserId}: ${exerciseName} on ${entryDate}`,
         error
       );
-      failedCount++;
-      // @ts-expect-error TS(2571): Object is of type 'unknown'.
-      failedEntries.push({ entry: entryGroup, reason: error.message });
+      throw csvImportError(
+        [{ entry: entryGroup, reason: errorMessage(error) }],
+        entries.length
+      );
     }
   }
-  if (failedEntries.length > 0) {
-    const error = new Error('Some entries failed to import.');
-    // @ts-expect-error TS(2339): Property 'status' does not exist on type 'Error'.
-    error.status = 409; // Conflict or Partial Content
-    // @ts-expect-error TS(2339): Property 'details' does not exist on type 'Error'.
-    error.details = { createdCount, updatedCount, failedCount, failedEntries };
-    throw error;
+
+  // 4. Write every diary entry and its details in one transaction.
+  const client = await getClient(authenticatedUserId, actingUserId);
+  let current: CsvImportEntry | null = null;
+  try {
+    await client.query('BEGIN');
+    for (const { entryGroup, entryData } of prepared) {
+      current = entryGroup;
+      const { entry } =
+        await exerciseEntryRepository._createExerciseEntryWithClient(
+          client,
+          authenticatedUserId,
+          entryData,
+          actingUserId,
+          'CSV_Import'
+        );
+      for (const detail of entryGroup.activity_details ?? []) {
+        await activityDetailsRepository._createActivityDetailWithClient(
+          client,
+          {
+            exercise_entry_id: entry.id,
+            provider_name: 'CSV_Import_Custom',
+            detail_type: detail.field_name,
+            detail_data: detail.value,
+            created_by_user_id: actingUserId,
+            updated_by_user_id: actingUserId,
+          }
+        );
+      }
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    log(
+      'error',
+      `CSV history import rolled back for user ${authenticatedUserId}`,
+      error
+    );
+    throw csvImportError(
+      current ? [{ entry: current, reason: errorMessage(error) }] : [],
+      entries.length
+    );
+  } finally {
+    client.release();
   }
   return {
     message: 'Historical exercise entries imported successfully.',
-    created: createdCount,
-    updated: updatedCount,
-    failed: failedCount,
+    created: prepared.length,
+    updated: 0,
+    failed: 0,
   };
 }
 /**

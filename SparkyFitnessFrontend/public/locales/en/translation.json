@@ -1536,6 +1536,7 @@
       "help": "A short demonstration clip. YouTube links play right in the workout.",
       "invalid": "Enter a link starting with https://",
       "label": "Video link",
+      "openOnVimeo": "Open on Vimeo",
       "openOnYouTube": "Open on YouTube",
       "placeholder": "https://youtube.com/shorts/…",
       "watch": "Watch demonstration video"

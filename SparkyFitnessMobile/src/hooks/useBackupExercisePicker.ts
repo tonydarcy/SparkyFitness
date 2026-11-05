@@ -5,14 +5,17 @@ import type { ExerciseProgressionPatch } from './draftExercisesSlice';
 /**
  * Routes the next ExerciseSearch return to "set this slot's backup exercise"
  * instead of an add. Like the replace target, it is consumed on selection;
- * the screen clears it when plain Add or Replace opens the search.
+ * the screen clears it when plain Add or Replace opens the search. Picking
+ * the slot's own exercise is ignored: a slot can't back itself up (the server
+ * drops it too).
  */
 export function useBackupExercisePicker(
   setExerciseProgression: (
     clientId: string,
     patch: ExerciseProgressionPatch
   ) => void,
-  onAddExercise: (exercise: Exercise) => void
+  onAddExercise: (exercise: Exercise) => void,
+  exercises: readonly { clientId: string; exerciseId: string | null }[] = []
 ) {
   const backupTargetRef = useRef<string | null>(null);
   const setBackupTarget = useCallback((clientId: string | null) => {
@@ -26,12 +29,14 @@ export function useBackupExercisePicker(
         onAddExercise(exercise);
         return;
       }
+      const slot = exercises.find((e) => e.clientId === target);
+      if (slot?.exerciseId === exercise.id) return;
       setExerciseProgression(target, {
         backupExerciseId: exercise.id,
         backupExerciseName: exercise.name,
       });
     },
-    [onAddExercise, setExerciseProgression]
+    [onAddExercise, setExerciseProgression, exercises]
   );
   return { setBackupTarget, handleSelectedExercise };
 }

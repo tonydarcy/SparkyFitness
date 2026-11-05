@@ -1,12 +1,15 @@
 /**
  * Demonstration video links on exercises (`exercises.video_url`). Any http(s)
- * link is accepted; YouTube links get an embed (web) or a thumbnail preview
- * (mobile) because that is what people paste most.
+ * link is accepted as a plain link that opens outside the app. Only an
+ * allowlist of hosts (YouTube, Vimeo) is ever embedded, and the embed URL is
+ * rebuilt from the parsed video id, so nothing from the pasted link's query
+ * (autoplay, script hooks, tracking) reaches the iframe.
  */
 
 export const EXERCISE_VIDEO_URL_MAX_LENGTH = 2048;
 
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
+const VIMEO_ID = /^\d{1,12}$/;
 
 /**
  * Trims and validates a pasted video link. Returns the cleaned URL, `null` for
@@ -31,6 +34,8 @@ export function normalizeExerciseVideoUrl(
   }
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;
   if (!url.hostname.includes('.')) return undefined;
+  // `https://youtube.com@evil.example` reads as YouTube but opens evil.example.
+  if (url.username || url.password) return undefined;
   return url.toString();
 }
 
@@ -72,6 +77,27 @@ export function parseYouTubeVideoId(
   return id && YOUTUBE_ID.test(id) ? id : null;
 }
 
+/** The numeric id of a Vimeo video link, or `null` for anything else. */
+function parseVimeoVideoId(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+  const host = url.hostname.toLowerCase().replace(/^www\./, '');
+  const parts = url.pathname.split('/').filter(Boolean);
+  let id: string | null = null;
+  if (host === 'vimeo.com') {
+    id = parts[0] ?? null;
+  } else if (host === 'player.vimeo.com' && parts[0] === 'video') {
+    id = parts[1] ?? null;
+  }
+  return id && VIMEO_ID.test(id) ? id : null;
+}
+
 /** Start offset in seconds from a `t=` / `start=` parameter (`90`, `1m30s`). */
 function parseYouTubeStartSeconds(url: URL): number | null {
   const value = url.searchParams.get('t') ?? url.searchParams.get('start');
@@ -89,7 +115,9 @@ export interface ExerciseVideoInfo {
   url: string;
   /** Set for YouTube links only. */
   youtubeId: string | null;
-  /** Privacy-enhanced embed URL (YouTube only). */
+  /** Set for Vimeo links only. */
+  vimeoId: string | null;
+  /** Privacy-enhanced embed URL (YouTube and Vimeo only). */
   embedUrl: string | null;
   /** Still image for a tappable preview (YouTube only). */
   thumbnailUrl: string | null;
@@ -103,12 +131,22 @@ export function getExerciseVideoInfo(
   if (!url) return null;
   const youtubeId = parseYouTubeVideoId(url);
   if (!youtubeId) {
-    return { url, youtubeId: null, embedUrl: null, thumbnailUrl: null };
+    const vimeoId = parseVimeoVideoId(url);
+    return {
+      url,
+      youtubeId: null,
+      vimeoId,
+      embedUrl: vimeoId
+        ? `https://player.vimeo.com/video/${vimeoId}?dnt=1`
+        : null,
+      thumbnailUrl: null,
+    };
   }
   const start = parseYouTubeStartSeconds(new URL(url));
   return {
     url,
     youtubeId,
+    vimeoId: null,
     embedUrl: `https://www.youtube-nocookie.com/embed/${youtubeId}?rel=0${
       start ? `&start=${start}` : ''
     }`,

@@ -49,12 +49,22 @@ async function withClient<T>(
   }
 }
 
+/**
+ * Runs `run` in a transaction that holds a per-person lock on their gyms, so
+ * two requests at once (double tap, two devices) queue up instead of racing
+ * the one-active-gym index into a 500. The index still guarantees the rule.
+ */
 async function inTransaction<T>(
   client: Client,
+  userId: string,
   run: () => Promise<T>
 ): Promise<T> {
   await client.query('BEGIN');
   try {
+    await client.query(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+      [`plate_inventories:${userId}`]
+    );
     const result = await run();
     await client.query('COMMIT');
     return result;
@@ -88,25 +98,26 @@ export async function savePlateInventory(
   data: SavePlateInventoryBody,
   authenticatedUserId?: string
 ): Promise<PlateInventoryResponse> {
-  return withClient(userId, authenticatedUserId, async (client) => {
-    const actor = authenticatedUserId ?? userId;
-    const values = [
-      userId,
-      data.weight_unit,
-      JSON.stringify(data.bars),
-      JSON.stringify(data.plates),
-      data.collars_enabled,
-      data.collar_weight,
-      actor,
-      data.name === undefined ? null : data.name,
-      data.dumbbells === undefined ? null : JSON.stringify(data.dumbbells),
-      data.machine_stacks === undefined
-        ? null
-        : JSON.stringify(data.machine_stacks),
-      data.name !== undefined,
-    ];
-    const updated = await client.query(
-      `UPDATE plate_inventories SET
+  return withClient(userId, authenticatedUserId, (client) =>
+    inTransaction(client, userId, async () => {
+      const actor = authenticatedUserId ?? userId;
+      const values = [
+        userId,
+        data.weight_unit,
+        JSON.stringify(data.bars),
+        JSON.stringify(data.plates),
+        data.collars_enabled,
+        data.collar_weight,
+        actor,
+        data.name === undefined ? null : data.name,
+        data.dumbbells === undefined ? null : JSON.stringify(data.dumbbells),
+        data.machine_stacks === undefined
+          ? null
+          : JSON.stringify(data.machine_stacks),
+        data.name !== undefined,
+      ];
+      const updated = await client.query(
+        `UPDATE plate_inventories SET
          weight_unit = $2,
          bars = $3::jsonb,
          plates = $4::jsonb,
@@ -119,11 +130,11 @@ export async function savePlateInventory(
          updated_at = NOW()
        WHERE user_id = $1 AND is_active
        RETURNING ${COLUMNS}`,
-      values
-    );
-    if (updated.rows[0]) return mapRow(updated.rows[0]);
-    const inserted = await client.query(
-      `INSERT INTO plate_inventories (
+        values
+      );
+      if (updated.rows[0]) return mapRow(updated.rows[0]);
+      const inserted = await client.query(
+        `INSERT INTO plate_inventories (
          user_id, weight_unit, bars, plates, collars_enabled, collar_weight,
          created_by_user_id, updated_by_user_id, name, dumbbells,
          machine_stacks, is_active
@@ -131,10 +142,11 @@ export async function savePlateInventory(
          COALESCE($9::jsonb, '[]'::jsonb), COALESCE($10::jsonb, '[]'::jsonb),
          TRUE)
        RETURNING ${COLUMNS}`,
-      values.slice(0, 10)
-    );
-    return mapRow(inserted.rows[0]);
-  });
+        values.slice(0, 10)
+      );
+      return mapRow(inserted.rows[0]);
+    })
+  );
 }
 
 /**
@@ -146,7 +158,7 @@ export async function deletePlateInventory(
   authenticatedUserId?: string
 ): Promise<boolean> {
   return withClient(userId, authenticatedUserId, (client) =>
-    inTransaction(client, async () => {
+    inTransaction(client, userId, async () => {
       const result = await client.query(
         'DELETE FROM plate_inventories WHERE user_id = $1 AND is_active',
         [userId]
@@ -193,7 +205,7 @@ export async function createGym(
   authenticatedUserId?: string
 ): Promise<PlateInventoryResponse> {
   return withClient(userId, authenticatedUserId, (client) =>
-    inTransaction(client, async () => {
+    inTransaction(client, userId, async () => {
       await client.query(
         'UPDATE plate_inventories SET is_active = FALSE WHERE user_id = $1 AND is_active',
         [userId]
@@ -232,7 +244,7 @@ export async function activateGym(
   authenticatedUserId?: string
 ): Promise<PlateInventoryResponse | null> {
   return withClient(userId, authenticatedUserId, (client) =>
-    inTransaction(client, async () => {
+    inTransaction(client, userId, async () => {
       const exists = await client.query(
         'SELECT 1 FROM plate_inventories WHERE id = $1 AND user_id = $2',
         [gymId, userId]
@@ -259,7 +271,7 @@ export async function deleteGym(
   authenticatedUserId?: string
 ): Promise<boolean> {
   return withClient(userId, authenticatedUserId, (client) =>
-    inTransaction(client, async () => {
+    inTransaction(client, userId, async () => {
       const result = await client.query(
         'DELETE FROM plate_inventories WHERE id = $1 AND user_id = $2',
         [gymId, userId]

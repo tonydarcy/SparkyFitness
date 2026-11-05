@@ -29,6 +29,14 @@ const query = vi.fn(async (_sql: string, _params?: unknown[]) => ({
   rowCount: 1,
 }));
 const release = vi.fn();
+const ok = { rows: [row], rowCount: 1 };
+const none = { rows: [], rowCount: 0 };
+/** Queues results for the statements after BEGIN and the per-person lock. */
+function afterLock(...results: (typeof ok | typeof none)[]) {
+  query.mockResolvedValueOnce(ok).mockResolvedValueOnce(ok);
+  for (const result of results) query.mockResolvedValueOnce(result);
+}
+const sqls = () => query.mock.calls.map((c) => c[0]);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -63,8 +71,8 @@ describe('plateInventoryRepository', () => {
 
   it('updates the active gym and records who made the change', async () => {
     await savePlateInventory('user-1', body, 'delegate-1');
-    expect(query).toHaveBeenCalledOnce();
-    const [sql, params] = query.mock.calls[0]!;
+    expect(sqls()).toHaveLength(4);
+    const [sql, params] = query.mock.calls[2]!;
     expect(sql).toContain('WHERE user_id = $1 AND is_active');
     expect(params?.[0]).toBe('user-1');
     expect(params?.[2]).toBe(JSON.stringify(body.bars));
@@ -75,14 +83,14 @@ describe('plateInventoryRepository', () => {
   });
 
   it('inserts the first gym when none is active', async () => {
-    query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    afterLock(none);
     const saved = await savePlateInventory('user-1', {
       ...body,
       name: 'Home',
       dumbbells: [2, 4],
     });
     expect(saved.id).toBe('inv-1');
-    const [sql, params] = query.mock.calls[1]!;
+    const [sql, params] = query.mock.calls[3]!;
     expect(sql).toContain('INSERT INTO plate_inventories');
     expect(params).toHaveLength(10);
     expect(params?.[7]).toBe('Home');
@@ -98,14 +106,12 @@ describe('plateInventoryRepository', () => {
 
   it('deletes the active gym in a transaction and activates another', async () => {
     expect(await deletePlateInventory('user-1')).toBe(true);
-    const sqls = query.mock.calls.map((c) => c[0]);
-    expect(sqls[0]).toBe('BEGIN');
-    expect(sqls[2]).toContain('SET is_active = TRUE');
-    expect(sqls[3]).toBe('COMMIT');
+    expect(sqls()[0]).toBe('BEGIN');
+    expect(sqls()[1]).toContain('pg_advisory_xact_lock');
+    expect(sqls()[3]).toContain('SET is_active = TRUE');
+    expect(sqls()[4]).toBe('COMMIT');
     query.mockClear();
-    query
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    afterLock(none);
     expect(await deletePlateInventory('user-1')).toBe(false);
     expect(release).toHaveBeenCalledTimes(2);
   });
@@ -118,27 +124,40 @@ describe('plateInventoryRepository', () => {
 
   it('creates a gym as the only active one', async () => {
     await createGym('user-1', { ...body, name: 'Work' });
-    const sqls = query.mock.calls.map((c) => c[0]);
-    expect(sqls[1]).toContain('SET is_active = FALSE');
-    expect(sqls[2]).toContain('INSERT INTO plate_inventories');
-    expect(query.mock.calls[2]![1]?.[1]).toBe('Work');
+    expect(sqls()[2]).toContain('SET is_active = FALSE');
+    expect(sqls()[3]).toContain('INSERT INTO plate_inventories');
+    expect(query.mock.calls[3]![1]?.[1]).toBe('Work');
   });
 
   it("won't activate another person's gym", async () => {
-    query
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    afterLock(none);
     expect(await activateGym('user-1', 'gym-x')).toBeNull();
     expect(query.mock.calls.at(-1)![0]).toBe('COMMIT');
   });
 
   it('activates a gym after clearing the others', async () => {
     expect((await activateGym('user-1', 'inv-1'))?.id).toBe('inv-1');
-    expect(query.mock.calls[2]![0]).toContain('SET is_active = FALSE');
+    expect(query.mock.calls[3]![0]).toContain('SET is_active = FALSE');
   });
 
   it('deletes a gym by id', async () => {
     expect(await deleteGym('user-1', 'inv-1')).toBe(true);
-    expect(query.mock.calls[1]![1]).toEqual(['inv-1', 'user-1']);
+    expect(query.mock.calls[2]![1]).toEqual(['inv-1', 'user-1']);
+  });
+
+  it("locks the person's gyms first so concurrent switches queue up", async () => {
+    await activateGym('user-1', 'inv-1');
+    expect(query.mock.calls[1]).toEqual([
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+      ['plate_inventories:user-1'],
+    ]);
+  });
+
+  it('rolls back when a statement fails', async () => {
+    afterLock();
+    query.mockRejectedValueOnce(new Error('boom'));
+    await expect(createGym('user-1', body)).rejects.toThrow('boom');
+    expect(sqls().at(-1)).toBe('ROLLBACK');
+    expect(release).toHaveBeenCalledOnce();
   });
 });

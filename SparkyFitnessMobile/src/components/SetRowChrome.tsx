@@ -719,6 +719,12 @@ export function useSetEditAccessoryBar({
   return { onRegisterAccessoryHandle, accessoryBar };
 }
 
+/**
+ * Sideways drag, in points, before a set row's swipe actions engage. Higher
+ * than the library's 10 so vertical scrolling through sets stays smooth.
+ */
+export const SET_ROW_SWIPE_OFFSET = 15;
+
 /** Right-swipe Delete action for ReanimatedSwipeable's renderRightActions. */
 export function SetSwipeDeleteAction({
   onPress,
