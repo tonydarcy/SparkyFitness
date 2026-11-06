@@ -18,6 +18,7 @@ import Icon from './Icon';
 import StepperInput from './StepperInput';
 import {
   SetInputAccessoryBar,
+  SET_ROW_SWIPE_OFFSET,
   SetSwipeDeleteAction,
   useAccessoryEpoch,
 } from './SetRowChrome';
@@ -442,6 +443,10 @@ function EditableSetRow({
       renderRightActions={() => <SetSwipeDeleteAction onPress={handleRemove} />}
       overshootRight={false}
       rightThreshold={40}
+      // A clear sideways drag before the row moves, so a slightly diagonal
+      // scroll through the log doesn't open copy or delete.
+      dragOffsetFromLeftEdge={SET_ROW_SWIPE_OFFSET}
+      dragOffsetFromRightEdge={SET_ROW_SWIPE_OFFSET}
     >
       <View className="flex-row items-center py-3 bg-background">
         <Text className="text-base text-text-muted w-10 text-center">

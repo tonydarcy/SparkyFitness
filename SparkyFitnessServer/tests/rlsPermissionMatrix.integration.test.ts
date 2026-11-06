@@ -1145,6 +1145,51 @@ describe.runIf(RUN)('RLS permission matrix', () => {
     });
 
     // -- custom/library: delegates read when entitled, only owner writes (F1) -
+    // -- owner-only: gym profiles (plate_inventories rows) -----------------
+    // No permission, however broad, lets anyone else read or change a gym.
+    describe('plate_inventories (owner-only gym profiles)', () => {
+      let id = '';
+      beforeAll(async () => {
+        const sys = await getSystemClient();
+        try {
+          await sys.query(
+            'DELETE FROM public.plate_inventories WHERE user_id = $1',
+            [OWNER]
+          );
+          const r = await sys.query(
+            "INSERT INTO public.plate_inventories (user_id, name) VALUES ($1, 'rls-matrix') RETURNING id",
+            [OWNER]
+          );
+          id = r.rows[0].id;
+        } finally {
+          sys.release();
+        }
+      });
+      afterAll(async () => {
+        const sys = await getSystemClient();
+        try {
+          await sys.query(
+            'DELETE FROM public.plate_inventories WHERE user_id = $1',
+            [OWNER]
+          );
+        } finally {
+          sys.release();
+        }
+      });
+      crudSuite({
+        table: 'plate_inventories',
+        read: [],
+        write: [],
+        insert: () => ({
+          // Inactive, so the one-active-gym index can't mask an RLS result.
+          sql: "INSERT INTO public.plate_inventories (user_id, name, is_active) VALUES ($1, 'rls-matrix-w', FALSE)",
+          params: [OWNER],
+        }),
+        touchColumn: 'name',
+        rowId: () => id,
+      });
+    });
+
     describe('food_variants (custom, owner-only write)', () => {
       let foodId = '';
       let variantId = '';

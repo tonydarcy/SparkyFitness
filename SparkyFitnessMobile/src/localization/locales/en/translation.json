@@ -114,7 +114,8 @@
     "notNow": "Not now",
     "undo": "Undo",
     "all": "All",
-    "builtIn": "Built-in"
+    "builtIn": "Built-in",
+    "copy": "Copy"
   },
   "settings": {
     "app": "App Settings",
@@ -371,7 +372,19 @@
       "rampDown": "Down",
       "rampAmountLabel": "Weight added per set ({{unit}})",
       "rampPlaceholder": "Off ({{unit}})",
-      "rampHint": "Each working set after the first pre-fills this much heavier (or lighter) in the same workout. Warm-up and drop sets are skipped."
+      "rampHint": "Each working set after the first pre-fills this much heavier (or lighter) in the same workout. Warm-up and drop sets are skipped.",
+      "doubleSummary": "Double · {{min}}–{{max}} reps · +{{value}} {{unit}}",
+      "tripleSummary": "Triple · {{min}}–{{max}} reps · +{{value}} {{unit}}",
+      "modeDouble": "Double",
+      "modeTriple": "Triple",
+      "repRangeTop": "Top of Rep Range",
+      "repRangeBottom": "Bottom of Rep Range",
+      "reason": {
+        "rangeClimbing": "{{setsAtTop}}/{{sets}} sets at {{repMax}} reps. Hold the weight and add reps.",
+        "rangeTopReached": "All sets hit {{repMax}} reps. Add weight and start again at {{repMin}} reps.",
+        "rangeAddSet": "All sets hit {{repMax}} reps. Add a set: {{nextSets}} sets of {{repMin}}.",
+        "stallDeload": "Missed the goal {{stalledSessions}} sessions in a row at this weight. Deload about {{deloadPercent}}% and build back up."
+      }
     },
     "liveActivity": {
       "rest": "Rest",
@@ -500,7 +513,8 @@
       "fillFromPrevious": "Fill set {{setNumber}} from previous",
       "startTimer": "Start stopwatch",
       "stopTimer": "Stop stopwatch",
-      "inputToolbar": "Set entry actions"
+      "inputToolbar": "Set entry actions",
+      "copy": "Copy set {{setNumber}}"
     },
     "columns": {
       "set": "Set",
@@ -573,7 +587,9 @@
       "previousLabel": "Previous exercise, {{name}}",
       "nextLabel": "Next exercise, {{name}}",
       "backToCurrent": "Back to current"
-    }
+    },
+    "setDeleted": "Set {{setNumber}} deleted",
+    "setDeletedUndo": "Tap to undo"
   },
   "addSheet": {
     "food": "Food",
@@ -1385,7 +1401,10 @@
     "focusMedia": "Exercise photo",
     "focusMediaSubtitle": "Open the focus view with the large photo card or a small thumbnail. You can change it during the workout.",
     "focusMediaLarge": "Large",
-    "focusMediaSmall": "Small"
+    "focusMediaSmall": "Small",
+    "restFlash": "Flash the screen when rest ends",
+    "restFlashSubtitle": "Tint the workout screen briefly when the rest timer runs out, for when you can't hear the sound.",
+    "restFlashAccessibility": "Flash the screen when rest ends"
   },
   "restPeriod": {
     "title": "Rest period",
@@ -1397,6 +1416,14 @@
     "buttonHint": "Opens rest period selection"
   },
   "diary": {
+    "view": {
+      "meals": "Meals",
+      "timeline": "Timeline"
+    },
+    "timeline": {
+      "noTime": "No time",
+      "addAt": "Add food at {{time}}"
+    },
     "chooseDate": "Choose diary date",
     "loading": "Loading diary...",
     "loadFailed": "Failed to load diary",
@@ -2375,7 +2402,15 @@
     "doAnotherFirst": "Do another exercise first…",
     "swapTitle": "Swap {{name}}",
     "doNowSets_one": "Do now · {{count}} set",
-    "doNowSets_other": "Do now · {{count}} sets"
+    "doNowSets_other": "Do now · {{count}} sets",
+    "videoLink": "Video link",
+    "videoLinkPlaceholder": "https://youtube.com/shorts/…",
+    "videoLinkHelp": "A short demonstration clip, shown in the How to tab and during workouts.",
+    "invalidVideoLink": "Invalid video link",
+    "invalidVideoLinkHint": "Enter a link starting with https://",
+    "useBackupExercise": "Taken? Use {{name}}",
+    "backupExercise": "the backup",
+    "backupFailed": "Could not load the backup exercise"
   },
   "cycleCard": {
     "mode": {
@@ -3785,7 +3820,11 @@
     "deleteExercise": "Delete Exercise",
     "makePrivate": "Make private",
     "shareWithPublic": "Share with public",
-    "deleteSheetTitle": "Delete exercise"
+    "deleteSheetTitle": "Delete exercise",
+    "watchVideo": "Watch {{name}} demo",
+    "demo": "Demo",
+    "watchOnYouTube": "Watch on YouTube",
+    "watchDemo": "Watch demonstration video"
   },
   "mealTypeSettings": {
     "reorder": "Reorder {{name}}",
@@ -3872,7 +3911,34 @@
     "emptyTitle": "No workout plans yet",
     "emptySubtitle": "Schedule your saved workouts on set days, or as a cycle you work through.",
     "moreAssignments_one": "+{{count}} more",
-    "moreAssignments_other": "+{{count}} more"
+    "moreAssignments_other": "+{{count}} more",
+    "starter": {
+      "title": "Starter plans",
+      "subtitle": "Add a ready-made plan as editable presets. It runs as a rotation: the next workout is the next one you have not done, whatever day it is.",
+      "add": "Add plan",
+      "adding": "Adding…",
+      "added": "Starter plan added. Its workouts are in your presets.",
+      "addFailed": "Could not add the starter plan.",
+      "fullBody": "Full Body",
+      "fullBodyDescription": "Two whole-body workouts, A and B, alternating. Good for 2 to 3 days a week.",
+      "fullBodyA": "Full Body A",
+      "fullBodyB": "Full Body B",
+      "upperLower": "Upper / Lower",
+      "upperLowerDescription": "Four workouts rotating upper and lower body. Good for 4 days a week.",
+      "upperA": "Upper A",
+      "lowerA": "Lower A",
+      "upperB": "Upper B",
+      "lowerB": "Lower B",
+      "pushPullLegs": "Push / Pull / Legs",
+      "pushPullLegsDescription": "Pushing, pulling and leg workouts in turn. Run it 3 or 6 days a week.",
+      "push": "Push",
+      "pull": "Pull",
+      "legs": "Legs",
+      "fiveByFive": "5×5",
+      "fiveByFiveDescription": "Three big barbell lifts per workout, 5 sets of 5, adding weight each time you complete them.",
+      "fiveByFiveA": "5×5 A",
+      "fiveByFiveB": "5×5 B"
+    }
   },
   "addMenuSettings": {
     "reorder": "Reorder {{name}}",
@@ -4118,7 +4184,8 @@
       "mealForRow": "Meal for {{food}}: {{meal}}",
       "increaseQuantity": "Increase quantity",
       "decreaseQuantity": "Decrease quantity",
-      "changeServing": "Change serving for {{name}}"
+      "changeServing": "Change serving for {{name}}",
+      "timeForAll": "Time for all items: {{time}}"
     },
     "actions": {
       "addAll_one": "Add all ({{count}})",
@@ -4600,6 +4667,7 @@
     "selectMeal": "Select Meal",
     "time": "Time",
     "unknownFood": "Unknown food",
+    "copyEntry": "Copy Food",
     "deleteEntry": "Delete Entry",
     "servingOptionsHint": "Opens serving options",
     "mealSelectorHint": "Opens meal selection",
@@ -5488,7 +5556,10 @@
     "removeExercise": "Remove exercise",
     "addExercise": "Add Exercise",
     "exercise": "Exercise",
-    "duplicateExercise": "Duplicate exercise"
+    "duplicateExercise": "Duplicate exercise",
+    "setBackupExercise": "Set backup exercise…",
+    "changeBackupExercise": "Backup: {{name}}",
+    "removeBackupExercise": "Remove backup exercise"
   },
   "whatsNew": {
     "seeUpdate": "See what's new in this update",
@@ -5523,10 +5594,20 @@
   },
   "copyMeal": {
     "title": "Copy meal: {{meal}}",
+    "foodTitle": "Copy food: {{food}}",
     "sourceDate": "Source date: {{date}}",
+    "copyTo": "Copy to",
+    "quick": {
+      "now": "Now",
+      "today": "Today",
+      "tomorrow": "Tomorrow"
+    },
     "targetDate": "Target date",
+    "multipleDaysHint": "Tap more days to copy to each of them.",
     "targetMeal": "Target meal",
     "copy": "Copy",
+    "copyToDays_one": "Copy to {{count}} day",
+    "copyToDays_other": "Copy to {{count}} days",
     "copying": "Copying...",
     "duplicateTitle": "Can't copy meal",
     "duplicateMessage": "Duplicate meal-type names cannot currently be used for Copy Meal."
@@ -5603,7 +5684,12 @@
   },
   "foodEntryCopy": {
     "success": "Meal copied",
-    "failed": "Failed to copy meal"
+    "failed": "Failed to copy meal",
+    "successDays_one": "Meal copied to {{count}} day",
+    "successDays_other": "Meal copied to {{count}} days",
+    "partial": "Copied to {{copied}} of {{total}} days",
+    "foodSuccess": "Food copied",
+    "foodFailed": "Failed to copy food"
   },
   "foodDelete": {
     "failed": "Failed to delete food",
@@ -7047,7 +7133,10 @@
       "more": "More",
       "notOnFigure": "Not on the figure",
       "male": "Male",
-      "female": "Female"
+      "female": "Female",
+      "trained": "Trained",
+      "untrained": "Untrained",
+      "untrainedHint": "Highlighted muscles had no working sets in this range"
     },
     "analysis": {
       "title": "More Analysis",
@@ -7224,6 +7313,9 @@
         "restingHeartRate": "Resting heart rate",
         "hrv": "HRV"
       },
+      "sign": {
+        "raisedRespiratoryRate": "Breathing rate {{current}} per minute against your usual {{baseline}}. A raised breathing rate can be an early sign of illness, so take it easy if you feel unwell."
+      },
       "vital": {
         "hrv": "{{current}} ms against your usual {{baseline}} ms",
         "hrvNights": "{{current}} ms against your usual {{baseline}} ms (median of {{count}} nights)",
@@ -7252,6 +7344,29 @@
       "fromTypical_one": "Estimated from your last {{formattedCount}} run, so less precise. A hard run of 3 km or more sharpens it.",
       "fromTypical_other": "Estimated from your last {{formattedCount}} runs, so less precise. A hard run of 3 km or more sharpens it.",
       "fromTest": "Set by your latest fitness test. Threshold pace is about {{pace}} {{unit}}."
+    },
+    "strengthBalance": {
+      "title": "Strength balance",
+      "subtitle": "All-time bests, estimated one-rep max",
+      "lifetimeVolume": "Lifetime volume",
+      "lifetimeSets": "Sets",
+      "lifetimeSessions": "Sessions",
+      "bodyweightMultiple": "{{value}}× body weight",
+      "noKeyLifts": "Log a squat, bench press, deadlift, overhead press or row to see how they compare.",
+      "ratios": "Ratios",
+      "noBodyweight": "Log your body weight to see lifts as a multiple of it.",
+      "lifts": {
+        "squat": "Squat",
+        "bench": "Bench press",
+        "deadlift": "Deadlift",
+        "overheadPress": "Overhead press",
+        "row": "Row"
+      },
+      "status": {
+        "low": "Below range",
+        "high": "Above range",
+        "balanced": "Balanced"
+      }
     }
   },
   "customCategories": {
@@ -8412,7 +8527,8 @@
       "restingHrChart": "Resting heart rate chart",
       "heartRateRangeTimeline": "Average heart rate by day",
       "heartRateDayTimeline": "Heart rate through the day",
-      "heartRateZones": "Intensity zones"
+      "heartRateZones": "Intensity zones",
+      "strengthBalance": "Strength balance"
     },
     "hydrationSections": "Hydration report",
     "measurementsSections": "Measurements report",
@@ -9710,7 +9826,24 @@
     "calculatorShort": "Calculator",
     "barCard": "Bar {{number}}: {{name}}",
     "removeBarShort": "Remove",
-    "barWeightUnit": "Weight ({{unit}})"
+    "barWeightUnit": "Weight ({{unit}})",
+    "dumbbellsHeading": "Dumbbells ({{unit}})",
+    "dumbbellsHint": "Each size you have, separated by spaces. Leave empty if you have none.",
+    "gym": {
+      "heading": "Gym",
+      "name": "Name",
+      "namePlaceholder": "Home, work, hotel…",
+      "hint": "Each gym keeps its own equipment. Workouts use the active gym, and progression rounds to the dumbbells and machine stacks it has.",
+      "machineStacks_one": "{{count}} machine weight stack saved (edit it on the web).",
+      "machineStacks_other": "{{count}} machine weight stacks saved (edit them on the web).",
+      "add": "Add gym",
+      "newName": "Gym {{number}}",
+      "unnamed": "Gym {{number}}",
+      "delete": "Delete gym",
+      "deleteTitle": "Delete this gym?",
+      "deleteDescription": "Its plates, bars, dumbbells and machine stacks are removed. Another gym becomes active.",
+      "changeFailed": "Could not change gyms"
+    }
   },
   "labs": {
     "add": "Add lab result",

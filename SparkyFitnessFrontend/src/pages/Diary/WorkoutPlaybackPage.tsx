@@ -17,8 +17,12 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   distributeProgressionReps,
   evaluateProgression,
+  gymWeightStepsFor,
+  snapToWeightStep,
   type ExerciseProgressionConfig,
   type LastExercisePerformance,
+  progressionModeSchema,
+  type ProgressionMode,
 } from '@workspace/shared';
 import {
   DEFAULT_REST_SECONDS,
@@ -60,6 +64,8 @@ import {
   shouldSuggestVariation,
 } from '@workspace/shared';
 import { fetchWorkoutCoachingSignals } from '@/hooks/Exercises/useWorkoutCoaching';
+import { fetchBackupExercise } from '@/hooks/Exercises/backupExercise';
+import { fetchActiveGymForProgression } from '@/hooks/PlateInventory/usePlateInventory';
 import WorkoutPlaybackDialogs from './WorkoutPlaybackDialogs';
 import WorkoutPlaybackExercisesList from './WorkoutPlaybackExercisesList';
 import WorkoutPlaybackIntervalHud from './WorkoutPlaybackIntervalHud';
@@ -230,6 +236,10 @@ const WorkoutPlaybackPage = () => {
             )
           ).catch(() => null)
         : null;
+      // The active gym's dumbbells and machine stacks, so a progressed
+      // weight lands on one that exists. Missing (none saved, an older
+      // server, or a delegate) just leaves weights unrounded.
+      const activeGym = await fetchActiveGymForProgression();
       const signalById = new Map(
         (signalsResponse?.signals ?? []).map((signal) => [
           signal.exercise_id,
@@ -248,66 +258,77 @@ const WorkoutPlaybackPage = () => {
               exercise.exercise_id
             );
             if (!stats) return exercise;
-            const allPreviousSets = stats?.recentSessions?.[0]?.sets ?? [];
-
-            // Exclude warmup sets from prior session to establish true working baseline
-            const workingPreviousSets = allPreviousSets.filter(
-              (s: {
-                set_type?: string | null;
-                reps?: number | null;
-                weight?: number | null;
-              }) => !isWarmup(s.set_type)
-            );
-
-            if (workingPreviousSets.length > 0) {
-              const firstWorking = workingPreviousSets[0];
-              const rawKg = firstWorking.weight
-                ? Number(firstWorking.weight)
-                : 0;
-              const baseWeightInDisplayUnit =
-                rawKg > 0 ? weightFromKg(rawKg, weightUnit) : 0;
-
-              const lastPerf: LastExercisePerformance = {
-                baseWeight: baseWeightInDisplayUnit,
-                sets: workingPreviousSets.map(
-                  (
-                    s: {
-                      set_number?: number;
-                      reps: number | null;
-                      weight: number | null;
-                    },
-                    idx: number
-                  ) => ({
-                    setNumber: idx + 1,
-                    reps: Number(s.reps) || 0,
-                    weight: s.weight
-                      ? weightFromKg(Number(s.weight), weightUnit)
-                      : 0,
-                  })
-                ),
+            type PreviousSet = {
+              set_type?: string | null;
+              setType?: string | null;
+              reps?: number | null;
+              weight?: number | null;
+            };
+            // Working sets only (warm-ups excluded), weights in the display
+            // unit like everything the engine compares.
+            const toPerformance = (
+              sets: readonly PreviousSet[]
+            ): LastExercisePerformance | null => {
+              const working = sets.filter(
+                (s) => !isWarmup(s.set_type ?? s.setType)
+              );
+              if (working.length === 0) return null;
+              const firstWeight = working[0]?.weight;
+              const firstKg = firstWeight ? Number(firstWeight) : 0;
+              return {
+                baseWeight: firstKg > 0 ? weightFromKg(firstKg, weightUnit) : 0,
+                sets: working.map((s, idx) => ({
+                  setNumber: idx + 1,
+                  reps: Number(s.reps) || 0,
+                  weight: s.weight
+                    ? weightFromKg(Number(s.weight), weightUnit)
+                    : 0,
+                })),
               };
+            };
+            const recentSessions: { sets: PreviousSet[] }[] =
+              stats?.recentSessions ?? [];
+            const workingPreviousSets = (
+              (recentSessions[0]?.sets ?? []) as PreviousSet[]
+            ).filter((s) => !isWarmup(s.set_type ?? s.setType));
+            const lastPerf = toPerformance(recentSessions[0]?.sets ?? []);
 
-              const progressionMode =
-                exercise.progression_mode === 'fixed' ||
-                exercise.progression_mode === 'step_load' ||
-                exercise.progression_mode === 'manual'
-                  ? exercise.progression_mode
+            if (lastPerf) {
+              const baseWeightInDisplayUnit = lastPerf.baseWeight;
+              const earlierSessions = recentSessions
+                .slice(1)
+                .map((session) => toPerformance(session.sets))
+                .filter((p): p is LastExercisePerformance => p != null);
+
+              const progressionMode: ProgressionMode =
+                exercise.progression_mode != null &&
+                progressionModeSchema.safeParse(exercise.progression_mode)
+                  .success
+                  ? (exercise.progression_mode as ProgressionMode)
                   : 'rep_goal';
+              const isRangeMode =
+                progressionMode === 'double' || progressionMode === 'triple';
 
-              const incrementType =
-                exercise.increment_type === 'reps' ? 'reps' : 'weight';
+              // Double and triple always add load; step-load always reps.
+              const incrementType = isRangeMode
+                ? 'weight'
+                : exercise.increment_type === 'reps'
+                  ? 'reps'
+                  : 'weight';
 
               // Only count working sets towards targetSets (exclude warmups)
               const workingCurrentSets = exercise.sets.filter(
                 (s) => !isWarmup(s.set_type)
               );
               const targetSets = workingCurrentSets.length || 3;
-              const effectiveRepGoal = exercise.rep_goal ?? targetSets * 8;
+              const effectiveRepGoal =
+                exercise.rep_goal ?? (isRangeMode ? 12 : targetSets * 8);
 
               const config: ExerciseProgressionConfig = {
                 progressionMode,
                 targetSets,
                 repGoal: effectiveRepGoal,
+                repRangeMin: exercise.rep_range_min ?? null,
                 incrementType,
                 // Weight increments are stored kg; the engine works in the
                 // display unit like the weights above. Step-load raises reps,
@@ -322,58 +343,91 @@ const WorkoutPlaybackPage = () => {
                 equipmentBrand: exercise.equipment_brand ?? undefined,
               };
 
-              const progression = evaluateProgression(config, lastPerf);
+              const progression = evaluateProgression(
+                config,
+                lastPerf,
+                earlierSessions
+              );
 
-              if (progression.goalAchieved) {
-                // Case A: Weight Progression -> bump each working set from its
-                // own prior weight (preserves pyramid/ascending-weight sets
-                // instead of flattening every set to one suggested weight)
+              // Weight moves by the increment on a load increase, or down to
+              // the suggested weight on a stall deload; each working set
+              // moves from its own prior weight, so pyramids keep their shape.
+              const weightDelta =
+                progression.status === 'PROGRESSION_WEIGHT_INCREASE' &&
+                config.incrementType === 'weight'
+                  ? config.incrementValue
+                  : progression.status === 'DELOAD'
+                    ? progression.suggestedWeight - baseWeightInDisplayUnit
+                    : 0;
+              const weightSteps = gymWeightStepsFor(
+                activeGym,
+                exercise.exercise_id,
+                exercise.equipment,
+                weightUnit === 'lbs' ? 'lbs' : 'kg'
+              );
+              let sets = exercise.sets;
+              if (weightDelta !== 0 && baseWeightInDisplayUnit > 0) {
+                let workingIndex = 0;
+                sets = sets.map((s) => {
+                  if (isWarmup(s.set_type)) return s;
+                  const previousSet = workingPreviousSets[workingIndex];
+                  workingIndex += 1;
+                  const previousWeightInDisplayUnit = previousSet?.weight
+                    ? weightFromKg(Number(previousSet.weight), weightUnit)
+                    : baseWeightInDisplayUnit;
+                  const targetKg = weightToKgLocal(
+                    snapToWeightStep(
+                      Math.max(0, previousWeightInDisplayUnit + weightDelta),
+                      weightSteps,
+                      weightDelta > 0 ? 'up' : 'down'
+                    ),
+                    weightUnit
+                  );
+                  return { ...s, weight: targetKg };
+                });
+              }
+
+              // Rep targets per working set: a raised goal (fixed mode is per
+              // set, the others split a session total), or the bottom of the
+              // range after double/triple moves on. Triple can add a set,
+              // copied from the last working set.
+              const repTargets = distributeProgressionReps(
+                progression,
+                progressionMode,
+                workingCurrentSets.length
+              );
+              if (repTargets) {
+                const lastWorking = [...sets]
+                  .reverse()
+                  .find((s) => !isWarmup(s.set_type));
                 if (
-                  config.incrementType === 'weight' &&
-                  baseWeightInDisplayUnit > 0
+                  lastWorking &&
+                  repTargets.length > workingCurrentSets.length
                 ) {
-                  hasChanges = true;
-                  let workingIndex = 0;
-                  return {
-                    ...exercise,
-                    sets: exercise.sets.map((s) => {
-                      if (isWarmup(s.set_type)) return s;
-                      const previousSet = workingPreviousSets[workingIndex];
-                      workingIndex += 1;
-                      const previousWeightInDisplayUnit = previousSet?.weight
-                        ? weightFromKg(Number(previousSet.weight), weightUnit)
-                        : baseWeightInDisplayUnit;
-                      const targetKg = weightToKgLocal(
-                        previousWeightInDisplayUnit + config.incrementValue,
-                        weightUnit
-                      );
-                      return { ...s, weight: targetKg };
-                    }),
-                  };
+                  sets = [
+                    ...sets,
+                    ...repTargets
+                      .slice(workingCurrentSets.length)
+                      .map((_, i) => ({
+                        ...lastWorking,
+                        set_number: sets.length + i + 1,
+                        completed: false,
+                        completed_at: null,
+                      })),
+                  ];
                 }
+                let workingSetCounter = 0;
+                sets = sets.map((s) => {
+                  if (isWarmup(s.set_type)) return s;
+                  const setReps = repTargets[workingSetCounter] ?? s.reps;
+                  workingSetCounter++;
+                  return { ...s, reps: setReps };
+                });
+              }
 
-                // Case B: Rep Progression -> Only update working sets (preserve
-                // warmups). Fixed mode's target is per set; the other modes
-                // split a session total.
-                const repTargets = distributeProgressionReps(
-                  progression,
-                  progressionMode,
-                  workingCurrentSets.length
-                );
-                if (repTargets) {
-                  hasChanges = true;
-                  let workingSetCounter = 0;
-
-                  return {
-                    ...exercise,
-                    sets: exercise.sets.map((s) => {
-                      if (isWarmup(s.set_type)) return s;
-                      const setReps = repTargets[workingSetCounter] ?? s.reps;
-                      workingSetCounter++;
-                      return { ...s, reps: setReps };
-                    }),
-                  };
-                }
+              if (sets !== exercise.sets) {
+                hasChanges = true;
+                return { ...exercise, sets };
               }
             }
           } catch (e) {
@@ -792,6 +846,23 @@ const WorkoutPlaybackPage = () => {
     [replaceExerciseIndex, updateDraft]
   );
 
+  const handleUseBackupExercise = useCallback(
+    async (exerciseIndex: number) => {
+      const backupId =
+        draftRef.current?.exercises[exerciseIndex]?.backup_exercise_id;
+      if (!backupId) return;
+      // A failed load shows the API's error toast; nothing changes.
+      const backup = await fetchBackupExercise(backupId);
+      if (!backup) return;
+      updateDraft((currentDraft) =>
+        replaceExerciseInWorkoutDraft(currentDraft, exerciseIndex, backup, {
+          asBackup: true,
+        })
+      );
+    },
+    [updateDraft]
+  );
+
   const handleAdaptiveDeclined = useCallback(
     (exerciseIndex: number, declined: boolean) => {
       updateDraft((currentDraft) =>
@@ -1161,6 +1232,7 @@ const WorkoutPlaybackPage = () => {
         onAddSet={handleAddSet}
         onAddDropSets={handleAddDropSets}
         onReplaceExercise={setReplaceExerciseIndex}
+        onUseBackupExercise={(index) => void handleUseBackupExercise(index)}
         onAdaptiveDeclined={handleAdaptiveDeclined}
         weightUnit={weightUnit}
       />

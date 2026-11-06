@@ -8,6 +8,7 @@ import {
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import foodCoreService from '../../services/foodCoreService.js';
+import customNutrientService from '../../services/customNutrientService.js';
 import foodEntryService from '../../services/foodEntryService.js';
 import mealService from '../../services/mealService.js';
 import preferenceService from '../../services/preferenceService.js';
@@ -1048,6 +1049,16 @@ Actions:
             }
             if (args.entry_id && args.entry_type) {
               return 'delete_entry';
+            }
+            // custom_nutrients is only accepted by update_food_variant. Check
+            // it before the food_name/meal/food_id branches: any of those
+            // would pick an action whose strict schema drops the nutrient
+            // edit (or, for a bare food_id, delete the food).
+            if (
+              (args.food_id || args.variant_id) &&
+              args.custom_nutrients !== undefined
+            ) {
+              return 'update_food_variant';
             }
             if (args.amount_ml) {
               return 'log_water';
@@ -2736,6 +2747,33 @@ Actions:
                 if (value !== undefined) {
                   updates[dbField] = value;
                 }
+              }
+              const customInput = (args as Record<string, unknown>)
+                .custom_nutrients as Record<string, number> | undefined;
+              if (customInput && Object.keys(customInput).length > 0) {
+                // Only the user's defined nutrients are kept, and the given
+                // amounts merge into the stored ones so setting one nutrient
+                // does not erase the others.
+                const defined = new Set(
+                  (
+                    (await customNutrientService.getCustomNutrients(
+                      userId
+                    )) as { name: string }[]
+                  ).map((n) => n.name)
+                );
+                const unknown = Object.keys(customInput).filter(
+                  (name) => !defined.has(name)
+                );
+                if (unknown.length > 0) {
+                  return ERRORS.VALIDATION(
+                    `Unknown custom nutrient(s): ${unknown.join(', ')}. Use list_custom_nutrients for the exact names.`
+                  );
+                }
+                updates.custom_nutrients = {
+                  ...((variant.custom_nutrients as Record<string, unknown>) ??
+                    {}),
+                  ...customInput,
+                };
               }
               if (Object.keys(updates).length === 0) {
                 // MCP quirk: "at least one field" threw and surfaced as a

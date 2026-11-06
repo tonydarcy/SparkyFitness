@@ -111,14 +111,14 @@ These tables are managed by Better Auth and are not exposed through family shari
 | `exercise_entry_sets` | Reps, weights, and sets completed |
 | `exercise_entry_activity_details` | Heart rate, distance, activity data |
 | `shoes` | Running-shoe inventory with retirement mileage; linked from `exercise_entries.shoe_id` |
-| `plate_inventories` | Bars and plates a person owns, for the plate calculator (one row per user) |
+| `plate_inventories` | Gym profiles: bars, plates, dumbbells and machine stacks per gym (one active per user) |
 | `action_tags` | NFC tags: a random tag code plus the saved action a tap runs (owner-only) |
 | `exercise_entry_laps` | Lap split intervals for workouts |
 | `exercise_entry_hr_zones` | Heart-rate time-in-zone splits per workout |
 | `exercise_entry_distance_series` | Distance-against-time rows for an indoor entry with no route, behind its pace chart. One row per workout (`points` is JSONB) |
 | `exercise_entry_gps_points` | GPS trackpoints & second-by-second telemetry. One row per workout (the `points` column holds the whole track as JSONB), not one row per trackpoint |
 | `workout_presets` | Custom workout/preset templates |
-| `workout_preset_exercises` | Exercises assigned to presets |
+| `workout_preset_exercises` | Exercises assigned to presets, with an optional backup exercise per slot |
 | `workout_preset_exercise_sets` | Reps/sets configured in presets |
 | `workout_plan_templates` | Templates for weekly and sequential workout schedules |
 | `workout_plan_template_assignments` | Scheduled workout templates (weekday or ordered sequence) |

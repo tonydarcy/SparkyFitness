@@ -1415,7 +1415,12 @@
       "validationError": "Row {{rowNum}}: Missing required 'entry_date' or 'exercise_name'. Skipping row.",
       "copiedToClipboard": "'{{value}}' copied to clipboard.",
       "importError": "Failed to import exercise history. Please try again.",
-      "partialImportError": "Some entries could not be imported: {{details}}"
+      "partialImportError": "Some entries could not be imported: {{details}}",
+      "appExportsInfo": "You can also upload a workout export from FitNotes or Strong as it is. It is recognised by its columns, and weights and distances are converted to your units.",
+      "appRowSkipped": "Row {{row}}: no date or exercise name.",
+      "fitnotesDetected": "FitNotes export",
+      "strongDetected": "Strong export",
+      "appSessionsFound": "{{count}} exercise sessions ready to import."
     },
     "exerciseSearch": {
       "add": "Add",
@@ -1490,7 +1495,9 @@
       "volume": "Volume",
       "replaceExercise": "Replace exercise",
       "replaceExerciseNamed": "Replace {{name}}",
-      "sets": "{{completedSets}}/{{totalSets}} sets"
+      "sets": "{{completedSets}}/{{totalSets}} sets",
+      "useBackup": "Taken? Use {{name}}",
+      "backupExercise": "the backup"
     },
     "workoutFinishSummary": {
       "title": "Workout complete",
@@ -1523,6 +1530,16 @@
       "empty": "No alternatives found",
       "retry": "Retry",
       "catalogUnavailable": "Free Exercise DB is unavailable, so only your library is shown."
+    },
+    "video": {
+      "embedTitle": "{{name}} demonstration video",
+      "help": "A short demonstration clip. YouTube links play right in the workout.",
+      "invalid": "Enter a link starting with https://",
+      "label": "Video link",
+      "openOnVimeo": "Open on Vimeo",
+      "openOnYouTube": "Open on YouTube",
+      "placeholder": "https://youtube.com/shorts/…",
+      "watch": "Watch demonstration video"
     }
   },
   "workoutPresetsManager": {
@@ -1591,7 +1608,34 @@
     "scheduledWorkout": "Workout Session",
     "activePlanLabel": "Active plan: {{name}}",
     "failedToLoadActivePlan": "Failed to load active workout plan.",
-    "currentOfTotal": "({{current}} of {{total}})"
+    "currentOfTotal": "({{current}} of {{total}})",
+    "starterPlans": {
+      "title": "Starter plans",
+      "subtitle": "Add a ready-made plan as editable presets. It runs as a rotation: the next workout is the next one you have not done, whatever day it is.",
+      "add": "Add plan",
+      "adding": "Adding…",
+      "added": "Starter plan added. Its workouts are in your presets.",
+      "addFailed": "Could not add the starter plan.",
+      "fullBody": "Full Body",
+      "fullBodyDescription": "Two whole-body workouts, A and B, alternating. Good for 2 to 3 days a week.",
+      "fullBodyA": "Full Body A",
+      "fullBodyB": "Full Body B",
+      "upperLower": "Upper / Lower",
+      "upperLowerDescription": "Four workouts rotating upper and lower body. Good for 4 days a week.",
+      "upperA": "Upper A",
+      "lowerA": "Lower A",
+      "upperB": "Upper B",
+      "lowerB": "Lower B",
+      "pushPullLegs": "Push / Pull / Legs",
+      "pushPullLegsDescription": "Pushing, pulling and leg workouts in turn. Run it 3 or 6 days a week.",
+      "push": "Push",
+      "pull": "Pull",
+      "legs": "Legs",
+      "fiveByFive": "5×5",
+      "fiveByFiveDescription": "Three big barbell lifts per workout, 5 sets of 5, adding weight each time you complete them.",
+      "fiveByFiveA": "5×5 A",
+      "fiveByFiveB": "5×5 B"
+    }
   },
   "exerciseCard": {
     "workoutLocation": "Gym / Location",
@@ -2583,7 +2627,7 @@
         "title": "Exercise Database (CSV)"
       },
       "exerciseHistory": {
-        "description": "Import past workouts, sets, reps, and weights.",
+        "description": "Import past workouts, sets, reps, and weights, including FitNotes and Strong exports.",
         "title": "Workout History (CSV)"
       },
       "food": {
@@ -3719,6 +3763,19 @@
       "restore": "Restore",
       "hide": "Hide",
       "layoutErrorNotice": "The customizable layout hit an error, so a simple view is shown. Your saved layout is kept."
+    },
+    "view": {
+      "label": "Diary view",
+      "meals": "Meals",
+      "timeline": "Timeline"
+    },
+    "timeline": {
+      "title": "Timeline",
+      "addFood": "Add food",
+      "addAt": "Add food at {{time}}",
+      "addDescription": "Pick a food or meal. You can adjust the time and meal next.",
+      "noTime": "No time",
+      "macros": "P {{p}} · C {{c}} · F {{f}}"
     },
     "nutrientLabels": {
       "cal": "cal",
@@ -4863,7 +4920,12 @@
     "timeCapLabel": "Time Cap (minutes)",
     "rampLabel": "Add per set (this workout, {{unit}})",
     "rampPlaceholder": "Off",
-    "rampHint": "Each working set after the first pre-fills this much heavier in the same workout; use a negative number to ramp down. Warm-up and drop sets are skipped."
+    "rampHint": "Each working set after the first pre-fills this much heavier in the same workout; use a negative number to ramp down. Warm-up and drop sets are skipped.",
+    "backupExercise": "Backup exercise",
+    "backupExerciseHint": "Swap it in during a workout when this one is taken; the sets stay the same.",
+    "backupChosen": "Chosen",
+    "backupNone": "None, pick one",
+    "clearBackupExercise": "Remove backup exercise"
   },
   "addWorkoutPlanDialog": {
     "editTitle": "Edit Workout Plan",
@@ -5564,7 +5626,11 @@
     "notOnFigure": "Not on the figure",
     "figure": "Body figure",
     "male": "Male",
-    "female": "Female"
+    "female": "Female",
+    "view": "Heat map view",
+    "trained": "Trained",
+    "untrained": "Untrained",
+    "untrainedHint": "Highlighted muscles had no working sets in this range"
   },
   "muscleGroupRecovery": {
     "title": "Muscle Group Recovery",
@@ -9036,7 +9102,15 @@
       "supersetA": "SUPERSET A",
       "supersetB": "SUPERSET B",
       "supersetC": "SUPERSET C",
-      "supersetD": "SUPERSET D"
+      "supersetD": "SUPERSET D",
+      "doubleProgression": "Double Progression (Rep Range)",
+      "tripleProgression": "Triple Progression (Reps, Sets, Load)",
+      "repRangeTop": "Top of Rep Range",
+      "repRangeBottom": "Bottom of Rep Range",
+      "doubleTripleGuideTitle": "Double and Triple Progression (Rep Range)",
+      "doubleGuideBody": "Set a rep range per set, such as 8 to 12. Keep the load while reps climb. Once every working set reaches the top of the range, the load goes up by your increment and reps drop back to the bottom.",
+      "tripleGuideBody": "Triple progression adds a set before adding load: up to two sets more than planned. Once those are all at the top, the load goes up and you go back to the planned sets.",
+      "deloadGuideBody": "• Any mode that adds weight suggests a deload of about 10% (in whole increments) after three sessions in a row miss the goal at the same load."
     },
     "workoutPlansManager": {
       "openMenu": "Open menu"
@@ -10010,7 +10084,33 @@
     "failedToSave": "Failed to save plates and bars.",
     "failedToReset": "Failed to reset plates and bars.",
     "saved": "Plates and bars saved.",
-    "reset": "Plates and bars reset."
+    "reset": "Plates and bars reset.",
+    "dumbbells": "Dumbbells",
+    "dumbbellsHeading": "Dumbbells ({{unit}})",
+    "dumbbellsHint": "Each size you have, separated by spaces. Leave empty if you have none.",
+    "machines": "Machines",
+    "machinesHeading": "Machine weight stacks ({{unit}})",
+    "machinesHint": "List the pin settings a machine really has, odd steps included. Progression rounds to them for that exercise.",
+    "machineUnnamed": "Machine",
+    "removeMachine": "Remove {{name}}",
+    "addMachine": "Add machine",
+    "pickMachine": "Pick the exercise you do on this machine.",
+    "gym": {
+      "heading": "Gym",
+      "name": "Name",
+      "namePlaceholder": "Home, work, hotel…",
+      "hint": "Each gym keeps its own equipment. Workouts use the active gym, and progression rounds to the dumbbells and machine stacks it has.",
+      "add": "Add gym",
+      "added": "Gym added.",
+      "newName": "Gym {{number}}",
+      "unnamed": "Gym {{number}}",
+      "switched": "Gym switched.",
+      "delete": "Delete gym",
+      "deleted": "Gym deleted.",
+      "deleteTitle": "Delete this gym?",
+      "deleteDescription": "Its plates, bars, dumbbells and machine stacks are removed. Another gym becomes active.",
+      "changeFailed": "Could not change gyms"
+    }
   },
   "heartRate": {
     "exerciseSession": "Exercise Session",
@@ -10256,5 +10356,28 @@
     "valueInvalid": "Enter a marker and a numeric result.",
     "historyCutOff": "History shows at most the newest {{count}} results.",
     "dateInvalid": "Enter the date of the test."
+  },
+  "strengthBalance": {
+    "title": "Strength balance",
+    "subtitle": "All-time bests, estimated one-rep max",
+    "lifetimeVolume": "Lifetime volume",
+    "lifetimeSets": "Sets",
+    "lifetimeSessions": "Sessions",
+    "bodyweightMultiple": "{{value}}× body weight",
+    "noKeyLifts": "Log a squat, bench press, deadlift, overhead press or row to see how they compare.",
+    "ratios": "Ratios",
+    "noBodyweight": "Log your body weight to see lifts as a multiple of it.",
+    "lifts": {
+      "squat": "Squat",
+      "bench": "Bench press",
+      "deadlift": "Deadlift",
+      "overheadPress": "Overhead press",
+      "row": "Row"
+    },
+    "status": {
+      "low": "Below range",
+      "high": "Above range",
+      "balanced": "Balanced"
+    }
   }
 }

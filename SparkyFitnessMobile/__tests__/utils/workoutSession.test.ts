@@ -71,6 +71,7 @@ import {
   isPrSet,
   setLoadKg,
   upcomingExercises,
+  liveExerciseConfigFromPreset,
 } from '../../src/utils/workoutSession';
 import { wodScoreFormat } from '../../src/utils/wodScore';
 import type {
@@ -4410,6 +4411,24 @@ describe('workoutSession', () => {
         });
       });
 
+      it("snaps a progressed weight to the gym's steps: up on an increase, down on a deload", () => {
+        const steps = [10, 12.5, 15, 17.5, 22.5];
+        const up = resolveAssumedSetValues(
+          [makeSet(1)],
+          [prev(17.5, 10)],
+          undefined,
+          { progressionIncrementKg: 2.5, weightStepsKg: steps }
+        );
+        expect(up[0].weight).toBe(22.5);
+        const down = resolveAssumedSetValues(
+          [makeSet(1)],
+          [prev(22.5, 10)],
+          undefined,
+          { progressionIncrementKg: -2.5, weightStepsKg: steps }
+        );
+        expect(down[0].weight).toBe(17.5);
+      });
+
       it('leaves warmup sets out of the progression bump', () => {
         const result = resolveAssumedSetValues(
           [makeSet(1, { set_type: 'warmup' }), makeSet(2)],
@@ -4722,6 +4741,51 @@ describe('workoutSession', () => {
             }
           );
           expect(result.map((r) => r.weight)).toEqual([102.5, 102.5]);
+        });
+
+        it('drops reps to the bottom of the range after double progression adds load', () => {
+          const result = resolveLiveAssumedSetValues(
+            exercise,
+            [prev(60, 12), prev(60, 12)],
+            {
+              plannedSetValues: {},
+              exerciseConfigs: {
+                'ex-1': {
+                  progression_mode: 'double',
+                  rep_goal: 12,
+                  rep_range_min: 8,
+                  increment_value: 2.5,
+                },
+              },
+              weightUnit: 'kg',
+            }
+          );
+          expect(result.map((r) => [r.weight, r.reps])).toEqual([
+            [62.5, 8],
+            [62.5, 8],
+          ]);
+        });
+
+        it('deloads after three missed sessions at the same weight', () => {
+          const missed = [prev(100, 4), prev(100, 4)];
+          const result = resolveLiveAssumedSetValues(
+            { ...exercise, exercise_id: 'lib-1' },
+            missed,
+            {
+              plannedSetValues: {},
+              exerciseConfigs: {
+                'ex-1': {
+                  progression_mode: 'fixed',
+                  rep_goal: 5,
+                  increment_type: 'weight',
+                  increment_value: 2.5,
+                },
+              },
+              earlierSessionSets: { 'lib-1': [missed, missed] },
+              weightUnit: 'kg',
+            }
+          );
+          expect(result.map((r) => r.weight)).toEqual([90, 90]);
         });
 
         it('raises working-set reps when progression adds reps, warm-ups untouched', () => {
@@ -6907,5 +6971,22 @@ describe('upcomingExercises', () => {
 
   it('is empty without an active set', () => {
     expect(upcomingExercises(session, null, {})).toEqual([]);
+  });
+});
+
+describe('liveExerciseConfigFromPreset backup exercise', () => {
+  it('carries a slot backup into the live config, and nothing without one', () => {
+    expect(
+      liveExerciseConfigFromPreset({
+        backup_exercise_id: 'b-1',
+        backup_exercise_name: 'Dumbbell Press',
+      })
+    ).toMatchObject({
+      backup_exercise_id: 'b-1',
+      backup_exercise_name: 'Dumbbell Press',
+    });
+    expect(liveExerciseConfigFromPreset({})).not.toHaveProperty(
+      'backup_exercise_id'
+    );
   });
 });

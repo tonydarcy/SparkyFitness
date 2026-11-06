@@ -116,6 +116,7 @@ describe('published (flat) chatbot tool schemas', () => {
         'alcohol_g',
         'water_ml',
         'gi',
+        'custom_nutrients',
         'entry_id',
         'entry_type',
         'description',
@@ -505,6 +506,29 @@ describe('strict discriminated-union validation schemas', () => {
       entry_date: '2026-06-11',
     });
     expect(result.success).toBe(true);
+  });
+
+  it('manageFoodSchema rejects null and blank custom nutrient amounts', () => {
+    const base = {
+      action: 'update_food_variant',
+      variant_id: '33333333-3333-4333-8333-333333333333',
+    };
+    for (const amount of [null, '', '  ']) {
+      expect(
+        manageFoodSchema.safeParse({
+          ...base,
+          custom_nutrients: { Zinc: amount },
+        }).success
+      ).toBe(false);
+    }
+    const ok = manageFoodSchema.safeParse({
+      ...base,
+      custom_nutrients: { Zinc: '3', Iron: 0 },
+    });
+    expect(ok.success).toBe(true);
+    expect(ok.success && ok.data).toMatchObject({
+      custom_nutrients: { Zinc: 3, Iron: 0 },
+    });
   });
 
   it('manageFoodSchema accepts custom meal type IDs for logging and moving entries', () => {
