@@ -203,6 +203,11 @@ export function AdjustNutritionMode({
         return selection;
       }
       setPendingUnitSelection(selection);
+      // The draft carries the custom nutrients of the variant it was built
+      // from, scaled to its serving. Take them even when empty: a conversion
+      // can start from a variant with none, and keeping the previous values
+      // would save them next to nutrients scaled from another variant.
+      setCurrentCustomNutrients(selection.variant.custom_nutrients ?? {});
       return selection;
     },
     [variantId, currentVariantId]
@@ -409,6 +414,14 @@ export function AdjustNutritionMode({
                   savedAsNew = true;
                   setPendingUnitSelection(nextUnitSelection);
                   setCurrentVariantId(createdVariant.id);
+                  // The matching-row update below is skipped, so save name and
+                  // brand edits here.
+                  await persistFoodMetadataEdits({
+                    queryClient,
+                    foodId,
+                    data,
+                    initialValues,
+                  });
                   invalidateFoodCaches(queryClient, foodId);
                   // New variant has no existing siblings — create draft equivalents
                   // directly rather than diffing against a stale snapshot.
@@ -462,11 +475,17 @@ export function AdjustNutritionMode({
             if (saveVariantId && foodId && !savedAsNew) {
               const formServingSize = parseDecimalInput(data.servingSize) || 0;
               const formServingUnit = data.servingUnit || 'serving';
-              const matchingDbVariant = (variants ?? []).find(
+              const servingMatches = (variants ?? []).filter(
                 (v) =>
                   Number(v.serving_size) === formServingSize &&
                   v.serving_unit === formServingUnit
               );
+              // Prefer the selected variant when it matches, so another variant
+              // with the same serving is never updated in its place.
+              const matchingDbVariant =
+                servingMatches.find(
+                  (v) => v.id === existingSelection?.variant.id
+                ) ?? servingMatches[0];
 
               if (!matchingDbVariant) {
                 // No DB variant matches these serving values — create a new one.

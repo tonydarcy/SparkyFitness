@@ -324,6 +324,11 @@ export function EditFoodMode({
         return selection;
       }
       setPendingUnitSelection(selection);
+      // The draft carries the custom nutrients of the variant it was built
+      // from, scaled to its serving. Take them even when empty: a conversion
+      // can start from a variant with none, and keeping the previous values
+      // would save them next to nutrients scaled from another variant.
+      setCurrentCustomNutrients(selection.variant.custom_nutrients ?? {});
       return selection;
     },
     [
@@ -617,6 +622,36 @@ export function EditFoodMode({
             setCurrentCustomNutrients(nextCustomNutrients);
             if (hasFoodMetadataChange) {
               await updateFood(foodId, foodPayload, imageArgs);
+            }
+            // The new variant has no saved siblings yet, so create the drafted
+            // equivalent units with its nutrition, as the overwrite path does.
+            const newSiblings = equivalentDraft.filter(
+              (eq) => !isBlankEquivalent(eq)
+            );
+            if (newSiblings.length > 0) {
+              const groupNutrition = buildGroupNutrition(
+                data,
+                variants?.find((v) => v.id === currentVariantId)
+              );
+              await Promise.all(
+                newSiblings.map((eq) =>
+                  createFoodVariant({
+                    food_id: foodId,
+                    serving_size: eq.serving_size,
+                    serving_unit: eq.serving_unit,
+                    ...groupNutrition,
+                  } as CreateFoodVariantPayload)
+                )
+              ).catch(() => {
+                // The new variant is already saved, so a failed unit must not
+                // reach the outer catch: a retry would create a second one.
+                Toast.show({
+                  type: 'error',
+                  text1: t('foodForm.equivalentUnitsFailed', {
+                    defaultValue: 'Some equivalent units could not be saved',
+                  }),
+                });
+              });
             }
             invalidateFoodCaches(queryClient, foodId);
             await persistPortions();
