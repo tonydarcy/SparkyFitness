@@ -2864,7 +2864,9 @@
     "lookup": {
       "failed": "Lookup failed",
       "noMatch": "No match for barcode",
-      "nextSteps": "You can scan the nutrition label or enter it manually.",
+      "nextSteps": "Try scanning again, scan the nutrition label, or enter the food manually.",
+      "searching": "Looking up barcode…",
+      "retry": "Retry lookup",
       "scanLabel": "Scan Nutrition Label",
       "addManually": "Add Food Manually"
     },
@@ -2875,7 +2877,13 @@
       "logManually": "Log manually"
     },
     "barcode": {
-      "typeInstead": "Type Barcode Instead"
+      "typeInstead": "Type Barcode Instead",
+      "scanAgain": "Scan again",
+      "restartCamera": "Restart camera"
+    },
+    "camera": {
+      "unavailable": "Camera unavailable",
+      "restartHelp": "Restart the camera to try again."
     },
     "manual": {
       "title": "Enter Barcode",
@@ -9884,7 +9892,9 @@
       "saveFailed": "Could not save the report. Nothing was saved.",
       "warning": {
         "unit": "Your earlier results use {{earlierUnit}}, but this report uses {{reportUnit}}. Units are not converted."
-      }
+      },
+      "saveUnconfirmed": "Could not confirm the report was saved. Save again: it is stored only once.",
+      "lockedAfterFailedSave": "Saving did not finish, so this review is locked: Save again sends exactly the same report, and it is stored only once. To change values, choose the report again."
     },
     "moreActions": "More actions",
     "deleteMarker": "Delete marker and all results",
