@@ -319,7 +319,7 @@ export const useDatabaseFoodSearchQuery = (
   return useInfiniteQuery({
     queryKey: foodKeys.databaseSearch(term, pageSize, filter),
     queryFn: ({ pageParam = 1 }) =>
-      loadFoods(term, filter, pageParam, pageSize, 'name:asc'),
+      loadFoods(term, filter, pageParam, pageSize, 'usage:desc'),
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) =>
       allPages.length * pageSize < lastPage.totalCount

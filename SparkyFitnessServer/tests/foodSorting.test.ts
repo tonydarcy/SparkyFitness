@@ -55,4 +55,25 @@ describe('food database sorting', () => {
     const queryStr = lastCall[0];
     expect(queryStr).toContain('ORDER BY f.name ASC, f.id ASC');
   });
+  it('ranks by the user’s own recent usage when sorting by usage', async () => {
+    mockClient.query.mockResolvedValue({ rows: [] });
+    await getFoodsWithPagination('bread', 'mine', userId, 10, 20, 'usage:desc');
+    const [queryStr, params] = mockClient.query.mock.calls[0];
+    expect(queryStr).toContain('FROM food_entries fe');
+    expect(queryStr).toContain('food_usage ON food_usage.food_id = f.id');
+    // Entries planned for later days don't count towards usage.
+    expect(queryStr).toContain('fe.entry_date <= CURRENT_DATE + 1');
+    expect(queryStr).toContain(
+      'food_usage.usage_score DESC NULLS LAST, food_usage.last_logged DESC NULLS LAST, f.name ASC, f.id ASC'
+    );
+    // Every placeholder in the SQL has a matching bind value, and the usage
+    // join is scoped to the requesting user.
+    const placeholders = [...queryStr.matchAll(/\$(\d+)/g)].map((m) =>
+      Number(m[1])
+    );
+    expect(Math.max(...placeholders)).toBe(params.length);
+    const userPlaceholder = queryStr.match(/fe\.user_id = \$(\d+)/)[1];
+    expect(params[Number(userPlaceholder) - 1]).toBe(userId);
+    expect(params.slice(-2)).toEqual([10, 20]);
+  });
 });
