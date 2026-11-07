@@ -61,6 +61,8 @@ describe('food database sorting', () => {
     const [queryStr, params] = mockClient.query.mock.calls[0];
     expect(queryStr).toContain('FROM food_entries fe');
     expect(queryStr).toContain('food_usage ON food_usage.food_id = f.id');
+    // Entries planned for later days don't count towards usage.
+    expect(queryStr).toContain('fe.entry_date <= CURRENT_DATE + 1');
     expect(queryStr).toContain(
       'food_usage.usage_score DESC NULLS LAST, food_usage.last_logged DESC NULLS LAST, f.name ASC, f.id ASC'
     );

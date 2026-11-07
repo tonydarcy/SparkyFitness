@@ -723,7 +723,9 @@ function appendProviderTypeClause(
  * Per-food usage score for one user, joined by `getFoodsWithPagination` when
  * sorting by `usage:desc`. Each diary log in the last year adds a weight that
  * halves every 30 days, so a food logged weekly now outranks one logged daily
- * a year ago. Foods never logged get no row and sort last.
+ * a year ago. Foods never logged get no row and sort last. Entries planned
+ * for later days don't count; one day past the server's date is allowed so a
+ * user whose local day is ahead of the server still sees today's logs.
  */
 function buildFoodUsageScoreSql(userParamIndex: number): string {
   return `
@@ -735,6 +737,7 @@ function buildFoodUsageScoreSql(userParamIndex: number): string {
     WHERE fe.user_id = $${userParamIndex}
       AND fe.food_id IS NOT NULL
       AND fe.entry_date >= CURRENT_DATE - 365
+      AND fe.entry_date <= CURRENT_DATE + 1
     GROUP BY fe.food_id
   `;
 }
