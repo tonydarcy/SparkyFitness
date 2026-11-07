@@ -3,13 +3,16 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..e73ef7a0915cbcd970ad337ac4c0c3222111fbc5
 --- /dev/null
 +++ b/android/src/main/java/expo/modules/location/FrameworkLocation.kt
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,66 @@
 +package expo.modules.location
 +
++import android.Manifest
 +import android.content.Context
++import android.content.pm.PackageManager
 +import android.location.Location
 +import android.location.LocationManager
 +import android.os.Build
++import androidx.core.content.ContextCompat
 +import com.google.android.gms.common.ConnectionResult
 +import com.google.android.gms.common.GoogleApiAvailability
 +
@@ -32,10 +35,16 @@ index 0000000000000000000000000000000000000000..e73ef7a0915cbcd970ad337ac4c0c322
 +    return context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
 +  }
 +
-+  /** Satellite GPS first, then the platform's own fused provider, then network location. */
-+  fun bestProvider(manager: LocationManager): String? {
++  /**
++   * Satellite GPS first, then the platform's own fused provider, then network
++   * location. GPS needs precise location, so it is skipped when the person
++   * granted approximate location only.
++   */
++  fun bestProvider(context: Context, manager: LocationManager): String? {
++    val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
++      PackageManager.PERMISSION_GRANTED
 +    val candidates = buildList {
-+      add(LocationManager.GPS_PROVIDER)
++      if (hasFine) add(LocationManager.GPS_PROVIDER)
 +      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) add(LocationManager.FUSED_PROVIDER)
 +      add(LocationManager.NETWORK_PROVIDER)
 +    }
@@ -91,7 +100,7 @@ index b286ea277f3658b62ab9fd9ed1df67359cea46fc..99ee053e4e05c1a07b79ee2dbc2df2e0
 +  // Without Google Play Services: one fix from Android's own LocationManager.
 +  private fun requestSingleFrameworkLocation(promise: Promise) {
 +    val manager = FrameworkLocation.manager(mContext)
-+    val provider = manager?.let { FrameworkLocation.bestProvider(it) }
++    val provider = manager?.let { FrameworkLocation.bestProvider(mContext, it) }
 +    if (manager == null || provider == null) {
 +      promise.reject(CurrentLocationIsUnavailableException())
 +      return
@@ -200,7 +209,7 @@ index 915b6bffea55b1fb094a8faf13c1290a8ae576c9..bd318e9bae3be7f308ba287c2b398d69
 +      Log.w(TAG, "LocationManager is not available")
 +      return
 +    }
-+    val provider = FrameworkLocation.bestProvider(manager) ?: run {
++    val provider = FrameworkLocation.bestProvider(context, manager) ?: run {
 +      Log.w(TAG, "There is no enabled location provider")
 +      return
 +    }
