@@ -97,6 +97,7 @@ export const EXERCISE_SECTIONS = [
 ] as const;
 
 export const MEASUREMENTS_SECTIONS = [
+  'measurements.timeline',
   'measurements.overview',
   'measurements.insights',
   'measurements.weightChart',

@@ -177,6 +177,23 @@ jest.mock('../../src/components/CalendarSheet', () => {
   };
 });
 
+jest.mock('../../src/components/TimeSheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const MockTimeSheet = React.forwardRef((_props: any, ref: any) => {
+    React.useImperativeHandle(ref, () => ({
+      present: jest.fn(),
+      dismiss: jest.fn(),
+    }));
+    return <View testID="time-sheet" />;
+  });
+  MockTimeSheet.displayName = 'MockTimeSheet';
+  return {
+    __esModule: true,
+    default: MockTimeSheet,
+  };
+});
+
 let mockSubmittedFoodFormData: any;
 let mockUnitSelectionResult: any;
 let mockEquivalentDraft: EquivalentUnit[] = [];
@@ -1440,6 +1457,75 @@ describe('FoodFormScreen', () => {
     }
   );
 
+  it('updates equivalent units with the saved custom nutrients when overwriting in adjust mode', async () => {
+    const grams: FoodVariantDetail = {
+      id: 'grams',
+      food_id: 'food-1',
+      serving_size: 100,
+      serving_unit: 'g',
+      calories: 200,
+      protein: 10,
+      carbs: 20,
+      fat: 5,
+      custom_nutrients: { Zinc: 3 },
+    };
+    const slice: FoodVariantDetail = {
+      ...grams,
+      id: 'slice',
+      serving_size: 1,
+      serving_unit: 'slice',
+    };
+    mockUseFoodVariants.mockReturnValue({
+      variants: [grams, slice],
+      isLoading: false,
+      isError: false,
+    });
+    jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation((title, _message, buttons) => {
+        const list = (buttons ?? []) as {
+          text?: string;
+          onPress?: () => void;
+        }[];
+        const label =
+          title === 'Save nutrition' ? 'Update existing' : "Don't Update";
+        list.find((b) => b.text === label)?.onPress?.();
+      });
+    const screen = renderScreen({
+      mode: 'adjust-entry-nutrition',
+      foodId: 'food-1',
+      variantId: 'grams',
+      returnTo: 'FoodEntryAdd',
+      returnKey: 'FoodEntryAdd-key',
+      initialValues: { ...mockSubmittedFoodFormData },
+      // Only the custom nutrient differs from the stored variant.
+      customNutrients: { Zinc: 5 },
+      availableUnitVariants: [grams, slice],
+      selectedUnitSelection: { kind: 'existing', variant: grams },
+    });
+    fireEvent(
+      screen.getByLabelText('Save nutrition for future use'),
+      'valueChange',
+      true
+    );
+    fireEvent.press(screen.getByText('Save'));
+
+    await waitFor(() =>
+      expect(updateFoodVariant).toHaveBeenCalledWith(
+        'slice',
+        expect.objectContaining({
+          serving_size: 1,
+          serving_unit: 'slice',
+          custom_nutrients: { Zinc: 5 },
+        })
+      )
+    );
+    expect(updateFoodVariant).toHaveBeenCalledWith(
+      'grams',
+      expect.objectContaining({ custom_nutrients: { Zinc: 5 } })
+    );
+  });
+
   it('creates draft equivalent units once, on the new variant, when saving as new', async () => {
     const grams: FoodVariantDetail = {
       id: 'grams',
@@ -2265,6 +2351,7 @@ describe('FoodFormScreen', () => {
           quantity: 100,
           unit: 'g',
           entry_date: '2026-04-23',
+          entry_time: null,
         },
       });
     });
@@ -2296,12 +2383,262 @@ describe('FoodFormScreen', () => {
 
     expect(screen.getByText('Date')).toBeTruthy();
     expect(screen.getByText('Meal')).toBeTruthy();
+    expect(screen.getByText('Time')).toBeTruthy();
     expect(screen.getByText('Save to Database')).toBeTruthy();
     expect(screen.getByText('Barcode')).toBeTruthy();
     expect(screen.getByText('Scan with camera')).toBeTruthy();
     expect(screen.getByDisplayValue('0123456789')).toBeTruthy();
     expect(screen.getByText(/100 g per serving/)).toBeTruthy();
     expect(screen.getByTestId('calendar-sheet')).toBeTruthy();
+    expect(screen.getByTestId('time-sheet')).toBeTruthy();
+  });
+
+  it('pre-fills entry time for today and passes it when logging a new food', async () => {
+    const screen = renderScreen({
+      mode: 'create-food',
+    });
+
+    fireEvent.press(screen.getByText('Add Food'));
+
+    await waitFor(() => {
+      expect(mockAddEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createEntryPayload: expect.objectContaining({
+            entry_time: expect.stringMatching(/^([01]\d|2[0-3]):[0-5]\d$/),
+          }),
+        })
+      );
+    });
+  });
+
+  it('respects mealTypeId passed in navigation params', async () => {
+    mockUseMealTypes.mockReturnValue({
+      mealTypes: [
+        {
+          id: 'meal-1',
+          name: 'Breakfast',
+          default_time: '08:00',
+          user_id: null,
+          is_visible: true,
+          created_at: '',
+          updated_at: '',
+          display_order: 1,
+        },
+        {
+          id: 'meal-2',
+          name: 'Lunch',
+          default_time: '12:30',
+          user_id: null,
+          is_visible: true,
+          created_at: '',
+          updated_at: '',
+          display_order: 2,
+        },
+      ],
+      defaultMealTypeId: 'meal-1',
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    const screen = renderScreen({
+      mode: 'create-food',
+      mealTypeId: 'meal-2',
+      date: '2000-01-01',
+    });
+
+    fireEvent.press(screen.getByText('Add Food'));
+
+    await waitFor(() => {
+      expect(mockAddEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createEntryPayload: expect.objectContaining({
+            meal_type_id: 'meal-2',
+            entry_time: '12:30',
+          }),
+        })
+      );
+    });
+  });
+
+  it('falls back to defaultMealTypeId if passed mealTypeId is not in visible mealTypes', async () => {
+    mockUseMealTypes.mockReturnValue({
+      mealTypes: [
+        {
+          id: 'meal-1',
+          name: 'Breakfast',
+          default_time: '08:00',
+          user_id: null,
+          is_visible: true,
+          created_at: '',
+          updated_at: '',
+          display_order: 1,
+        },
+      ],
+      defaultMealTypeId: 'meal-1',
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    const screen = renderScreen({
+      mode: 'create-food',
+      mealTypeId: 'hidden-meal',
+      date: '2000-01-01',
+    });
+
+    fireEvent.press(screen.getByText('Add Food'));
+
+    await waitFor(() => {
+      expect(mockAddEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createEntryPayload: expect.objectContaining({
+            meal_type_id: 'meal-1',
+            entry_time: '08:00',
+          }),
+        })
+      );
+    });
+  });
+
+  it('preserves route-provided mealTypeId and notifies user while meal types are loading', async () => {
+    mockUseMealTypes.mockReturnValue({
+      mealTypes: [],
+      defaultMealTypeId: null,
+      isLoading: true,
+      isError: false,
+      error: null,
+      refetch: jest.fn(),
+    });
+
+    const screen = renderScreen({
+      mode: 'create-food',
+      mealTypeId: 'meal-2',
+      date: '2000-01-01',
+    });
+
+    fireEvent.press(screen.getByText('Add Food'));
+
+    expect(mockToast.show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'info',
+        text1: 'Loading...',
+      })
+    );
+    expect(mockAddEntry).not.toHaveBeenCalled();
+  });
+
+  it('notifies user and blocks save when meal types lookup fails', async () => {
+    mockUseMealTypes.mockReturnValue({
+      mealTypes: [],
+      defaultMealTypeId: null,
+      isLoading: false,
+      isError: true,
+      error: new Error('Network error'),
+      refetch: jest.fn(),
+    });
+
+    const screen = renderScreen({
+      mode: 'create-food',
+      mealTypeId: 'meal-2',
+      date: '2000-01-01',
+    });
+
+    fireEvent.press(screen.getByText('Add Food'));
+
+    expect(mockToast.show).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'error',
+        text1: 'Error',
+      })
+    );
+    expect(mockAddEntry).not.toHaveBeenCalled();
+  });
+
+  it('allows save when background meal-types refetch errors but cached meal exists', async () => {
+    mockUseMealTypes.mockReturnValue({
+      mealTypes: [
+        {
+          id: 'meal-1',
+          name: 'Breakfast',
+          default_time: '08:00',
+          user_id: null,
+          is_visible: true,
+          created_at: '',
+          updated_at: '',
+          display_order: 1,
+        },
+      ],
+      defaultMealTypeId: 'meal-1',
+      isLoading: false,
+      isError: true,
+      error: new Error('Background refetch error'),
+      refetch: jest.fn(),
+    });
+
+    const screen = renderScreen({
+      mode: 'create-food',
+      mealTypeId: 'meal-1',
+      date: '2000-01-01',
+    });
+
+    fireEvent.press(screen.getByText('Add Food'));
+
+    await waitFor(() => {
+      expect(mockAddEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createEntryPayload: expect.objectContaining({
+            meal_type_id: 'meal-1',
+            entry_time: '08:00',
+          }),
+        })
+      );
+    });
+  });
+
+  it('clears entry time when Clear is pressed', async () => {
+    const screen = renderScreen({
+      mode: 'create-food',
+      entryTime: '14:30',
+      date: '2000-01-01',
+    });
+
+    expect(screen.getByText('Clear')).toBeTruthy();
+    fireEvent.press(screen.getByText('Clear'));
+    fireEvent.press(screen.getByText('Add Food'));
+
+    await waitFor(() => {
+      expect(mockAddEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createEntryPayload: expect.objectContaining({
+            entry_time: null,
+          }),
+        })
+      );
+    });
+  });
+
+  it('sets entry time to now when Now is pressed', async () => {
+    const screen = renderScreen({
+      mode: 'create-food',
+      entryTime: '08:00',
+      date: '2000-01-01',
+    });
+
+    fireEvent.press(screen.getByText('Now'));
+    fireEvent.press(screen.getByText('Add Food'));
+
+    await waitFor(() => {
+      expect(mockAddEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          createEntryPayload: expect.objectContaining({
+            entry_time: expect.stringMatching(/^([01]\d|2[0-3]):[0-5]\d$/),
+          }),
+        })
+      );
+    });
   });
 
   it('renders the barcode field in library mode without the logging controls', () => {

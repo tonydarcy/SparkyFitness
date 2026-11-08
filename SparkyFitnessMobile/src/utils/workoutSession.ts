@@ -14,6 +14,7 @@ import type {
   PresetSessionResponse,
   ProgressionEvaluationResult,
   WorkoutFormat,
+  EnergyUnit,
 } from '@workspace/shared';
 import {
   NO_ADAPTIVE_ADJUSTMENT,
@@ -65,6 +66,7 @@ import { parseDecimalInput, parseSignedDecimalInput } from './numericInput';
 import { getDefaultRestSec } from './workoutSupersets';
 import { formatLocalizedNumber } from '../localization';
 import { wodScoreFormat } from './wodScore';
+import { energyUnitLabel, roundedEnergy } from './energyUnit';
 
 // The superset/reorder algebra lives in its own module; re-exported here so
 // the many existing import sites keep working.
@@ -316,7 +318,8 @@ export function buildSessionSubtitle(
   calories: number,
   t: TFunction,
   weightUnit: 'kg' | 'lbs' = 'kg',
-  distanceUnit: 'km' | 'miles' = 'km'
+  distanceUnit: 'km' | 'miles' = 'km',
+  energyUnit: EnergyUnit = 'kcal'
 ): string {
   if (session.type === 'preset') {
     const exerciseCount = session.exercises.length;
@@ -433,7 +436,7 @@ export function buildSessionSubtitle(
     }
     if (calories > 0)
       parts.push(
-        `${Math.round(calories)} ${t('workout.caloriesUnit', { defaultValue: 'Cal' })}`
+        `${roundedEnergy(calories, energyUnit)} ${energyUnitLabel(energyUnit, t)}`
       );
     return parts.join(' · ');
   }
@@ -467,7 +470,7 @@ export function buildSessionSubtitle(
     if (duration > 0) parts.push(formatDuration(duration));
     if (calories > 0)
       parts.push(
-        `${Math.round(calories)} ${t('workout.caloriesUnit', { defaultValue: 'Cal' })}`
+        `${roundedEnergy(calories, energyUnit)} ${energyUnitLabel(energyUnit, t)}`
       );
     return parts.join(' · ');
   }
@@ -484,7 +487,7 @@ export function buildSessionSubtitle(
   }
   if (calories > 0)
     parts.push(
-      `${Math.round(calories)} ${t('workout.caloriesUnit', { defaultValue: 'Cal' })}`
+      `${roundedEnergy(calories, energyUnit)} ${energyUnitLabel(energyUnit, t)}`
     );
   return parts.join(' · ');
 }

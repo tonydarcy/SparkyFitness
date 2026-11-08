@@ -459,6 +459,7 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
     navigation.navigate('FoodForm', {
       mode: 'create-food',
       date,
+      mealTypeId,
       pickerMode: selectionPickerMode,
       returnDepth: basketTapReturnDepth,
       mealPlanTarget,
@@ -466,6 +467,7 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
   }, [
     navigation,
     date,
+    mealTypeId,
     mealPlanTarget,
     selectionPickerMode,
     basketTapReturnDepth,
