@@ -142,6 +142,10 @@ const SECTION_LABELS: Record<
     t('reportsSettings.sections.hydrationWeekdays', {
       defaultValue: 'Average by weekday',
     }),
+  'measurements.timeline': (t) =>
+    t('reportsSettings.sections.measurementTimeline', {
+      defaultValue: 'Measurement timeline',
+    }),
   'measurements.insights': (t) =>
     t('reportsSettings.sections.insights', { defaultValue: 'What stood out' }),
   'measurements.overview': (t) =>
@@ -223,6 +227,14 @@ const SECTION_LABELS: Record<
   'heartRate.restingHrChart': (t) =>
     t('reportsSettings.sections.restingHrChart', {
       defaultValue: 'Resting heart rate chart',
+    }),
+  'heartRate.rangeTimeline': (t) =>
+    t('reportsSettings.sections.heartRateRangeTimeline', {
+      defaultValue: 'Average heart rate by day',
+    }),
+  'heartRate.dayTimeline': (t) =>
+    t('reportsSettings.sections.heartRateDayTimeline', {
+      defaultValue: 'Heart rate through the day',
     }),
   'heartRate.zones': (t) =>
     t('reportsSettings.sections.heartRateZones', {

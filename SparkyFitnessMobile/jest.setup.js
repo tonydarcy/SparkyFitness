@@ -857,6 +857,7 @@ jest.mock('expo-crypto', () => {
   return {
     __esModule: true,
     randomUUID: () => webcrypto.randomUUID(),
+    getRandomBytes: (count) => webcrypto.getRandomValues(new Uint8Array(count)),
     AESEncryptionKey: WatchTelemetryTestKey,
     AESSealedData: WatchTelemetryTestSealed,
     aesEncryptAsync: async (plaintext, key) => {
@@ -909,4 +910,47 @@ jest.mock('expo-image-manipulator', () => ({
     PNG: 'png',
     WEBP: 'webp',
   },
+}));
+
+// Mock react-native-nfc-manager (native module; tests drive its results).
+jest.mock('react-native-nfc-manager', () => ({
+  __esModule: true,
+  default: {
+    isSupported: jest.fn(() => Promise.resolve(true)),
+    isEnabled: jest.fn(() => Promise.resolve(true)),
+    start: jest.fn(() => Promise.resolve()),
+    requestTechnology: jest.fn(() => Promise.resolve()),
+    cancelTechnologyRequest: jest.fn(() => Promise.resolve()),
+    getTag: jest.fn(() => Promise.resolve({ ndefMessage: [] })),
+    setAlertMessageIOS: jest.fn(() => Promise.resolve()),
+    ndefHandler: { writeNdefMessage: jest.fn(() => Promise.resolve()) },
+  },
+  NfcTech: { Ndef: 'Ndef' },
+  Ndef: {
+    TNF_EMPTY: 0,
+    TNF_WELL_KNOWN: 1,
+    RTD_URI: 'U',
+    uriRecord: jest.fn((uri) => ({
+      tnf: 1,
+      type: 'U',
+      payload: [...Buffer.from(uri)],
+    })),
+    encodeMessage: jest.fn((records) => records.flatMap((r) => r.payload)),
+    isType: jest.fn(
+      (record, tnf, type) => record.tnf === tnf && record.type === type
+    ),
+    // The test payloads are plain UTF-8 URLs, so decoding is the identity.
+    uri: {
+      decodePayload: jest.fn((bytes) => Buffer.from(bytes).toString('utf8')),
+    },
+  },
+}));
+
+// Energy unit: components read the account's kcal/kJ setting through
+// `useEnergyUnit`, which needs a QueryClient. Most component tests render
+// without one, so the unit defaults to kcal here. A test that needs kJ sets
+// `jest.mocked(useEnergyUnit).mockReturnValue('kJ')`; the hook's own test uses
+// `jest.requireActual`.
+jest.mock('./src/hooks/useEnergyUnit', () => ({
+  useEnergyUnit: jest.fn(() => 'kcal'),
 }));

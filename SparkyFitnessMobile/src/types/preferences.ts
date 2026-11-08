@@ -2,6 +2,8 @@ import type {
   CalorieSafetyFloorMode,
   GoalMode,
   GoalModeCalculationMethod,
+  TemperatureUnit,
+  GlucoseUnit,
 } from '@workspace/shared';
 
 export interface UserPreferences {
@@ -20,6 +22,10 @@ export interface UserPreferences {
 
   default_weight_unit?: 'kg' | 'lbs' | 'st_lbs';
   default_distance_unit?: 'km' | 'miles';
+  /** Unit temperatures are shown in; stored temperatures stay in °C. Absent
+   *  from servers older than the setting. */
+  default_glucose_unit?: GlucoseUnit;
+  default_temperature_unit?: TemperatureUnit;
   default_measurement_unit?: 'cm' | 'inches' | 'ft_in';
   date_format?: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | string;
   energy_unit?: 'kcal' | 'kJ';
@@ -41,6 +47,7 @@ export interface UserPreferences {
   goal_mode?: GoalMode;
   goal_mode_calculation_method?: GoalModeCalculationMethod;
   adaptive_activity_separate?: boolean;
+  adjust_macros_with_exercise?: boolean;
   goal_mode_custom_percentage?: number;
   /** Signed kilograms per week: negative for loss, positive for gain. */
   goal_mode_weekly_change_kg?: number;

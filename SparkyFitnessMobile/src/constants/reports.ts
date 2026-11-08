@@ -96,6 +96,7 @@ export const EXERCISE_SECTIONS = [
 ] as const;
 
 export const MEASUREMENTS_SECTIONS = [
+  'measurements.timeline',
   'measurements.overview',
   'measurements.insights',
   'measurements.weightChart',
@@ -129,6 +130,8 @@ export const HEART_RATE_SECTIONS = [
   'heartRate.overview',
   'heartRate.insights',
   'heartRate.restingHrChart',
+  'heartRate.rangeTimeline',
+  'heartRate.dayTimeline',
   'heartRate.zones',
 ] as const;
 

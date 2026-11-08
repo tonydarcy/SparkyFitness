@@ -1231,38 +1231,42 @@ CREATE FUNCTION public.record_calorie_rule_change() RETURNS trigger
     AS $$
 DECLARE
   zone TEXT;
+  prior_preferences public.user_preferences%ROWTYPE;
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    -- A preferences row created again after a delete. With no history its
-    -- settings already apply to every day; with history they must be recorded,
-    -- or the last recorded row would override them.
-    IF NOT EXISTS (
+    -- Recreated preferences must replace the latest recorded settings. An
+    -- initially enabled macro option also needs an off baseline for past days.
+    IF NOT NEW.adjust_macros_with_exercise AND NOT EXISTS (
       SELECT 1 FROM public.user_calorie_rule_history WHERE user_id = NEW.user_id
     ) THEN
       RETURN NULL;
     END IF;
+    prior_preferences := NEW;
+    prior_preferences.adjust_macros_with_exercise := FALSE;
   ELSE
-    -- The first change after this migration also keeps the old rules for every
-    -- earlier day; without it those days would fall back to the new settings.
-    INSERT INTO public.user_calorie_rule_history (
+    prior_preferences := OLD;
+  END IF;
+
+  -- Keep the rules before the first change. Even an initially enabled opt-in
+  -- starts today; it must not enable macro credit for earlier diary dates.
+  INSERT INTO public.user_calorie_rule_history (
       user_id, effective_date,
       goal_mode, goal_mode_calculation_method, goal_mode_custom_percentage,
       goal_mode_weekly_change_kg, calorie_goal_adjustment_mode, exercise_calorie_percentage,
       tdee_allow_negative_adjustment, calorie_safety_floor_mode,
       calorie_safety_floor_value, adaptive_activity_separate, bmr_algorithm,
-      activity_level, use_external_bmr, include_bmr_in_net_calories
+      activity_level, use_external_bmr, include_bmr_in_net_calories, adjust_macros_with_exercise
     )
     SELECT
-      OLD.user_id, '-infinity',
-      OLD.goal_mode, OLD.goal_mode_calculation_method, OLD.goal_mode_custom_percentage,
-      OLD.goal_mode_weekly_change_kg, OLD.calorie_goal_adjustment_mode, OLD.exercise_calorie_percentage,
-      OLD.tdee_allow_negative_adjustment, OLD.calorie_safety_floor_mode,
-      OLD.calorie_safety_floor_value, OLD.adaptive_activity_separate, OLD.bmr_algorithm,
-      OLD.activity_level, OLD.use_external_bmr, OLD.include_bmr_in_net_calories
+      prior_preferences.user_id, '-infinity',
+      prior_preferences.goal_mode, prior_preferences.goal_mode_calculation_method, prior_preferences.goal_mode_custom_percentage,
+      prior_preferences.goal_mode_weekly_change_kg, prior_preferences.calorie_goal_adjustment_mode, prior_preferences.exercise_calorie_percentage,
+      prior_preferences.tdee_allow_negative_adjustment, prior_preferences.calorie_safety_floor_mode,
+      prior_preferences.calorie_safety_floor_value, prior_preferences.adaptive_activity_separate, prior_preferences.bmr_algorithm,
+      prior_preferences.activity_level, prior_preferences.use_external_bmr, prior_preferences.include_bmr_in_net_calories, prior_preferences.adjust_macros_with_exercise
     WHERE NOT EXISTS (
-      SELECT 1 FROM public.user_calorie_rule_history WHERE user_id = OLD.user_id
+      SELECT 1 FROM public.user_calorie_rule_history WHERE user_id = prior_preferences.user_id
     );
-  END IF;
 
   -- An unknown zone would make AT TIME ZONE fail the whole preference update.
   -- Case-insensitive, because the server accepts any casing Intl accepts.
@@ -1280,7 +1284,7 @@ BEGIN
     goal_mode_weekly_change_kg, calorie_goal_adjustment_mode, exercise_calorie_percentage,
     tdee_allow_negative_adjustment, calorie_safety_floor_mode,
     calorie_safety_floor_value, adaptive_activity_separate, bmr_algorithm,
-    activity_level, use_external_bmr, include_bmr_in_net_calories
+    activity_level, use_external_bmr, include_bmr_in_net_calories, adjust_macros_with_exercise
   )
   VALUES (
     NEW.user_id, (now() AT TIME ZONE zone)::date,
@@ -1288,7 +1292,7 @@ BEGIN
     NEW.goal_mode_weekly_change_kg, NEW.calorie_goal_adjustment_mode, NEW.exercise_calorie_percentage,
     NEW.tdee_allow_negative_adjustment, NEW.calorie_safety_floor_mode,
     NEW.calorie_safety_floor_value, NEW.adaptive_activity_separate, NEW.bmr_algorithm,
-    NEW.activity_level, NEW.use_external_bmr, NEW.include_bmr_in_net_calories
+    NEW.activity_level, NEW.use_external_bmr, NEW.include_bmr_in_net_calories, NEW.adjust_macros_with_exercise
   )
   ON CONFLICT (user_id, effective_date) DO UPDATE SET
     goal_mode = EXCLUDED.goal_mode,
@@ -1305,6 +1309,7 @@ BEGIN
     activity_level = EXCLUDED.activity_level,
     use_external_bmr = EXCLUDED.use_external_bmr,
     include_bmr_in_net_calories = EXCLUDED.include_bmr_in_net_calories,
+    adjust_macros_with_exercise = EXCLUDED.adjust_macros_with_exercise,
     updated_at = now();
 
   RETURN NULL;
@@ -1640,6 +1645,27 @@ CREATE TABLE public.account (
 --
 
 COMMENT ON TABLE public.account IS 'Better Auth account table - stores credentials and OIDC links';
+
+
+--
+-- Name: action_tags; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.action_tags (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    tag_code character varying(64) NOT NULL,
+    label character varying(120) NOT NULL,
+    action jsonb NOT NULL,
+    ask_before_running boolean DEFAULT false NOT NULL,
+    last_run_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    updated_by_user_id uuid,
+    CONSTRAINT action_tags_action_check CHECK (((jsonb_typeof(action) = 'object'::text) AND (action ? 'type'::text))),
+    CONSTRAINT action_tags_code_check CHECK ((char_length((tag_code)::text) >= 16))
+);
 
 
 --
@@ -2994,6 +3020,7 @@ CREATE TABLE public.global_settings (
     mcp_oauth_enabled boolean DEFAULT false NOT NULL,
     mcp_oauth_allowed_redirect_uris text[] DEFAULT ARRAY['https://claude.ai/api/mcp/auth_callback'::text, 'https://claude.com/api/mcp/auth_callback'::text, 'http://localhost:*'::text, 'http://127.0.0.1:*'::text, 'http://[::1]:*'::text] NOT NULL,
     enable_version_check boolean DEFAULT true NOT NULL,
+    enable_magic_link_login boolean DEFAULT true NOT NULL,
     CONSTRAINT single_row_check CHECK ((id = 1))
 );
 
@@ -3083,7 +3110,7 @@ CREATE TABLE public.health_metric_samples (
     samples jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT chk_health_metric_samples_metric CHECK ((metric = ANY (ARRAY['heart_rate'::text, 'hrv'::text, 'respiration'::text, 'spo2'::text, 'stress'::text, 'body_battery'::text, 'skin_temperature'::text])))
+    CONSTRAINT chk_health_metric_samples_metric CHECK ((metric = ANY (ARRAY['heart_rate'::text, 'hrv'::text, 'respiration'::text, 'spo2'::text, 'stress'::text, 'body_battery'::text, 'skin_temperature'::text, 'blood_glucose'::text])))
 );
 
 
@@ -3157,6 +3184,37 @@ COMMENT ON COLUMN public.lab_markers.ref_range_low IS 'Default lower reference b
 
 
 --
+-- Name: lab_reports; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.lab_reports (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    lab_name text,
+    collected_on date,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by_user_id uuid,
+    updated_by_user_id uuid,
+    client_request_id uuid
+);
+
+
+--
+-- Name: TABLE lab_reports; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.lab_reports IS 'One imported lab report (a PDF or photo read into results). The report itself is not stored, only which results came from it.';
+
+
+--
+-- Name: COLUMN lab_reports.client_request_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.lab_reports.client_request_id IS 'Key the client sent with the import, so a retried save returns this report instead of saving it again. NULL for imports without one.';
+
+
+--
 -- Name: lab_results; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3178,6 +3236,7 @@ CREATE TABLE public.lab_results (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     created_by_user_id uuid,
     updated_by_user_id uuid,
+    report_id uuid,
     CONSTRAINT lab_results_one_marker_check CHECK (((marker_key IS NOT NULL) <> (custom_marker_id IS NOT NULL))),
     CONSTRAINT lab_results_ref_range_check CHECK (((ref_range_low IS NULL) OR (ref_range_high IS NULL) OR (ref_range_low <= ref_range_high))),
     CONSTRAINT lab_results_source_check CHECK ((source = ANY (ARRAY['manual'::text, 'report'::text, 'fhir'::text]))),
@@ -3204,6 +3263,13 @@ COMMENT ON COLUMN public.lab_results.value_text IS 'Qualitative result (e.g. Neg
 --
 
 COMMENT ON COLUMN public.lab_results.source IS 'How the result got here: manual, report (imported from a PDF or photo) or fhir.';
+
+
+--
+-- Name: COLUMN lab_results.report_id; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.lab_results.report_id IS 'The imported report this result came from. NULL for results entered by hand. Deleting the report deletes the result.';
 
 
 --
@@ -4676,7 +4742,8 @@ CREATE TABLE public.user_calorie_rule_history (
     use_external_bmr boolean,
     include_bmr_in_net_calories boolean,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    adjust_macros_with_exercise boolean DEFAULT false NOT NULL
 );
 
 
@@ -5103,14 +5170,19 @@ CREATE TABLE public.user_preferences (
     hr_zone_method text DEFAULT 'percent_max'::text NOT NULL,
     hr_zone_custom_floors smallint[],
     goal_mode_weekly_change_kg double precision DEFAULT 0 NOT NULL,
+    adjust_macros_with_exercise boolean DEFAULT false NOT NULL,
     hr_zone_display_count smallint DEFAULT 5 NOT NULL,
     use_move_ring_active_calories boolean DEFAULT false NOT NULL,
+    default_temperature_unit text DEFAULT 'celsius'::text NOT NULL,
+    default_glucose_unit text DEFAULT 'mmol/L'::text NOT NULL,
     CONSTRAINT check_energy_unit CHECK (((energy_unit)::text = ANY ((ARRAY['kcal'::character varying, 'kJ'::character varying])::text[]))),
+    CONSTRAINT chk_user_preferences_glucose_unit CHECK ((default_glucose_unit = ANY (ARRAY['mmol/L'::text, 'mg/dL'::text]))),
     CONSTRAINT logging_level_check CHECK ((logging_level = ANY (ARRAY['DEBUG'::text, 'INFO'::text, 'WARN'::text, 'ERROR'::text, 'SILENT'::text]))),
     CONSTRAINT user_preferences_caffeine_half_life_range CHECK (((caffeine_half_life_hours >= 2.0) AND (caffeine_half_life_hours <= 8.0))),
     CONSTRAINT user_preferences_calorie_safety_floor_mode_check CHECK ((calorie_safety_floor_mode = ANY (ARRAY['standard'::text, 'custom'::text, 'disabled'::text]))),
     CONSTRAINT user_preferences_calorie_safety_floor_value_check CHECK (((calorie_safety_floor_value >= 800) AND (calorie_safety_floor_value <= 5000))),
     CONSTRAINT user_preferences_chart_scale_mode_check CHECK ((chart_scale_mode = ANY (ARRAY['time'::text, 'point'::text]))),
+    CONSTRAINT user_preferences_default_temperature_unit_check CHECK ((default_temperature_unit = ANY (ARRAY['celsius'::text, 'fahrenheit'::text]))),
     CONSTRAINT user_preferences_hr_zone_custom_floors_check CHECK (((hr_zone_custom_floors IS NULL) OR (array_length(hr_zone_custom_floors, 1) = 5))),
     CONSTRAINT user_preferences_hr_zone_display_count_check CHECK ((hr_zone_display_count = ANY (ARRAY[4, 5]))),
     CONSTRAINT user_preferences_hr_zone_method_check CHECK ((hr_zone_method = ANY (ARRAY['percent_max'::text, 'heart_rate_reserve'::text, 'custom'::text]))),
@@ -5291,6 +5363,13 @@ COMMENT ON COLUMN public.user_preferences.hr_zone_display_count IS 'Heart rate b
 --
 
 COMMENT ON COLUMN public.user_preferences.use_move_ring_active_calories IS 'iPhone sync reads daily active calories from the Apple Move ring instead of the Apple Health Active Energy total.';
+
+
+--
+-- Name: COLUMN user_preferences.default_temperature_unit; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.user_preferences.default_temperature_unit IS 'Unit temperatures are shown in: celsius or fahrenheit. Stored temperatures stay in °C.';
 
 
 --
@@ -5916,6 +5995,18 @@ ALTER SEQUENCE public.workout_presets_id_seq OWNED BY public.workout_presets.id;
 
 
 --
+-- Name: bulk_imports; Type: TABLE; Schema: system; Owner: -
+--
+
+CREATE TABLE system.bulk_imports (
+    user_id uuid NOT NULL,
+    kind text NOT NULL,
+    status jsonb NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: rate_limit_windows; Type: TABLE; Schema: system; Owner: -
 --
 
@@ -5937,6 +6028,18 @@ CREATE TABLE system.rls_policy_state (
     catalog_fingerprint text NOT NULL,
     applied_at timestamp with time zone NOT NULL,
     CONSTRAINT rls_policy_state_id_check CHECK (id)
+);
+
+
+--
+-- Name: scheduled_jobs; Type: TABLE; Schema: system; Owner: -
+--
+
+CREATE TABLE system.scheduled_jobs (
+    name text NOT NULL,
+    last_slot timestamp with time zone NOT NULL,
+    claimed_by text NOT NULL,
+    claimed_at timestamp with time zone NOT NULL
 );
 
 
@@ -6095,6 +6198,22 @@ ALTER TABLE ONLY auth.users
 
 ALTER TABLE ONLY public.account
     ADD CONSTRAINT account_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: action_tags action_tags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_tags
+    ADD CONSTRAINT action_tags_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: action_tags action_tags_user_code_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_tags
+    ADD CONSTRAINT action_tags_user_code_unique UNIQUE (user_id, tag_code);
 
 
 --
@@ -6495,6 +6614,14 @@ ALTER TABLE ONLY public.jwks
 
 ALTER TABLE ONLY public.lab_markers
     ADD CONSTRAINT lab_markers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: lab_reports lab_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_reports
+    ADD CONSTRAINT lab_reports_pkey PRIMARY KEY (id);
 
 
 --
@@ -7506,6 +7633,14 @@ ALTER TABLE ONLY public.workout_presets
 
 
 --
+-- Name: bulk_imports bulk_imports_pkey; Type: CONSTRAINT; Schema: system; Owner: -
+--
+
+ALTER TABLE ONLY system.bulk_imports
+    ADD CONSTRAINT bulk_imports_pkey PRIMARY KEY (user_id, kind);
+
+
+--
 -- Name: rate_limit_windows rate_limit_windows_pkey; Type: CONSTRAINT; Schema: system; Owner: -
 --
 
@@ -7519,6 +7654,14 @@ ALTER TABLE ONLY system.rate_limit_windows
 
 ALTER TABLE ONLY system.rls_policy_state
     ADD CONSTRAINT rls_policy_state_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: scheduled_jobs scheduled_jobs_pkey; Type: CONSTRAINT; Schema: system; Owner: -
+--
+
+ALTER TABLE ONLY system.scheduled_jobs
+    ADD CONSTRAINT scheduled_jobs_pkey PRIMARY KEY (name);
 
 
 --
@@ -7585,6 +7728,13 @@ CREATE INDEX food_assistant_tasks_user_updated ON public.food_assistant_tasks US
 --
 
 CREATE INDEX idx_account_user_id ON public.account USING btree (user_id);
+
+
+--
+-- Name: idx_action_tags_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_action_tags_user_id ON public.action_tags USING btree (user_id);
 
 
 --
@@ -7669,6 +7819,13 @@ CREATE INDEX idx_custom_measurements_date ON public.custom_measurements USING bt
 --
 
 CREATE INDEX idx_custom_measurements_user_id ON public.custom_measurements USING btree (user_id);
+
+
+--
+-- Name: idx_custom_measurements_user_timestamp; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_custom_measurements_user_timestamp ON public.custom_measurements USING btree (user_id, entry_timestamp);
 
 
 --
@@ -7991,6 +8148,27 @@ CREATE INDEX idx_injection_entries_user_id ON public.injection_entries USING btr
 --
 
 CREATE UNIQUE INDEX idx_lab_markers_user_name ON public.lab_markers USING btree (user_id, lower(name));
+
+
+--
+-- Name: idx_lab_reports_user_client_request; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_lab_reports_user_client_request ON public.lab_reports USING btree (user_id, client_request_id) WHERE (client_request_id IS NOT NULL);
+
+
+--
+-- Name: idx_lab_reports_user_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lab_reports_user_created ON public.lab_reports USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: idx_lab_results_report; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_lab_results_report ON public.lab_results USING btree (report_id) WHERE (report_id IS NOT NULL);
 
 
 --
@@ -8753,7 +8931,7 @@ COMMENT ON TRIGGER on_public_user_created ON public."user" IS 'Initializes onboa
 -- Name: user_preferences record_calorie_rule_change; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER record_calorie_rule_change AFTER UPDATE ON public.user_preferences FOR EACH ROW WHEN ((((((((((((((((old.goal_mode)::text IS DISTINCT FROM (new.goal_mode)::text) OR ((old.goal_mode_calculation_method)::text IS DISTINCT FROM (new.goal_mode_calculation_method)::text)) OR (old.goal_mode_custom_percentage IS DISTINCT FROM new.goal_mode_custom_percentage)) OR (old.goal_mode_weekly_change_kg IS DISTINCT FROM new.goal_mode_weekly_change_kg)) OR (old.calorie_goal_adjustment_mode IS DISTINCT FROM new.calorie_goal_adjustment_mode)) OR (old.exercise_calorie_percentage IS DISTINCT FROM new.exercise_calorie_percentage)) OR (old.tdee_allow_negative_adjustment IS DISTINCT FROM new.tdee_allow_negative_adjustment)) OR (old.calorie_safety_floor_mode IS DISTINCT FROM new.calorie_safety_floor_mode)) OR (old.calorie_safety_floor_value IS DISTINCT FROM new.calorie_safety_floor_value)) OR (old.adaptive_activity_separate IS DISTINCT FROM new.adaptive_activity_separate)) OR (old.bmr_algorithm IS DISTINCT FROM new.bmr_algorithm)) OR ((old.activity_level)::text IS DISTINCT FROM (new.activity_level)::text)) OR (old.use_external_bmr IS DISTINCT FROM new.use_external_bmr)) OR (old.include_bmr_in_net_calories IS DISTINCT FROM new.include_bmr_in_net_calories))) EXECUTE FUNCTION public.record_calorie_rule_change();
+CREATE TRIGGER record_calorie_rule_change AFTER UPDATE ON public.user_preferences FOR EACH ROW WHEN (((((((((((((((((old.goal_mode)::text IS DISTINCT FROM (new.goal_mode)::text) OR ((old.goal_mode_calculation_method)::text IS DISTINCT FROM (new.goal_mode_calculation_method)::text)) OR (old.goal_mode_custom_percentage IS DISTINCT FROM new.goal_mode_custom_percentage)) OR (old.goal_mode_weekly_change_kg IS DISTINCT FROM new.goal_mode_weekly_change_kg)) OR (old.calorie_goal_adjustment_mode IS DISTINCT FROM new.calorie_goal_adjustment_mode)) OR (old.exercise_calorie_percentage IS DISTINCT FROM new.exercise_calorie_percentage)) OR (old.tdee_allow_negative_adjustment IS DISTINCT FROM new.tdee_allow_negative_adjustment)) OR (old.calorie_safety_floor_mode IS DISTINCT FROM new.calorie_safety_floor_mode)) OR (old.calorie_safety_floor_value IS DISTINCT FROM new.calorie_safety_floor_value)) OR (old.adaptive_activity_separate IS DISTINCT FROM new.adaptive_activity_separate)) OR (old.bmr_algorithm IS DISTINCT FROM new.bmr_algorithm)) OR ((old.activity_level)::text IS DISTINCT FROM (new.activity_level)::text)) OR (old.use_external_bmr IS DISTINCT FROM new.use_external_bmr)) OR (old.include_bmr_in_net_calories IS DISTINCT FROM new.include_bmr_in_net_calories)) OR (old.adjust_macros_with_exercise IS DISTINCT FROM new.adjust_macros_with_exercise))) EXECUTE FUNCTION public.record_calorie_rule_change();
 
 
 --
@@ -9140,6 +9318,30 @@ CREATE TRIGGER update_workout_presets_timestamp BEFORE UPDATE ON public.workout_
 
 ALTER TABLE ONLY public.account
     ADD CONSTRAINT account_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: action_tags action_tags_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_tags
+    ADD CONSTRAINT action_tags_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: action_tags action_tags_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_tags
+    ADD CONSTRAINT action_tags_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public."user"(id);
+
+
+--
+-- Name: action_tags action_tags_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_tags
+    ADD CONSTRAINT action_tags_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
 
 
 --
@@ -9863,6 +10065,30 @@ ALTER TABLE ONLY public.lab_markers
 
 
 --
+-- Name: lab_reports lab_reports_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_reports
+    ADD CONSTRAINT lab_reports_created_by_user_id_fkey FOREIGN KEY (created_by_user_id) REFERENCES public."user"(id) ON DELETE SET NULL;
+
+
+--
+-- Name: lab_reports lab_reports_updated_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_reports
+    ADD CONSTRAINT lab_reports_updated_by_user_id_fkey FOREIGN KEY (updated_by_user_id) REFERENCES public."user"(id) ON DELETE SET NULL;
+
+
+--
+-- Name: lab_reports lab_reports_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_reports
+    ADD CONSTRAINT lab_reports_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
 -- Name: lab_results lab_results_created_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -9876,6 +10102,14 @@ ALTER TABLE ONLY public.lab_results
 
 ALTER TABLE ONLY public.lab_results
     ADD CONSTRAINT lab_results_custom_marker_id_fkey FOREIGN KEY (custom_marker_id) REFERENCES public.lab_markers(id) ON DELETE CASCADE;
+
+
+--
+-- Name: lab_results lab_results_report_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.lab_results
+    ADD CONSTRAINT lab_results_report_id_fkey FOREIGN KEY (report_id) REFERENCES public.lab_reports(id) ON DELETE CASCADE;
 
 
 --
@@ -11151,6 +11385,20 @@ ALTER TABLE ONLY public.workout_presets
 
 
 --
+-- Name: bulk_imports bulk_imports_user_id_fkey; Type: FK CONSTRAINT; Schema: system; Owner: -
+--
+
+ALTER TABLE ONLY system.bulk_imports
+    ADD CONSTRAINT bulk_imports_user_id_fkey FOREIGN KEY (user_id) REFERENCES public."user"(id) ON DELETE CASCADE;
+
+
+--
+-- Name: action_tags; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.action_tags ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: admin_activity_logs; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -11568,6 +11816,12 @@ ALTER TABLE public.jwks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.lab_markers ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: lab_reports; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.lab_reports ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: lab_results; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -11841,6 +12095,13 @@ CREATE POLICY modify_policy ON public.injection_entries USING (public.has_medica
 --
 
 CREATE POLICY modify_policy ON public.lab_markers USING (((public.authenticated_user_id() = user_id) OR public.has_family_access(user_id, 'can_manage_checkin'::text))) WITH CHECK (((public.authenticated_user_id() = user_id) OR public.has_family_access(user_id, 'can_manage_checkin'::text)));
+
+
+--
+-- Name: lab_reports modify_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY modify_policy ON public.lab_reports USING (((public.authenticated_user_id() = user_id) OR public.has_family_access(user_id, 'can_manage_checkin'::text))) WITH CHECK (((public.authenticated_user_id() = user_id) OR public.has_family_access(user_id, 'can_manage_checkin'::text)));
 
 
 --
@@ -12271,6 +12532,13 @@ ALTER TABLE public.openfoodfacts_product_read_rate_limit ENABLE ROW LEVEL SECURI
 --
 
 ALTER TABLE public.openfoodfacts_sync_queue ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: action_tags owner_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY owner_policy ON public.action_tags USING ((user_id = public.authenticated_user_id())) WITH CHECK ((user_id = public.authenticated_user_id()));
+
 
 --
 -- Name: api_key owner_policy; Type: POLICY; Schema: public; Owner: -
@@ -12794,6 +13062,13 @@ CREATE POLICY select_policy ON public.injection_entries FOR SELECT USING (public
 --
 
 CREATE POLICY select_policy ON public.lab_markers FOR SELECT USING (public.has_checkin_read_access(user_id));
+
+
+--
+-- Name: lab_reports select_policy; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY select_policy ON public.lab_reports FOR SELECT USING (public.has_checkin_read_access(user_id));
 
 
 --
@@ -13856,6 +14131,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.account TO sparky_app;
 
 
 --
+-- Name: TABLE action_tags; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.action_tags TO sparky_app;
+
+
+--
 -- Name: TABLE admin_activity_logs; Type: ACL; Schema: public; Owner: -
 --
 
@@ -14182,6 +14464,13 @@ GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.jwks TO sparky_app;
 --
 
 GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.lab_markers TO sparky_app;
+
+
+--
+-- Name: TABLE lab_reports; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT,INSERT,DELETE,UPDATE ON TABLE public.lab_reports TO sparky_app;
 
 
 --

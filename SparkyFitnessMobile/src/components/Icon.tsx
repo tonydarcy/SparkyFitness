@@ -17,6 +17,7 @@ const ICON_MAP = {
   'chevron-expand': { sf: 'chevron.up.chevron.down', ion: 'chevron-expand' },
 
   // Actions
+  expand: { sf: 'arrow.up.left.and.arrow.down.right', ion: 'expand-outline' },
   copy: { sf: 'doc.on.doc', ion: 'copy-outline' },
   trash: { sf: 'trash', ion: 'trash-outline' },
   paste: { sf: 'doc.on.clipboard', ion: 'clipboard-outline' },
@@ -90,10 +91,13 @@ const ICON_MAP = {
   globe: { sf: 'globe', ion: 'globe-outline' },
   people: { sf: 'person.2.fill', ion: 'people' },
   wifi: { sf: 'wifi', ion: 'wifi-outline' },
+  nfc: { sf: 'wave.3.right.circle', ion: 'radio-outline' },
   location: { sf: 'mappin.and.ellipse', ion: 'location-outline' },
 
   // Food
   food: { sf: 'fork.knife', ion: 'restaurant' },
+  coffee: { sf: 'cup.and.saucer', ion: 'cafe-outline' },
+  wine: { sf: 'wineglass', ion: 'wine-outline' },
 
   // Meals
   meal: { sf: 'square.stack.3d.up.fill', ion: 'layers' },
@@ -194,6 +198,7 @@ const ICON_MAP = {
   'sleep-score': { sf: 'star.fill', ion: 'star' },
   spo2: { sf: 'lungs.fill', ion: 'pulse' },
   'heart-rate': { sf: 'heart.fill', ion: 'heart' },
+  'skin-temperature': { sf: 'thermometer.medium', ion: 'thermometer-outline' },
 } as const;
 
 export type IconName = keyof typeof ICON_MAP;

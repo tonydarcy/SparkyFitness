@@ -43,6 +43,10 @@ import {
   SafeFoodsLibrary,
   SafeMealsLibrary,
   SafeMealPlans,
+  SafeLabReportImport,
+  SafeLabResultAdd,
+  SafeLabResultDetail,
+  SafeLabResults,
   SafePersonalRecords,
   SafeWatchRunLive,
   SafeRunPrograms,
@@ -60,7 +64,11 @@ import {
   SafeWorkoutPlans,
   SafeWorkoutPlanForm,
   SafeWaterContainers,
+  SafeWaterLog,
   SafeWaterContainerEdit,
+  SafeActionTags,
+  SafeActionTagForm,
+  SafeActionTagScan,
   SafeExercisesLibrary,
   SafeWorkoutPresetsLibrary,
   SafeFoodDetail,
@@ -197,7 +205,6 @@ import ActiveWorkoutBar, {
 import { ActiveWorkoutTransitionScreenLayout } from './src/components/ActiveWorkoutTransitionProbe';
 import PendingPresetUpdatePrompt from './src/components/PendingPresetUpdatePrompt';
 import { usePendingPresetUpdateStore } from './src/stores/pendingPresetUpdateStore';
-import { useAppPreferencesStore } from './src/stores/appPreferencesStore';
 import ActiveWorkoutKeepAwake from './src/components/ActiveWorkoutKeepAwake';
 import MedicationReminderReconciler from './src/components/MedicationReminderReconciler';
 import MoodCheckinReminderReconciler from './src/components/MoodCheckinReminderReconciler';
@@ -381,7 +388,6 @@ function AppContent() {
     handleSyncHealthData,
     handleAddSheetDismissWithoutAction,
   } = useAddSheetActions({ syncMutation });
-  const guidedCheckInEnabled = useAppPreferencesStore((s) => s.guidedCheckInEnabled);
 
   const { enabled: cycleEnabled } = useCycleMode();
   const cycleSheetLabel = useCycleSheetLabel();
@@ -460,7 +466,7 @@ function AppContent() {
   }, [isDarkMode, primary, bgPrimary, textPrimary, chromeBorder]);
 
   const linking = useMemo<LinkingOptions<RootStackParamList>>(() => ({
-    prefixes: ['sparkyfitnessmobile://'],
+    prefixes: ['sparkyfitnessmobile://', 'https://tag.sparkyfitness.com'],
     config: {
       initialRouteName: 'Tabs',
       screens: {
@@ -484,6 +490,8 @@ function AppContent() {
         RecordActivity: 'record-activity',
         // Route generation; without a routing provider the screen explains that.
         RouteGenerate: 'routes/generate',
+        // An NFC tag tap: https://tag.sparkyfitness.com/t/<code> (#941).
+        ActionTagScan: 't/:code',
       },
     },
   }), []);
@@ -669,6 +677,34 @@ function AppContent() {
             options={createStackScreenOptions(t('screens.personalRecords', { defaultValue: 'Personal records' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
           />
           <Stack.Screen
+            name="LabResults"
+            component={SafeLabResults}
+            options={createStackScreenOptions(t('screens.labResults', { defaultValue: 'Lab results' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
+          />
+          <Stack.Screen
+            name="LabResultDetail"
+            component={SafeLabResultDetail}
+            options={createStackScreenOptions(t('screens.labResultDetail', { defaultValue: 'Lab result' }), { headerBackTitle: t('screens.labResults', { defaultValue: 'Lab results' }) })}
+          />
+          <Stack.Screen
+            name="LabResultAdd"
+            component={SafeLabResultAdd}
+            options={createStackScreenOptions(t('screens.labResultAdd', { defaultValue: 'Add lab result' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
+            name="LabReportImport"
+            component={SafeLabReportImport}
+            options={createStackScreenOptions(t('screens.labReportImport', { defaultValue: 'Import report' }), {
+              presentation: 'modal',
+              headerBackButtonDisplayMode: 'minimal',
+              ...(Platform.OS === 'android' ? androidModalAnimation : {}),
+            })}
+          />
+          <Stack.Screen
             name="WatchRunLive"
             component={SafeWatchRunLive}
             options={createStackScreenOptions(t('screens.watchRunLive', { defaultValue: 'On your watch' }), { headerBackButtonDisplayMode: 'minimal' })}
@@ -694,9 +730,29 @@ function AppContent() {
             options={createStackScreenOptions(t('waterContainers.title', { defaultValue: 'Water containers' }), { headerBackTitle: t('navigation.library', { defaultValue: 'Library' }) })}
           />
           <Stack.Screen
+            name="WaterLog"
+            component={SafeWaterLog}
+            options={createStackScreenOptions(t('waterLog.title', { defaultValue: 'Drinks' }), { headerBackTitle: t('navigation.dashboard', { defaultValue: 'Dashboard' }) })}
+          />
+          <Stack.Screen
             name="WaterContainerEdit"
             component={SafeWaterContainerEdit}
             options={createStackScreenOptions(t('waterContainerEdit.editTitle', { defaultValue: 'Edit container' }), { headerBackTitle: t('common.back', { defaultValue: 'Back' }) })}
+          />
+          <Stack.Screen
+            name="ActionTags"
+            component={SafeActionTags}
+            options={createStackScreenOptions(t('actionTags.title', { defaultValue: 'NFC tags' }), { headerBackTitle: t('navigation.settings', { defaultValue: 'Settings' }) })}
+          />
+          <Stack.Screen
+            name="ActionTagForm"
+            component={SafeActionTagForm}
+            options={createStackScreenOptions(t('actionTags.form.createTitle', { defaultValue: 'Set up NFC tag' }), { headerBackTitle: t('common.back', { defaultValue: 'Back' }) })}
+          />
+          <Stack.Screen
+            name="ActionTagScan"
+            component={SafeActionTagScan}
+            options={createStackScreenOptions(t('actionTags.scan.title', { defaultValue: 'NFC tag' }))}
           />
           <Stack.Screen
             name="ExercisesLibrary"
@@ -1416,7 +1472,6 @@ function AppContent() {
           onRecordActivity={handleRecordActivity}
           onAskSparky={handleAskSparky}
           onStartCheckIn={handleStartCheckIn}
-          showCheckIn={guidedCheckInEnabled}
           onOpenCycle={handleOpenCycle}
           showCycleCard={cycleEnabled}
           cycleLabel={cycleSheetLabel}
