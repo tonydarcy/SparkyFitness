@@ -10,6 +10,7 @@ const ALLOWED_PAGE_KEYS = new Set([
   'diary',
   'diary-timeline',
   'reports-measurements',
+  'reports-nutrients',
 ]);
 
 interface HttpError extends Error {
