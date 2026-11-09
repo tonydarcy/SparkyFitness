@@ -115,21 +115,34 @@ type DashboardScreenProps = CompositeScreenProps<
 
 /**
  * Lays the visible cards out in one column, or on a wide window (iPad) in two
- * columns that keep the user's card order reading left to right, top to
- * bottom.
+ * columns read left to right, top to bottom. Every card keeps one keyed
+ * wrapper under one parent in both modes, so rotating the window or a card
+ * appearing never remounts the others (which would reset their sheets and
+ * timers). Each row is as tall as its taller card.
  */
 function renderDashboardCardColumns(
   cards: React.ReactNode[],
   twoColumns: boolean
 ): React.ReactNode {
-  if (!twoColumns) return cards;
-  const visible = cards.filter((card) => card !== null && card !== false);
-  const left = visible.filter((_, index) => index % 2 === 0);
-  const right = visible.filter((_, index) => index % 2 === 1);
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-      <View style={{ flex: 1, minWidth: 0 }}>{left}</View>
-      <View style={{ flex: 1, minWidth: 0 }}>{right}</View>
+    <View
+      style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+      }}
+    >
+      {cards.map((card, index) =>
+        React.isValidElement(card) ? (
+          <View
+            key={card.key ?? index}
+            style={{ width: twoColumns ? '49%' : '100%' }}
+          >
+            {card}
+          </View>
+        ) : null
+      )}
     </View>
   );
 }
