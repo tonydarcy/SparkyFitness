@@ -46,6 +46,8 @@ import { MindfulnessCard } from '../components/mindfulness/MindfulnessCard';
 import SymptomsCard from '../components/SymptomsCard';
 import MoodCard from '../components/mood/MoodCard';
 import LabResultsCard from '../components/labs/LabResultsCard';
+import OralCareCard from '../components/oralCare/OralCareCard';
+import { oralCareQueryKeyRoot } from '../hooks/useOralCare';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
 import TrainingLoadDashboardCard from '../components/TrainingLoadDashboardCard';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
@@ -433,6 +435,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const labResultsCardVisible = useAppPreferencesStore(
     (s) => s.labResultsCardVisible
   );
+  const oralCareCardVisible = useAppPreferencesStore(
+    (s) => s.oralCareCardVisible
+  );
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
   );
@@ -480,6 +485,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       // LabResultsCard reads the lab markers and their latest values.
       queryClient.invalidateQueries({ queryKey: labMarkersQueryKey }),
       queryClient.invalidateQueries({ queryKey: labLatestQueryKey }),
+      queryClient.invalidateQueries({ queryKey: oralCareQueryKeyRoot }),
       // TrainingLoadDashboardCard owns its query, and a pull is not a focus.
       trainingLoadCardVisible
         ? queryClient.invalidateQueries({ queryKey: trainingLoadRootQueryKey })
@@ -949,6 +955,14 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
               case 'labResults':
                 return labResultsCardVisible ? (
                   <LabResultsCard key="labResults" navigation={navigation} />
+                ) : null;
+              case 'oralCare':
+                return oralCareCardVisible ? (
+                  <OralCareCard
+                    key="oralCare"
+                    navigation={navigation}
+                    selectedDate={selectedDate}
+                  />
                 ) : null;
               case 'mindfulness':
                 return mindfulnessCardVisible ? (
