@@ -10506,8 +10506,8 @@
       "low": "Below range",
       "high": "Above range",
       "balanced": "Balanced"
-      }
-    },
+    }
+  },
   "oralCare": {
     "title": "Oral care",
     "loading": "Loading oral care...",
