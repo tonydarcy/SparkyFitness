@@ -203,6 +203,7 @@ import ActiveWorkoutBar, {
   notifyActiveWorkoutBarSwipeProgress,
 } from './src/components/ActiveWorkoutBar';
 import { ActiveWorkoutTransitionScreenLayout } from './src/components/ActiveWorkoutTransitionProbe';
+import { ReadableWidthLayout } from './src/components/ReadableWidthLayout';
 import PendingPresetUpdatePrompt from './src/components/PendingPresetUpdatePrompt';
 import { usePendingPresetUpdateStore } from './src/stores/pendingPresetUpdateStore';
 import ActiveWorkoutKeepAwake from './src/components/ActiveWorkoutKeepAwake';
@@ -527,13 +528,17 @@ function AppContent() {
         <UniwindInsetsBridge />
         <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
         <Stack.Navigator
-          screenLayout={usesLiquidGlassNavigation
-            ? ({ children, route }) => (
+          screenLayout={({ children, route }) => {
+            // Centres the screen in a readable column on wide windows (iPad).
+            const content = (
+              <ReadableWidthLayout routeName={route.name}>{children}</ReadableWidthLayout>
+            );
+            return usesLiquidGlassNavigation ? (
               <ActiveWorkoutTransitionScreenLayout routeName={route.name} routeKey={route.key}>
-                {children}
+                {content}
               </ActiveWorkoutTransitionScreenLayout>
-            )
-            : undefined}
+            ) : content;
+          }}
           screenListeners={usesLiquidGlassNavigation
             ? {
               transitionStart: (event) => {

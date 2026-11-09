@@ -20,6 +20,7 @@ import ActiveWorkoutBar, {
   setActiveWorkoutBarTabBarHeight,
 } from './ActiveWorkoutBar';
 import CustomTabBar from './CustomTabBar';
+import { ReadableWidthLayout } from './ReadableWidthLayout';
 import WhatsNewBanner, {
   WhatsNewBannerContent,
   useWhatsNewBannerState,
@@ -78,6 +79,19 @@ const NativeTab = createNativeBottomTabNavigator<TabParamList>();
 
 // Fallback Tab Navigator (Android / iOS < 26)
 const FallbackTab = createBottomTabNavigator<TabParamList>();
+
+// Centres each tab's content on wide windows (iPad); see ReadableWidthLayout.
+function renderReadableWidthScreen({
+  children,
+  route,
+}: {
+  children: React.ReactElement;
+  route: { name: string };
+}) {
+  return (
+    <ReadableWidthLayout routeName={route.name}>{children}</ReadableWidthLayout>
+  );
+}
 
 type DashboardStackParamList = {
   DashboardRoot: undefined;
@@ -138,7 +152,10 @@ function DashboardStackScreen() {
 
   return (
     <View className="flex-1">
-      <DashboardStack.Navigator screenOptions={screenOptions}>
+      <DashboardStack.Navigator
+        screenOptions={screenOptions}
+        screenLayout={renderReadableWidthScreen}
+      >
         <DashboardStack.Screen
           name="DashboardRoot"
           component={SafeDashboard as React.ComponentType}
@@ -166,7 +183,10 @@ function DiaryStackScreen() {
 
   return (
     <View className="flex-1">
-      <DiaryStack.Navigator screenOptions={screenOptions}>
+      <DiaryStack.Navigator
+        screenOptions={screenOptions}
+        screenLayout={renderReadableWidthScreen}
+      >
         <DiaryStack.Screen
           name="DiaryRoot"
           component={SafeDiary as React.ComponentType}
@@ -192,7 +212,10 @@ function LibraryStackScreen() {
 
   return (
     <View className="flex-1">
-      <LibraryStack.Navigator screenOptions={screenOptions}>
+      <LibraryStack.Navigator
+        screenOptions={screenOptions}
+        screenLayout={renderReadableWidthScreen}
+      >
         <LibraryStack.Screen
           name="LibraryRoot"
           component={SafeLibrary as React.ComponentType}
@@ -220,7 +243,10 @@ function SettingsStackScreen() {
 
   return (
     <View className="flex-1">
-      <SettingsStack.Navigator screenOptions={screenOptions}>
+      <SettingsStack.Navigator
+        screenOptions={screenOptions}
+        screenLayout={renderReadableWidthScreen}
+      >
         <SettingsStack.Screen
           name="SettingsRoot"
           component={SafeSettings as React.ComponentType}
@@ -360,6 +386,7 @@ export function FallbackTabsLayout({
       screenOptions={{
         headerShown: false,
       }}
+      screenLayout={renderReadableWidthScreen}
       tabBar={(props) => (
         <View collapsable={false}>
           <WhatsNewBanner reserveAddButtonClearance />
