@@ -1,6 +1,6 @@
 # AGENTS.md
 
-_Last updated: 2026-11-08_
+_Last updated: 2026-11-09_
 
 SparkyFitness Mobile is a React Native 0.86 + Expo SDK 57 app for syncing Apple Health / Health Connect data with the SparkyFitness backend, tracking nutrition, hydration, fasting, measurements, exercise, saved foods, meal templates, custom exercises, workout presets, iOS / Android widgets, the active workout HUD, and the Sparky AI chat.
 
@@ -335,6 +335,7 @@ npx expo prebuild --clean
 - `DateRangeSheet` takes optional `title` and `confirmLabel`; they default to the writeback removal wording, so a consumer that is not removing anything (the time-lapse) must pass its own. It also takes `markedDates`, like `CalendarSheet`: both dot their days through the shared `useMarkedDayComponent` (`components/calendarMarkedDays.tsx`), which inverts the dot on a selected day and on either end of a range, and supplies no `Day` override at all when there is nothing to mark so every other caller keeps the library's own cell.
 - `BottomSheetPicker`, `CalendarSheet`, and sheets shown over native modals use `FullWindowOverlay` on iOS to avoid nested-provider inset bugs.
 - `BottomSheetModal` does not handle Android's hardware Back, so the press falls through to navigation with the sheet still up: it pops the screen under the sheet, switches another tab to the Dashboard, or exits the app from the Dashboard. Only `ActionSheet` and `AddSheet` take it today, through `useSheetHardwareBack(isOpen, onBack)` from `components/ui/sheetChrome.tsx`, with `isOpen` set when the sheet opens and cleared in `onDismiss`; the other sheets (`BottomSheetPicker`, `CalendarSheet`, `DateRangeSheet`, `TimeSheet`, `CopyMealSheet`, the fasting sheets and the rest) still let Back fall through. Set `isOpen` from both `onAnimate` and `onChange`: when the open finishes before `onAnimate` reaches JS (Android's "Remove animations", or a busy JS thread), the library drops `onAnimate`, and `onChange` is the only signal that arrives.
+- iPad is supported (`supportsTablet`, all four iPad orientations; iPhone stays portrait). Every navigator wraps its screens in `ReadableWidthLayout` (`src/components/ReadableWidthLayout.tsx`), which centres them in a 720 dp column on wide windows (1100 dp for the Dashboard, which also goes two columns from 900 dp of window width). Cameras, maps and photo players are in its `FULL_BLEED_ROUTES`; add a new edge-to-edge screen there. Size things from `onLayout`, not `useWindowDimensions().width`, since the column can be narrower than the window.
 - Keep button text and compact cards within their stable dimensions across mobile sizes. Avoid layout shifts from dynamic labels, loading states, or icon swaps.
 
 ## Widgets And Native Config
