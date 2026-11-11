@@ -12,6 +12,7 @@ import type {
   PresetSessionResponse,
   ProgressionEvaluationResult,
   WorkoutFormat,
+  EnergyUnit,
 } from '@workspace/shared';
 import {
   NO_ADAPTIVE_ADJUSTMENT,
@@ -61,6 +62,7 @@ import { parseDecimalInput, parseSignedDecimalInput } from './numericInput';
 import { getDefaultRestSec } from './workoutSupersets';
 import { formatLocalizedNumber } from '../localization';
 import { wodScoreFormat } from './wodScore';
+import { energyUnitLabel, roundedEnergy } from './energyUnit';
 
 // The superset/reorder algebra lives in its own module; re-exported here so
 // the many existing import sites keep working.
@@ -312,7 +314,8 @@ export function buildSessionSubtitle(
   calories: number,
   t: TFunction,
   weightUnit: 'kg' | 'lbs' = 'kg',
-  distanceUnit: 'km' | 'miles' = 'km'
+  distanceUnit: 'km' | 'miles' = 'km',
+  energyUnit: EnergyUnit = 'kcal'
 ): string {
   if (session.type === 'preset') {
     const exerciseCount = session.exercises.length;
@@ -429,7 +432,7 @@ export function buildSessionSubtitle(
     }
     if (calories > 0)
       parts.push(
-        `${Math.round(calories)} ${t('workout.caloriesUnit', { defaultValue: 'Cal' })}`
+        `${roundedEnergy(calories, energyUnit)} ${energyUnitLabel(energyUnit, t)}`
       );
     return parts.join(' · ');
   }
@@ -463,7 +466,7 @@ export function buildSessionSubtitle(
     if (duration > 0) parts.push(formatDuration(duration));
     if (calories > 0)
       parts.push(
-        `${Math.round(calories)} ${t('workout.caloriesUnit', { defaultValue: 'Cal' })}`
+        `${roundedEnergy(calories, energyUnit)} ${energyUnitLabel(energyUnit, t)}`
       );
     return parts.join(' · ');
   }
@@ -480,7 +483,7 @@ export function buildSessionSubtitle(
   }
   if (calories > 0)
     parts.push(
-      `${Math.round(calories)} ${t('workout.caloriesUnit', { defaultValue: 'Cal' })}`
+      `${roundedEnergy(calories, energyUnit)} ${energyUnitLabel(energyUnit, t)}`
     );
   return parts.join(' · ');
 }
@@ -1690,7 +1693,10 @@ export function buildSessionDurationMinutes(
 export interface SessionExerciseTiming {
   /** Minutes per non-cardio entry; entries absent here keep their stored value. */
   durations: Map<string, number>;
-  /** Local wall-clock 'HH:MM' at which each entry's first timed span began. */
+  /**
+   * Local wall-clock 'HH:MM' at which each entry began: a strength entry's
+   * first timed span, a cardio entry's first completed set less its duration.
+   */
   startTimes: Map<string, string>;
 }
 
@@ -1738,7 +1744,10 @@ export function captureResumedDurations(
  * add up to start→last completion.
  *
  * An entry's start time is the beginning of its first gap. Cardio entries
- * are left out: their duration is the sum of their set durations.
+ * are left out of the gaps: their duration is the sum of their set durations,
+ * and their start time is their first completed set's completion less that
+ * set's own duration, so a tracker's heart rate can attach to them (#3285).
+ * A cardio entry whose first set has no duration gets no start time.
  *
  * An entry that still has completions from before the start and a captured
  * value in `resumedDurationMinutes` (see `captureResumedDurations`) gets that
@@ -1756,16 +1765,28 @@ export function buildSessionExerciseTiming(
   const completedCountByEntryId = new Map<string, number>();
   const resumedMinutesByEntryId = new Map<string, number>();
   const timeline: { ms: number; entryId: string }[] = [];
+  const cardioStartMsByEntryId = new Map<string, number>();
   for (const exercise of session.exercises) {
     const cardio = isCardioModality(
       resolveSnapshotModality(exercise.exercise_snapshot)
     );
     let count = 0;
+    // The first completed cardio set, by completion time.
+    let firstCardio: { ms: number; durationSec: number } | null = null;
+    let cardioCompletedBeforeStart = false;
     for (const s of exercise.sets) {
       const ms = completedSetIds[String(s.id)];
       if (ms == null) continue;
       if (ms > startedAtMs) anyCompletedAfterStart = true;
-      if (cardio) continue;
+      if (cardio) {
+        // Like a resumed strength entry, one begun before this run keeps
+        // its stored start time.
+        if (ms <= startedAtMs) cardioCompletedBeforeStart = true;
+        else if (firstCardio == null || ms < firstCardio.ms) {
+          firstCardio = { ms, durationSec: Number(s.duration) || 0 };
+        }
+        continue;
+      }
       count++;
       // Completions before the start (a resumed session) can't be placed on
       // this clock; their time is the captured resumed duration, or the
@@ -1779,6 +1800,16 @@ export function buildSessionExerciseTiming(
       }
     }
     if (!cardio) completedCountByEntryId.set(exercise.id, count);
+    else if (
+      firstCardio != null &&
+      firstCardio.durationSec > 0 &&
+      !cardioCompletedBeforeStart
+    ) {
+      cardioStartMsByEntryId.set(
+        exercise.id,
+        firstCardio.ms - firstCardio.durationSec * 1000
+      );
+    }
   }
   if (!anyCompletedAfterStart) return null;
 
@@ -1797,6 +1828,9 @@ export function buildSessionExerciseTiming(
       startTimes.set(entryId, toEntryTimeString(previousMs));
     }
     previousMs = ms;
+  }
+  for (const [entryId, ms] of cardioStartMsByEntryId) {
+    startTimes.set(entryId, toEntryTimeString(ms));
   }
   for (const [entryId, ms] of spanMs) {
     const minutes = (resumedMinutesByEntryId.get(entryId) ?? 0) + ms / 60_000;
@@ -1878,6 +1912,17 @@ export function setTypeLetter(
     default:
       return null;
   }
+}
+
+/** Working-set numbers per set index; warmup/drop/failure rows repeat the previous number (they render a letter instead). */
+export function buildWorkingSetNumbers(
+  sets: Pick<WorkoutCardSet, 'set_type'>[]
+): number[] {
+  let workingNumber = 0;
+  return sets.map((set) => {
+    if (setTypeLetter(set.set_type) == null) workingNumber += 1;
+    return workingNumber;
+  });
 }
 
 export function isWarmupSetType(setType: string | null | undefined): boolean {
@@ -2165,6 +2210,9 @@ export function makeDefaultStartSet(
 export function buildPresetStartExercisesPayload(
   preset: WorkoutPreset
 ): PresetSessionExerciseRequest[] {
+  // Interval presets schedule rest after each cardio work phase, so a cardio
+  // set's configured rest must survive; elsewhere cardio takes no set rest.
+  const keepCardioRest = preset.workout_format === 'interval';
   return preset.exercises.map((exercise, index) => {
     const modality = resolveSnapshotModality(exercise);
     return {
@@ -2188,10 +2236,12 @@ export function buildPresetStartExercisesPayload(
               distance: isCardioModality(modality)
                 ? (set.distance ?? null)
                 : null,
-              // Cardio takes no between-set rest.
-              rest_time: isCardioModality(modality)
-                ? 0
-                : (set.rest_time ?? null),
+              // Cardio takes no between-set rest, except in interval presets
+              // where an explicit rest is the interval's rest phase.
+              rest_time:
+                isCardioModality(modality) && !keepCardioRest
+                  ? 0
+                  : (set.rest_time ?? (isCardioModality(modality) ? 0 : null)),
               notes: set.notes ?? null,
               rpe: null,
               completed_at: null,
@@ -2919,4 +2969,36 @@ export function summarizeWorkoutEffort(
         typeof value === 'number' && value >= 1 && value <= 10
     );
   return ratings.length > 0 ? Math.max(...ratings) : null;
+}
+
+/**
+ * Whether the weight-derived metric columns (Vol / 1RM / 10RM) mean nothing
+ * for this modality, so the effort column is clamped to RPE (or RIR).
+ */
+export function isMetricClampedToRpe(modality: ExerciseModality): boolean {
+  return (
+    isDurationModality(modality) ||
+    modality === 'reps_only' ||
+    isWeightDurationModality(modality) ||
+    isWeightDistanceModality(modality)
+  );
+}
+
+/**
+ * The weight (kg) the plate graphic shows: the active set's, else the first
+ * working set's, using what it would log (typed or assumed). Null if none.
+ */
+export function plateTargetKg(
+  sets: readonly Pick<WorkoutCardSet, 'id' | 'weight' | 'set_type'>[],
+  activeSetId: string | null,
+  assumed: readonly ({ weight?: number | null } | null)[] | null | undefined
+): number | null {
+  const activeIndex = sets.findIndex((set) => String(set.id) === activeSetId);
+  const index =
+    activeIndex >= 0
+      ? activeIndex
+      : sets.findIndex((set) => !isWarmupSetType(set.set_type));
+  if (index < 0) return null;
+  const kg = sets[index]?.weight ?? assumed?.[index]?.weight;
+  return kg != null && Number.isFinite(kg) && kg > 0 ? kg : null;
 }
