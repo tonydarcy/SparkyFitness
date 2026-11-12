@@ -12,7 +12,11 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader } from '@/components/ui/card';
-import { useCreatePresetSessionMutation } from '@/hooks/Exercises/useExerciseEntries';
+import {
+  isPresetSessionConflictError,
+  useCreatePresetSessionMutation,
+  useUpdatePresetSessionMutation,
+} from '@/hooks/Exercises/useExerciseEntries';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import {
   distributeProgressionReps,
@@ -38,6 +42,7 @@ import {
   addWorkoutSetToExercise,
   clearWorkoutPlaybackDraftFromStorage,
   buildPresetSessionCreateRequestFromDraft,
+  buildPresetSessionUpdateRequestFromDraft,
   completeCurrentWorkoutSet,
   getCurrentWorkoutSetPointer,
   getWorkoutPlaybackRestRemainingSeconds,
@@ -209,6 +214,7 @@ const WorkoutPlaybackPage = () => {
 
   const { mutateAsync: createPresetSession, isPending: isSaving } =
     useCreatePresetSessionMutation();
+  const { mutateAsync: updatePresetSession } = useUpdatePresetSessionMutation();
   // Auto-evaluate progression overload and the per-set ramp for uncompleted
   // exercises, once per workout: a reopened draft keeps what the lifter
   // typed (and a heavier set 1 never re-seeds the ramp).
@@ -232,7 +238,7 @@ const WorkoutPlaybackPage = () => {
       const signalsResponse = isStandard
         ? await fetchWorkoutCoachingSignals(
             [...new Set(draft.exercises.map((e) => e.exercise_id))].filter(
-              Boolean
+              (id): id is string => id != null
             )
           ).catch(() => null)
         : null;
@@ -252,6 +258,8 @@ const WorkoutPlaybackPage = () => {
       ): Promise<WorkoutPlaybackExerciseDraft> => {
         {
           if (exercise.sets.some((s) => s.completed)) return exercise;
+          // A deleted library exercise has no progression history to fetch.
+          if (!exercise.exercise_id) return exercise;
 
           try {
             const stats = await fetchExerciseProgressionStats(
@@ -455,7 +463,10 @@ const WorkoutPlaybackPage = () => {
         const usual = ramp(engineResult);
         const original = draft.exercises[index];
         if (!original) return usual;
-        const signal = signalById.get(original.exercise_id);
+        const signal =
+          original.exercise_id != null
+            ? signalById.get(original.exercise_id)
+            : undefined;
         const suggestVariation = shouldSuggestVariation(
           signal,
           original.mechanic
@@ -1084,7 +1095,15 @@ const WorkoutPlaybackPage = () => {
     }
 
     try {
-      const saved = await createPresetSession(payload);
+      // A draft resumed from a saved session (#1995 phase 1) updates that
+      // session in place, presenting the revision it last saw; a fresh
+      // draft creates a new one, born finished.
+      const saved = draft.session_id
+        ? await updatePresetSession({
+            presetEntryId: draft.session_id,
+            payload: buildPresetSessionUpdateRequestFromDraft(draft, timezone),
+          })
+        : await createPresetSession(payload);
       const finalStats = getWorkoutPlaybackStats(draft);
       clearWorkoutPlaybackDraftFromStorage(draft.entry_date);
       // The summary stays up over the cleared player; closing it returns to
@@ -1107,7 +1126,18 @@ const WorkoutPlaybackPage = () => {
       });
       setDraft(null);
       setSaveError(null);
-    } catch {
+    } catch (error) {
+      if (isPresetSessionConflictError(error)) {
+        // Another device or tab saved this session after we last loaded it.
+        // The server kept both sides; tell the user instead of overwriting.
+        setSaveError(
+          t(
+            'exercise.workoutPlaybackDialog.sessionConflictError',
+            'This workout was updated on another device or tab. Close the player, reload the diary, and resume it again.'
+          )
+        );
+        return;
+      }
       setSaveError(
         t(
           'exercise.workoutPlaybackDialog.finishError',
@@ -1115,7 +1145,15 @@ const WorkoutPlaybackPage = () => {
         )
       );
     }
-  }, [createPresetSession, draft, elapsedSeconds, t, timezone, totalVolume]);
+  }, [
+    createPresetSession,
+    draft,
+    elapsedSeconds,
+    t,
+    timezone,
+    totalVolume,
+    updatePresetSession,
+  ]);
 
   const handleCloseFinishSummary = useCallback(() => {
     setFinishSummary(null);
