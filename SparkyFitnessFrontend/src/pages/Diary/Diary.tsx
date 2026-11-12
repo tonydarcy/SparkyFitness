@@ -35,7 +35,9 @@ import { useDailyHealthMetrics } from '@/hooks/useGenericHealth';
 import { selectDisplayableHealthMetrics } from '@/utils/dailyHealthMetrics';
 import EditFoodEntryDialog from './EditFoodEntryDialog';
 import FoodUnitSelector from '@/components/FoodUnitSelector';
-import CopyFoodEntryDialog from '@/pages/Diary/CopyFoodEntryDialog';
+import CopyFoodEntryDialog, {
+  type CopyQuickTarget,
+} from '@/pages/Diary/CopyFoodEntryDialog';
 import ConvertToMealDialog from '@/pages/Diary/ConvertToMealDialog';
 import EditMealFoodEntryDialog from './EditMealFoodEntryDialog';
 import CopyFamilyEntryDialog from '@/pages/Diary/CopyFamilyEntryDialog';
@@ -58,6 +60,7 @@ import { useCustomNutrients } from '@/hooks/Foods/useCustomNutrients';
 import { useMealTypes } from '@/hooks/Diary/useMealTypes';
 import {
   useCopyFoodEntriesMutation,
+  useCopySingleFoodEntryMutation,
   useCreateFoodEntryMutation,
   useDeleteFoodEntryMealMutation,
   useDeleteFoodEntryMutation,
@@ -66,8 +69,10 @@ import {
   useFoodEntryMeals,
 } from '@/hooks/Diary/useFoodEntries';
 import {
-  todayInZone,
+  buildFoodEntryCopyPayload,
+  hourMinuteToEntryTime,
   prefillEntryTime,
+  todayInZone,
   pickMealTypeForTime,
   toHourMinute,
   userHourMinute,
@@ -169,6 +174,8 @@ const Diary = () => {
   const { mutateAsync: createFoodEntry } = useCreateFoodEntryMutation();
   const { mutateAsync: removeFoodEntry } = useDeleteFoodEntryMutation();
   const { mutateAsync: copyFoodEntries } = useCopyFoodEntriesMutation();
+  const { mutate: copySingleFoodEntry } = useCopySingleFoodEntryMutation();
+  const [copyingEntry, setCopyingEntry] = useState<FoodEntry | null>(null);
   const { mutateAsync: deleteFoodEntryMeal } = useDeleteFoodEntryMealMutation();
 
   const foodEntries = fetchedFoodEntries
@@ -221,6 +228,28 @@ const Diary = () => {
     setCopySourceMealType(mealType);
     setIsCopyDialogOpen(true);
     debug(loggingLevel, 'Opening copy dialog for meal type:', mealType);
+  };
+
+  const handleCopySingleFood = (
+    targetDate: string,
+    targetMealType: string,
+    quickTarget: CopyQuickTarget | null
+  ) => {
+    const entry = copyingEntry;
+    const mealType = availableMealTypes?.find(
+      (mt) => mt.name.toLowerCase() === targetMealType.toLowerCase()
+    );
+    if (!entry || !mealType) return;
+    copySingleFoodEntry(
+      buildFoodEntryCopyPayload(
+        entry,
+        targetDate,
+        mealType.id,
+        quickTarget === 'now'
+          ? hourMinuteToEntryTime(userHourMinute(timezone))
+          : undefined
+      )
+    );
   };
 
   const handleCopyFamilyClick = (mealType: string) => {
@@ -527,6 +556,7 @@ const Diary = () => {
             }
             getEntryNutrition={getEntryNutrition}
             onCopyClick={handleCopyClick}
+            onCopyEntry={setCopyingEntry}
             onCopyFamilyClick={handleCopyFamilyClick}
             onConvertToMealClick={handleConvertToMealClick}
             energyUnit={energyUnit}
@@ -675,6 +705,16 @@ const Diary = () => {
           onClose={() => setIsCopyDialogOpen(false)}
           onCopy={handleCopyFoodEntries}
           sourceMealType={copySourceMealType}
+        />
+      )}
+
+      {copyingEntry && (
+        <CopyFoodEntryDialog
+          isOpen={true}
+          onClose={() => setCopyingEntry(null)}
+          onCopy={handleCopySingleFood}
+          sourceMealType={copyingEntry.meal_type}
+          foodName={copyingEntry.food_name ?? ''}
         />
       )}
 
