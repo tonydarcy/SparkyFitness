@@ -58,13 +58,18 @@ export interface WorkoutDraftExercise {
   snapshot?: import('@workspace/shared').EntryExerciseSnapshotResponse | null;
 
   // Progression & Equipment Fields
-  progressionMode?: 'rep_goal' | 'fixed' | 'step_load' | 'manual' | null;
+  progressionMode?:
+    'rep_goal' | 'fixed' | 'step_load' | 'manual' | 'double' | 'triple' | null;
   repGoal?: number | null;
+  repRangeMin?: number | null;
   incrementType?: 'weight' | 'reps' | null;
   incrementValue?: number | null;
   equipmentBrand?: string | null;
   /** Within-session per-set ramp, kg (negative ramps down). Null = off. */
   rampIncrement?: number | null;
+  /** Preset slot's backup exercise ("machine taken"); preset form only. */
+  backupExerciseId?: string | null;
+  backupExerciseName?: string | null;
 }
 
 export interface WorkoutDraft {

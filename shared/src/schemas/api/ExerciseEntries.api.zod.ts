@@ -68,6 +68,8 @@ export const exerciseSnapshotResponseSchema = z
     secondary_muscles: z.array(z.string()).nullable(),
     equipment: z.array(z.string()).nullable(),
     instructions: z.array(z.string()).nullable(),
+    /** Library rows only; diary snapshots don't copy it. */
+    video_url: z.string().nullable().optional(),
     force: z.string().nullable(),
     level: z.string().nullable(),
     mechanic: z.string().nullable(),
@@ -113,10 +115,11 @@ export const exerciseEntrySetResponseSchema = z.object({
   distance: z.number().nullable().optional(),
   // Progression & Equipment Fields
   progression_mode: z
-    .enum(['rep_goal', 'fixed', 'step_load', 'manual'])
+    .enum(['rep_goal', 'fixed', 'step_load', 'manual', 'double', 'triple'])
     .nullable()
     .optional(),
   rep_goal: z.number().int().nullable().optional(),
+  rep_range_min: z.number().int().nullable().optional(),
   increment_type: z.enum(['weight', 'reps']).nullable().optional(),
   increment_value: z.number().nullable().optional(),
   equipment_brand: z.string().nullable().optional(),
@@ -186,10 +189,11 @@ export const presetSessionExerciseRequestSchema = z
     superset_group: z.number().int().nullable().optional(),
     // Progression & Equipment Fields
     progression_mode: z
-      .enum(['rep_goal', 'fixed', 'step_load', 'manual'])
+      .enum(['rep_goal', 'fixed', 'step_load', 'manual', 'double', 'triple'])
       .nullable()
       .optional(),
     rep_goal: z.number().int().positive().nullable().optional(),
+    rep_range_min: z.number().int().positive().nullable().optional(),
     increment_type: z.enum(['weight', 'reps']).nullable().optional(),
     increment_value: z.number().positive().nullable().optional(),
     equipment_brand: z.string().nullable().optional(),

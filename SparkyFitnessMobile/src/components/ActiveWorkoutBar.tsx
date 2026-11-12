@@ -358,6 +358,7 @@ const ActiveWorkoutBar: React.FC<ActiveWorkoutBarProps> = ({
   );
   const plannedSetValues = useActiveWorkoutStore((s) => s.plannedSetValues);
   const exerciseConfigs = useActiveWorkoutStore((s) => s.exerciseConfigs);
+  const activeGym = useActiveWorkoutStore((s) => s.activeGym);
   const workoutFormat = useActiveWorkoutStore((s) => s.workoutFormat);
   const {
     state: restState,
@@ -538,6 +539,7 @@ const ActiveWorkoutBar: React.FC<ActiveWorkoutBarProps> = ({
       previousSessionSets,
       plannedSetValues,
       exerciseConfigs,
+      activeGym,
       weightUnit,
       workoutFormat,
     }

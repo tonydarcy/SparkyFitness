@@ -75,7 +75,7 @@ export const searchFoods = async (
     searchTerm,
     page: 1,
     itemsPerPage: 20,
-    sortBy: 'name:asc',
+    sortBy: 'usage:desc',
   });
   return {
     foods: response.foods,

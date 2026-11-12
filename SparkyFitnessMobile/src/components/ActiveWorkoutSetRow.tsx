@@ -7,7 +7,9 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, Pressable, Text, TextInput, View } from 'react-native';
-import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useCSSVariable } from 'uniwind';
 import { RIR_MAX, RIR_MIN, isBodyweightModality } from '@workspace/shared';
 import { measureAnchoredMenuTrigger, type AnchorRect } from './AnchoredMenu';
@@ -15,6 +17,8 @@ import CompletionCheck, { LogCircle } from './CompletionCheck';
 import Icon from './Icon';
 import {
   SetCellInput,
+  SetSwipeCopyAction,
+  SET_ROW_SWIPE_OFFSET,
   SetSwipeDeleteAction,
   type SetInputField,
   type SetRowAccessoryHandle,
@@ -480,6 +484,7 @@ function ActiveWorkoutSetRow({
     }
   }
 
+  const swipeableRef = useRef<SwipeableMethods | null>(null);
   const weightInputRef = useRef<TextInput>(null);
   const repsInputRef = useRef<TextInput>(null);
   const durationInputRef = useRef<TextInput>(null);
@@ -1498,6 +1503,7 @@ function ActiveWorkoutSetRow({
 
   return (
     <ReanimatedSwipeable
+      ref={swipeableRef}
       renderRightActions={() => (
         <SetSwipeDeleteAction
           onPress={() => onDelete?.(setId)}
@@ -1507,8 +1513,26 @@ function ActiveWorkoutSetRow({
           })}
         />
       )}
+      renderLeftActions={() => (
+        <SetSwipeCopyAction
+          onPress={() => {
+            swipeableRef.current?.close();
+            useActiveWorkoutStore.getState().duplicateSet(setId);
+          }}
+          accessibilityLabel={t('activeWorkout.setRow.copy', {
+            defaultValue: 'Copy set {{setNumber}}',
+            setNumber: set.set_number,
+          })}
+        />
+      )}
+      overshootLeft={false}
+      leftThreshold={40}
       overshootRight={false}
       rightThreshold={40}
+      // A clear sideways drag before the row moves, so a slightly diagonal
+      // scroll through the log doesn't open copy or delete.
+      dragOffsetFromLeftEdge={SET_ROW_SWIPE_OFFSET}
+      dragOffsetFromRightEdge={SET_ROW_SWIPE_OFFSET}
     >
       {row}
     </ReanimatedSwipeable>

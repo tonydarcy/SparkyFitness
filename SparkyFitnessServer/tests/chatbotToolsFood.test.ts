@@ -15,6 +15,7 @@ import foodEntryMealRepository from '../models/foodEntryMealRepository.js';
 import mealTypeRepository from '../models/mealType.js';
 import measurementRepository from '../models/measurementRepository.js';
 import reportRepository from '../models/reportRepository.js';
+import customNutrientService from '../services/customNutrientService.js';
 import externalProviderRepository from '../models/externalProviderRepository.js';
 import { toolOpts } from './helpers/toolExecutionOptions.js';
 
@@ -76,6 +77,9 @@ vi.mock('../models/foodRepository', () => ({
     getRecentFoodEntries: vi.fn(),
     getFoodUsage: vi.fn(),
   },
+}));
+vi.mock('../services/customNutrientService', () => ({
+  default: { getCustomNutrients: vi.fn() },
 }));
 vi.mock('../models/foodEntryMealRepository', () => ({
   default: {
@@ -4469,6 +4473,117 @@ describe('update_food_variant', () => {
       'user-1'
     );
     expect(foodCoreService.updateFoodEntriesSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('merges custom nutrient amounts into the stored ones', async () => {
+    vi.mocked(foodRepository.getFoodVariantById).mockResolvedValue({
+      id: VARIANT_ID,
+      food_id: FOOD_ID,
+      custom_nutrients: { Iron: 2, Zinc: 1 },
+    });
+    vi.mocked(foodRepository.getFoodById).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Oatmeal',
+      user_id: 'user-1',
+    });
+    vi.mocked(customNutrientService.getCustomNutrients).mockResolvedValue([
+      { name: 'Iron' },
+      { name: 'Zinc' },
+    ]);
+    vi.mocked(foodRepository.updateFoodVariant).mockResolvedValue({
+      id: VARIANT_ID,
+      food_id: FOOD_ID,
+      calories: 390,
+      serving_size: 100,
+      serving_unit: 'g',
+    });
+
+    await tools.sparky_manage_food.execute!(
+      {
+        action: 'update_food_variant',
+        variant_id: VARIANT_ID,
+        custom_nutrients: { Zinc: 3 },
+      },
+      opts
+    );
+
+    expect(foodRepository.updateFoodVariant).toHaveBeenCalledWith(
+      VARIANT_ID,
+      { custom_nutrients: { Iron: 2, Zinc: 3 } },
+      'user-1'
+    );
+  });
+
+  it('rejects custom nutrient names the user has not defined', async () => {
+    vi.mocked(foodRepository.getFoodVariantById).mockResolvedValue({
+      id: VARIANT_ID,
+      food_id: FOOD_ID,
+    });
+    vi.mocked(foodRepository.getFoodById).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Oatmeal',
+      user_id: 'user-1',
+    });
+    vi.mocked(customNutrientService.getCustomNutrients).mockResolvedValue([
+      { name: 'Iron' },
+    ]);
+
+    const result = await tools.sparky_manage_food.execute!(
+      {
+        action: 'update_food_variant',
+        variant_id: VARIANT_ID,
+        custom_nutrients: { Zync: 3 },
+      },
+      opts
+    );
+
+    expect(String(result)).toContain('Unknown custom nutrient(s): Zync');
+    expect(foodRepository.updateFoodVariant).not.toHaveBeenCalled();
+  });
+
+  it('infers update_food_variant (not delete_food) for food_id + custom_nutrients', async () => {
+    vi.mocked(foodCoreService.deleteFood).mockClear();
+    vi.mocked(foodRepository.getFoodById).mockResolvedValue({
+      id: FOOD_ID,
+      name: 'Oatmeal',
+      user_id: 'user-1',
+      default_variant: { id: VARIANT_ID },
+    });
+    vi.mocked(foodRepository.getFoodVariantById).mockResolvedValue({
+      id: VARIANT_ID,
+      food_id: FOOD_ID,
+      custom_nutrients: { Iron: 2 },
+    });
+    vi.mocked(customNutrientService.getCustomNutrients).mockResolvedValue([
+      { name: 'Iron' },
+    ]);
+    vi.mocked(foodRepository.updateFoodVariant).mockResolvedValue({
+      id: VARIANT_ID,
+      food_id: FOOD_ID,
+      serving_size: 100,
+      serving_unit: 'g',
+    });
+
+    // A bare food_id would otherwise infer delete_food, and food_name or
+    // meal_type would infer lookup_food_nutrition or log_food.
+    for (const extra of [
+      {},
+      { food_name: 'Oatmeal' },
+      { meal_type: 'lunch' as const },
+    ]) {
+      vi.mocked(foodRepository.updateFoodVariant).mockClear();
+      await tools.sparky_manage_food.execute!(
+        { food_id: FOOD_ID, custom_nutrients: { Iron: 4 }, ...extra },
+        opts
+      );
+
+      expect(foodRepository.updateFoodVariant).toHaveBeenCalledWith(
+        VARIANT_ID,
+        { custom_nutrients: { Iron: 4 } },
+        'user-1'
+      );
+    }
+    expect(foodCoreService.deleteFood).not.toHaveBeenCalled();
   });
 
   // #2115/#1958/#1925: caffeine_mg and alcohol_g were added as first-class

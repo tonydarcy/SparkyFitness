@@ -114,6 +114,7 @@ export const mealTypesQueryKey = ['mealTypes'] as const;
 
 export const shoesQueryKey = ['shoes'] as const;
 export const plateInventoryQueryKey = ['plateInventory'] as const;
+export const gymsQueryKey = ['plateInventory', 'gyms'] as const;
 export const allergenPreferencesQueryKey = ['allergenPreferences'] as const;
 
 export const goalsQueryKey = (date: string) => ['goals', date] as const;
@@ -334,6 +335,10 @@ export const workoutPresetsLibraryQueryKey = (searchTerm: string) =>
 export const workoutPlansRootQueryKey = ['workoutPlanTemplates'] as const;
 
 export const workoutPlansQueryKey = ['workoutPlanTemplates', 'list'] as const;
+export const starterWorkoutPlansQueryKey = [
+  'workoutPlanTemplates',
+  'starter',
+] as const;
 
 export const activeWorkoutPlanQueryKey = (date: string) =>
   ['workoutPlanTemplates', 'active', date] as const;
@@ -381,6 +386,8 @@ export const foodEntriesRangeQueryKey = (startDate: string, endDate: string) =>
 
 export const exerciseDashboardQueryKey = (startDate: string, endDate: string) =>
   ['exerciseDashboard', startDate, endDate] as const;
+
+export const strengthSummaryQueryKey = () => ['strengthSummary'] as const;
 
 export const trainingConsistencyQueryKey = () =>
   ['trainingConsistency'] as const;

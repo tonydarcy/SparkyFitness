@@ -50,6 +50,8 @@ import {
   LiveActiveWorkoutRestBar,
   REST_BAR_GLASS_CLEARANCE,
 } from '../components/ActiveWorkoutRestBar';
+import RestCompleteFlash from '../components/RestCompleteFlash';
+import Toast from 'react-native-toast-message';
 import type { ActionSheetRef } from '../components/ActionSheet';
 import { type AnchorRect } from '../components/AnchoredMenu';
 import type { ExerciseSetRestSheetRef } from '../components/ExerciseSetRestSheet';
@@ -516,6 +518,7 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
   const {
     handleAddExercise,
     handleReplaceExercise,
+    handleUseBackupExercise,
     handleRemoveExercise,
     handleClearExerciseSets,
     handleClearAllSets,
@@ -912,7 +915,29 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         );
         return;
       }
+      const index = exercise?.sets.findIndex((s) => String(s.id) === setId);
+      const deleted = index != null ? exercise?.sets[index] : undefined;
       store.deleteSet(setId);
+      if (!exercise || !deleted || index == null) return;
+      // A swipe is easy to make by mistake: offer the set back.
+      Toast.show({
+        type: 'info',
+        text1: t('activeWorkout.setDeleted', {
+          defaultValue: 'Set {{setNumber}} deleted',
+          setNumber: deleted.set_number,
+        }),
+        text2: t('activeWorkout.setDeletedUndo', {
+          defaultValue: 'Tap to undo',
+        }),
+        props: {
+          onPress: () => {
+            Toast.hide();
+            useActiveWorkoutStore
+              .getState()
+              .restoreSet(exercise.id, deleted, index);
+          },
+        },
+      });
     },
     [t]
   );
@@ -1217,6 +1242,8 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         />
       )}
 
+      <RestCompleteFlash />
+
       <StickySetInputAccessoryBar
         visible={focusedSetKey != null}
         onDone={handleAccessoryDone}
@@ -1265,6 +1292,9 @@ function ActiveWorkoutScreen({ navigation, route }: Props) {
         onPressThumb={handlePressThumb}
         onToggleExerciseNote={handleToggleExerciseNote}
         onReplaceExercise={handleReplaceExercise}
+        onUseBackupExercise={(entryId, backupId) =>
+          void handleUseBackupExercise(entryId, backupId)
+        }
         canAddWarmups={canAddWarmups}
         onAddWarmups={handleAddWarmups}
         onClearExerciseSets={handleClearExerciseSets}
