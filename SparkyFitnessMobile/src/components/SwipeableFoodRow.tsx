@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, View, Text, TouchableOpacity } from 'react-native';
+import { Alert, Pressable, View, Text, TouchableOpacity } from 'react-native';
 import Button from './ui/Button';
 import { useNavigation } from '@react-navigation/native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -171,81 +171,109 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
         rightThreshold={40}
         enabled={!selectionMode}
       >
-        <View
-          className={`py-1.5 flex-row items-center bg-surface ${
-            selectionMode && !isSelectable ? 'opacity-50' : ''
-          }`}
-        >
-          {selectionMode ? (
-            <Icon
-              name={selected ? 'checkmark-circle-filled' : 'radio-button-off'}
-              size={22}
-              color={selected ? accentPrimary : textMuted}
-              style={{ marginRight: 8 }}
-            />
-          ) : null}
-          {/* Diary rows are deliberately dense, so this slot collapses to
+        {/* Opaque under the tint, so the delete action behind never shows. */}
+        <View className="bg-surface">
+          <View
+            className={`py-1.5 flex-row items-center ${
+              selected ? 'bg-accent-primary/10' : 'bg-surface'
+            } ${selectionMode && !isSelectable ? 'opacity-50' : ''}`}
+          >
+            {selectionMode ? (
+              // The circle itself is the obvious tap target, so it toggles too,
+              // not just the food's name.
+              <Pressable
+                onPress={
+                  isSelectable ? () => onToggleSelect!(entry) : undefined
+                }
+                disabled={!isSelectable}
+                hitSlop={8}
+                accessibilityRole="checkbox"
+                accessibilityState={{
+                  checked: selected,
+                  disabled: !isSelectable,
+                }}
+                accessibilityLabel={name}
+                testID={`food-row-select-${entry.id}`}
+                style={{ marginRight: 8 }}
+              >
+                {/* Keyed so the native symbol view is replaced, not updated in
+                  place, when the tick changes. */}
+                <Icon
+                  key={selected ? 'on' : 'off'}
+                  name={
+                    selected ? 'checkmark-circle-filled' : 'radio-button-off'
+                  }
+                  size={22}
+                  color={selected ? accentPrimary : textMuted}
+                />
+              </Pressable>
+            ) : null}
+            {/* Diary rows are deliberately dense, so this slot collapses to
               nothing when an entry has no photo — a photo-free day keeps the
               exact layout it had before images existed. */}
-          {entryImage ? (
-            <FoodThumbnail
-              image={entryImage}
-              getImageSource={getImageSource}
-              size={56}
-              showFallback={false}
-              style={{ marginRight: 8 }}
-              onPress={() => openLightbox(diaryEntryImages(entry), 0, name)}
-            />
-          ) : null}
-          <TouchableOpacity
-            className="flex-1 mr-2"
-            activeOpacity={0.7}
-            onPress={
-              selectionMode
-                ? isSelectable
-                  ? () => onToggleSelect!(entry)
-                  : undefined
-                : handlePress
-            }
-            onLongPress={selectionMode ? undefined : handleLongPress}
-            disabled={selectionMode && !isSelectable}
-            accessibilityState={selectionMode ? { selected } : undefined}
-          >
-            <View className="flex-row flex-wrap items-baseline">
-              <Text className="text-md text-text-primary" numberOfLines={1}>
-                {name}
-              </Text>
-              <Text className="text-sm text-text-secondary" numberOfLines={1}>
-                {' · '}
-                {entry.quantity} {entry.unit}
-              </Text>
-              {timeLabel && (
-                <Text
-                  className="text-xs text-text-link ml-1.5"
-                  numberOfLines={1}
-                >
-                  {timeLabel}
-                </Text>
-              )}
-            </View>
-            <AllergenBadges allergens={entry.allergens} traces={entry.traces} />
-          </TouchableOpacity>
-          {canQuickAdjust && !selectionMode ? (
-            <Button
-              variant="ghost"
-              onPress={() => onAdjustServing!(entry)}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              className="py-0 px-0"
-              textClassName="text-sm text-text-secondary font-medium"
+            {entryImage ? (
+              <FoodThumbnail
+                image={entryImage}
+                getImageSource={getImageSource}
+                size={56}
+                showFallback={false}
+                style={{ marginRight: 8 }}
+                onPress={() => openLightbox(diaryEntryImages(entry), 0, name)}
+              />
+            ) : null}
+            <TouchableOpacity
+              className="flex-1 mr-2"
+              activeOpacity={0.7}
+              onPress={
+                selectionMode
+                  ? isSelectable
+                    ? () => onToggleSelect!(entry)
+                    : undefined
+                  : handlePress
+              }
+              onLongPress={selectionMode ? undefined : handleLongPress}
+              disabled={selectionMode && !isSelectable}
+              accessibilityState={selectionMode ? { selected } : undefined}
             >
-              {`${roundedEnergy(nutrition.calories, energyUnit)} ${energyUnitLabel(energyUnit, t)} ▾`}
-            </Button>
-          ) : (
-            <Text className="text-sm text-text-secondary font-medium mr-2">
-              {roundedEnergy(nutrition.calories, energyUnit)}{' '}
-              {energyUnitLabel(energyUnit, t)}
-            </Text>
-          )}
+              <View className="flex-row flex-wrap items-baseline">
+                <Text className="text-md text-text-primary" numberOfLines={1}>
+                  {name}
+                </Text>
+                <Text className="text-sm text-text-secondary" numberOfLines={1}>
+                  {' · '}
+                  {entry.quantity} {entry.unit}
+                </Text>
+                {timeLabel && (
+                  <Text
+                    className="text-xs text-text-link ml-1.5"
+                    numberOfLines={1}
+                  >
+                    {timeLabel}
+                  </Text>
+                )}
+              </View>
+              <AllergenBadges
+                allergens={entry.allergens}
+                traces={entry.traces}
+              />
+            </TouchableOpacity>
+            {canQuickAdjust && !selectionMode ? (
+              <Button
+                variant="ghost"
+                onPress={() => onAdjustServing!(entry)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                className="py-0 px-0"
+                textClassName="text-sm text-text-secondary font-medium"
+              >
+                {`${roundedEnergy(nutrition.calories, energyUnit)} ${energyUnitLabel(energyUnit, t)} ▾`}
+              </Button>
+            ) : (
+              <Text className="text-sm text-text-secondary font-medium mr-2">
+                {roundedEnergy(nutrition.calories, energyUnit)}{' '}
+                {energyUnitLabel(energyUnit, t)}
+              </Text>
+            )}
+          </View>
         </View>
       </ReanimatedSwipeable>
     </Animated.View>
