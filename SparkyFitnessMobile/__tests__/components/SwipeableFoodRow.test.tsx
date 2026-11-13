@@ -132,4 +132,39 @@ describe('SwipeableFoodRow', () => {
 
     alertSpy.mockRestore();
   });
+
+  it('picks the food when its circle or its name is tapped while selecting', () => {
+    const entry = createEntry();
+    const onToggleSelect = jest.fn();
+    const screen = renderRow(
+      <SwipeableFoodRow
+        entry={entry}
+        nutrition={{ calories: 120, protein: 15, carbs: 8, fat: 2 }}
+        selectionMode
+        onToggleSelect={onToggleSelect}
+      />
+    );
+
+    fireEvent.press(screen.getByTestId('food-row-select-entry-1'));
+    fireEvent.press(screen.getByText('Greek Yogurt'));
+
+    expect(onToggleSelect).toHaveBeenCalledTimes(2);
+    expect(onToggleSelect).toHaveBeenCalledWith(entry);
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not let a logged meal food be picked', () => {
+    const onToggleSelect = jest.fn();
+    const screen = renderRow(
+      <SwipeableFoodRow
+        entry={createEntry({ food_entry_meal_id: 'meal-1' })}
+        nutrition={{ calories: 120, protein: 15, carbs: 8, fat: 2 }}
+        selectionMode
+        onToggleSelect={onToggleSelect}
+      />
+    );
+
+    fireEvent.press(screen.getByTestId('food-row-select-entry-1'));
+    expect(onToggleSelect).not.toHaveBeenCalled();
+  });
 });
