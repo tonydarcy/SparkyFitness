@@ -40,6 +40,7 @@ jest.mock('@/hooks/Diary/useFoodEntries', () => ({
   useDeleteFoodEntryMutation: () => ({ mutateAsync: jest.fn() }),
   useCopyFoodEntriesMutation: () => ({ mutateAsync: jest.fn() }),
   useCopySingleFoodEntryMutation: () => ({ mutate: jest.fn() }),
+  useCopyFoodEntryListMutation: () => ({ mutate: jest.fn() }),
   useDeleteFoodEntryMealMutation: () => ({ mutateAsync: jest.fn() }),
 }));
 jest.mock('@/hooks/Foods/useCustomNutrients', () => ({
