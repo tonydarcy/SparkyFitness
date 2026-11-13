@@ -126,6 +126,7 @@ export const PREFERENCE_DEFAULTS = {
   oralCareCardVisible: false,
   labResultsCardVisible: true,
   trainingLoadCardVisible: true,
+  energyBalanceCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
@@ -225,6 +226,7 @@ export type AppPreferencesData = {
   oralCareCardVisible: boolean;
   labResultsCardVisible: boolean;
   trainingLoadCardVisible: boolean;
+  energyBalanceCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
@@ -386,6 +388,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setOralCareCardVisible: (value: boolean) => void;
   setLabResultsCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
+  setEnergyBalanceCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
@@ -549,6 +552,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ labResultsCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
         set({ trainingLoadCardVisible: value }),
+      setEnergyBalanceCardVisible: (value) =>
+        set({ energyBalanceCardVisible: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
       setMedicationRemindersEnabled: (value) =>
         set({ medicationRemindersEnabled: value }),
@@ -778,6 +783,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         oralCareCardVisible: state.oralCareCardVisible,
         labResultsCardVisible: state.labResultsCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
+        energyBalanceCardVisible: state.energyBalanceCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,

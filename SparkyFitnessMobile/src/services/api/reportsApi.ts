@@ -1,4 +1,5 @@
 import type {
+  AdaptiveTdeeResult,
   ExerciseDashboardSummary,
   RunningEstimatesResponse,
   FitnessFatigueResponse,
@@ -82,4 +83,16 @@ export const fetchRunEstimates = (): Promise<RunningEstimatesResponse> =>
     endpoint: '/api/reports/run-estimates',
     serviceName: 'Reports API',
     operation: 'fetch running estimates',
+  });
+
+/**
+ * Adaptive expenditure (TDEE) for a day, learned from logged intake against
+ * the weight trend. An old server without the route answers 404, which the
+ * Dashboard card treats as nothing to show.
+ */
+export const fetchAdaptiveTdee = (date: string): Promise<AdaptiveTdeeResult> =>
+  apiFetch<AdaptiveTdeeResult>({
+    endpoint: `/api/adaptive-tdee?date=${encodeURIComponent(date)}`,
+    serviceName: 'Reports API',
+    operation: 'fetch adaptive TDEE',
   });

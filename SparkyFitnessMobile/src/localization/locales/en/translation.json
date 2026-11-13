@@ -1358,6 +1358,8 @@
     "configureCard": "Configure {{name}}",
     "trainingLoad": "Training Load",
     "trainingLoadSubtitle": "Show this week against your usual training, with a nudge to rest",
+    "energyBalance": "Expenditure & Balance",
+    "energyBalanceSubtitle": "Show your estimated TDEE and average daily deficit or surplus",
     "labResults": "Lab Results",
     "labResultsSubtitle": "Show your latest lab results and which are out of range",
     "oralCare": "Oral care",
@@ -9267,6 +9269,17 @@
     "readinessHigh": "ready for a hard session",
     "readinessModerate": "fine for a normal session",
     "readinessLow": "go easy today"
+  },
+  "energyBalanceCard": {
+    "title": "Expenditure & Balance",
+    "perDay": "{{unit}}/day",
+    "deficit": "Avg deficit",
+    "surplus": "Avg surplus",
+    "balance": "Avg balance",
+    "tdee": "TDEE",
+    "avgIntake": "Avg intake",
+    "adaptiveNote": "Averages over the {{days}} logged days behind this estimate, against your weight trend.",
+    "formulaNote": "Formula estimate from your profile. Log food and weigh in regularly for a few weeks to learn your real expenditure."
   },
   "paceReference": {
     "title": "Your race pace",

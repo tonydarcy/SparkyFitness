@@ -277,6 +277,7 @@ export * from './utils/trainingConsistency.ts';
 export * from './utils/trainingReview.ts';
 export * from './utils/runReview.ts';
 export * from './utils/calorieTargetReview.ts';
+export * from './utils/energyBalance.ts';
 export * from './utils/planProposals.ts';
 export * from './utils/warmupSets.ts';
 export * from './utils/plateCalculator.ts';
