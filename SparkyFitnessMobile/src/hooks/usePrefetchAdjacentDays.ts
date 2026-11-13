@@ -28,9 +28,10 @@ export function usePrefetchAdjacentDays({
 
   useEffect(() => {
     if (!enabled) return;
-    const days = [addDays(date, -1)];
-    const nextDay = addDays(date, 1);
-    if (nextDay <= getTodayDate()) days.push(nextDay);
+    const today = getTodayDate();
+    const days = [addDays(date, -1), addDays(date, 1)].filter(
+      (day) => day <= today
+    );
 
     for (const day of days) {
       // prefetchQuery never throws; a failed prefetch just leaves the day to

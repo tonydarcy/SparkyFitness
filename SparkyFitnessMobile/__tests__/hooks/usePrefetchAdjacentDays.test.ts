@@ -86,6 +86,24 @@ describe('usePrefetchAdjacentDays', () => {
     expect(mockLoadSummary).not.toHaveBeenCalledWith('2026-11-14');
   });
 
+  it('loads nothing past today when viewing a future date', async () => {
+    render('2026-11-16');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockLoadSummary).not.toHaveBeenCalled();
+    expect(mockFetchMeasurements).not.toHaveBeenCalled();
+    expect(mockFetchSleep).not.toHaveBeenCalled();
+  });
+
+  it('loads only today when viewing tomorrow', async () => {
+    render('2026-11-14');
+
+    await waitFor(() =>
+      expect(mockLoadSummary).toHaveBeenCalledWith('2026-11-13')
+    );
+    expect(mockLoadSummary).not.toHaveBeenCalledWith('2026-11-15');
+  });
+
   it('does nothing until enabled', () => {
     render('2026-11-10', false);
 
