@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Copy, ListChecks, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,6 +41,8 @@ interface DiaryTimelineProps {
     carbs: number;
     fat: number;
   };
+  /** Copy the foods picked in select mode. Logged meals are not pickable. */
+  onCopyEntries?: (entries: FoodEntry[]) => void;
 }
 
 const DiaryTimeline = ({
@@ -51,12 +54,33 @@ const DiaryTimeline = ({
   onEditEntry,
   onRemoveEntry,
   getEntryNutrition,
+  onCopyEntries,
 }: DiaryTimelineProps) => {
   const { t } = useTranslation();
   const { timeFormat, energyUnit, convertEnergy, getDateRelationToToday } =
     usePreferences();
   // undefined = search closed; null = add at "now"; HH:MM = add at that slot.
   const [addAt, setAddAt] = useState<string | null | undefined>(undefined);
+
+  // Picking foods to copy together; null when not selecting. Kept per day so
+  // moving to another day ends it.
+  const [selection, setSelection] = useState<{
+    date: string;
+    ids: ReadonlySet<string>;
+  } | null>(null);
+  const selectedIds =
+    selection?.date === selectedDate ? selection.ids : undefined;
+  const selecting = selectedIds !== undefined;
+  const selectedEntries = selectedIds
+    ? foodEntries.filter((entry) => selectedIds.has(entry.id))
+    : [];
+  const toggleSelected = (id: string) =>
+    setSelection((prev) => {
+      const ids = new Set(prev?.date === selectedDate ? prev.ids : []);
+      if (ids.has(id)) ids.delete(id);
+      else ids.add(id);
+      return { date: selectedDate, ids };
+    });
 
   const groups = useMemo(
     () => buildTimelineGroups(foodEntries, foodEntryMeals, mealTypes),
@@ -90,6 +114,9 @@ const DiaryTimeline = ({
       serving,
     ].filter(Boolean);
 
+    const selectable = selecting && kind === 'foodEntry';
+    const isSelected = selectable && selectedIds.has(entry.id);
+
     return (
       <li key={`${kind}:${entry.id}`} className="group relative pl-6">
         <span
@@ -100,11 +127,28 @@ const DiaryTimeline = ({
               : 'absolute -left-[5px] top-3 h-2.5 w-2.5 rounded-full bg-primary'
           }
         />
-        <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60">
+        <div
+          className={`flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 ${
+            selecting && !selectable ? 'opacity-50' : ''
+          }`}
+        >
+          {selecting && (
+            <Checkbox
+              checked={isSelected}
+              disabled={!selectable}
+              onCheckedChange={() => toggleSelected(entry.id)}
+              aria-label={t('diary.timeline.selectFood', 'Select {{food}}', {
+                food: name,
+              })}
+            />
+          )}
           <button
             type="button"
             className="min-w-0 flex-1 text-left"
-            onClick={() => onEditEntry(entry)}
+            disabled={selecting && !selectable}
+            onClick={() =>
+              selecting ? toggleSelected(entry.id) : onEditEntry(entry)
+            }
           >
             <div className="truncate font-medium">{name}</div>
             <div className="truncate text-xs text-muted-foreground">
@@ -123,7 +167,10 @@ const DiaryTimeline = ({
               })}
             </div>
           </div>
-          <div className="flex shrink-0 items-center sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+          <div
+            hidden={selecting}
+            className="flex shrink-0 items-center sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+          >
             <Button
               size="icon"
               variant="ghost"
@@ -172,10 +219,52 @@ const DiaryTimeline = ({
               {formatEnergy(totalCalories)} {energyLabel}
             </span>
           </div>
-          <Button size="sm" onClick={() => setAddAt(null)}>
-            <Plus className="mr-1 h-4 w-4" />
-            {t('diary.timeline.addFood', 'Add food')}
-          </Button>
+          {selecting ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {t('diary.timeline.selectedCount', '{{count}} selected', {
+                  count: selectedEntries.length,
+                })}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setSelection(null)}
+              >
+                {t('common.cancel', 'Cancel')}
+              </Button>
+              <Button
+                size="sm"
+                disabled={selectedEntries.length === 0}
+                onClick={() => {
+                  onCopyEntries?.(selectedEntries);
+                  setSelection(null);
+                }}
+              >
+                <Copy className="mr-1 h-4 w-4" />
+                {t('diary.timeline.copySelected', 'Copy')}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              {onCopyEntries && foodEntries.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setSelection({ date: selectedDate, ids: new Set() })
+                  }
+                >
+                  <ListChecks className="mr-1 h-4 w-4" />
+                  {t('diary.timeline.select', 'Select')}
+                </Button>
+              )}
+              <Button size="sm" onClick={() => setAddAt(null)}>
+                <Plus className="mr-1 h-4 w-4" />
+                {t('diary.timeline.addFood', 'Add food')}
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {groups.length === 0 ? (

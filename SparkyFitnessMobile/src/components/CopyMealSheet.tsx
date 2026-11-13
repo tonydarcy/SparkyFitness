@@ -26,17 +26,24 @@ import type { CopyFoodEntriesPayload } from '../services/api/foodEntriesApi';
 const QUICK_TARGETS = ['now', 'today', 'tomorrow'] as const;
 export type QuickTarget = (typeof QUICK_TARGETS)[number];
 
-/** Copying one food instead of a whole meal: titled by the food's name. */
-export interface CopySingleFoodOptions {
-  foodName: string;
+/**
+ * Copying foods instead of a whole meal: one food, titled by its name, or
+ * several picked foods (`count` > 1), which can keep each food's own meal.
+ */
+export interface CopyFoodsOptions {
+  foodName?: string;
+  count?: number;
 }
+
+/** The meal chip that keeps each picked food in the meal it came from. */
+const KEEP_MEAL = '__keep_meal__';
 
 export interface CopyMealSheetRef {
   present: (
     sourceDate: string,
     sourceMealTypeId: string | null,
     sourceMealTypeName: string,
-    singleFood?: CopySingleFoodOptions
+    foods?: CopyFoodsOptions
   ) => void;
   dismiss: () => void;
 }
@@ -44,14 +51,15 @@ export interface CopyMealSheetRef {
 interface CopyMealSheetProps {
   isPending?: boolean;
   /**
-   * One payload per target day: a whole meal can be copied to several days at
-   * once, a single food to one. `targetMealTypeId` is the picked meal type's
-   * id, for single-food copies; `quickTarget` is the quick choice behind the
-   * date, if one was used.
+   * One payload per target day: a whole meal or several foods can be copied
+   * to several days at once, a single food to one. `targetMealTypeId` is the
+   * picked meal type's id, for food copies, or null when several foods keep
+   * their own meals; `quickTarget` is the quick choice behind the date, if one
+   * was used.
    */
   onCopy: (
     payloads: CopyFoodEntriesPayload[],
-    target: { targetMealTypeId: string; quickTarget: QuickTarget | null }
+    target: { targetMealTypeId: string | null; quickTarget: QuickTarget | null }
   ) => void;
 }
 
@@ -95,7 +103,7 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
       date: string;
       mealTypeId: string | null;
       mealTypeName: string;
-      singleFood?: CopySingleFoodOptions;
+      foods?: CopyFoodsOptions;
     } | null>(null);
     // A whole meal can go to several days; a single food goes to one.
     const [targetDates, setTargetDates] = useState<string[]>([]);
@@ -113,18 +121,20 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
         sourceDate: string,
         sourceMealTypeId: string | null,
         sourceMealTypeName: string,
-        singleFood?: CopySingleFoodOptions
+        foods?: CopyFoodsOptions
       ) => {
         setSource({
           date: sourceDate,
-          singleFood,
+          foods,
           mealTypeId: sourceMealTypeId,
           mealTypeName: sourceMealTypeName,
         });
         // Default to the same slot the user is viewing; they pick new days or a
         // new meal before copying.
         setTargetDates([sourceDate]);
-        setTargetMealTypeId(sourceMealTypeId);
+        setTargetMealTypeId(
+          (foods?.count ?? 1) > 1 ? KEEP_MEAL : sourceMealTypeId
+        );
         setQuickTarget(null);
         bottomSheetRef.current?.present();
       },
@@ -185,14 +195,14 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
     );
 
     // Copying a whole meal onto itself does nothing useful, so the source slot
-    // is left out even when its day is still selected. A single food can be
-    // logged again in the same meal.
+    // is left out even when its day is still selected. Foods can be logged
+    // again in the same meal.
     const copyTargetDates = useMemo(
       () =>
         source
           ? targetDates.filter(
               (day) =>
-                source.singleFood ||
+                source.foods ||
                 !(day === source.date && source.mealTypeId === targetMealTypeId)
             )
           : [],
@@ -226,19 +236,20 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
       // (verified contract), so the payload carries names. Selection in the UI
       // is by canonical id; the name is resolved here so two categories that
       // share a name but differ by id stay unambiguous client-side.
+      const keepMeal = targetMealTypeId === KEEP_MEAL;
       const targetType = mealTypes.find((mt) => mt.id === targetMealTypeId);
-      if (!targetType) return;
+      if (!targetType && !(keepMeal && source.foods)) return;
 
-      // A single food is copied by meal-type id, so duplicate names do not
-      // matter for it.
+      // Foods are copied by meal-type id, so duplicate names do not matter
+      // for them.
       const payloads = copyTargetDates.map((targetDate) => ({
         sourceDate: source.date,
         sourceMealType: source.mealTypeName,
         targetDate,
-        targetMealType: targetType.name,
+        targetMealType: targetType?.name ?? source.mealTypeName,
       }));
-      const target = { targetMealTypeId: targetType.id, quickTarget };
-      if (source.singleFood) {
+      const target = { targetMealTypeId: targetType?.id ?? null, quickTarget };
+      if (source.foods || !targetType) {
         onCopy(payloads, target);
         return;
       }
@@ -279,6 +290,9 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
       quickTarget,
     ]);
 
+    const isMultiFood = (source?.foods?.count ?? 1) > 1;
+    const isSingleFood = !!source?.foods && !isMultiFood;
+
     const copyLabel =
       copyTargetDates.length > 1
         ? t('copyMeal.copyToDays', {
@@ -304,15 +318,22 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
             <View className="px-5">
               <View className="items-center mb-4">
                 <Text className="text-text-primary text-lg font-semibold text-center">
-                  {source.singleFood
-                    ? t('copyMeal.foodTitle', {
-                        defaultValue: 'Copy food: {{food}}',
-                        food: source.singleFood.foodName,
+                  {isMultiFood
+                    ? t('copyMeal.foodsTitle', {
+                        count: source.foods?.count,
+                        defaultValue: 'Copy {{count}} foods',
+                        defaultValue_one: 'Copy {{count}} food',
+                        defaultValue_other: 'Copy {{count}} foods',
                       })
-                    : t('copyMeal.title', {
-                        defaultValue: 'Copy meal: {{meal}}',
-                        meal: sourceTitle,
-                      })}
+                    : source.foods
+                      ? t('copyMeal.foodTitle', {
+                          defaultValue: 'Copy food: {{food}}',
+                          food: source.foods.foodName,
+                        })
+                      : t('copyMeal.title', {
+                          defaultValue: 'Copy meal: {{meal}}',
+                          meal: sourceTitle,
+                        })}
                 </Text>
                 <Text className="text-text-secondary text-sm mt-1 text-center">
                   {t('copyMeal.sourceDate', {
@@ -331,7 +352,7 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
                     endpoint keeps each entry's own time, so a whole meal gets
                     Today and Tomorrow only. */}
                 {QUICK_TARGETS.filter(
-                  (target) => source.singleFood || target !== 'now'
+                  (target) => source.foods || target !== 'now'
                 ).map((target) => {
                   const isSelected = quickTarget === target;
                   const label = quickTargetLabel(target);
@@ -368,7 +389,7 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
               <Text className="text-xs font-semibold uppercase text-text-muted mb-1">
                 {t('copyMeal.targetDate', { defaultValue: 'Target date' })}
               </Text>
-              {!source.singleFood && (
+              {!isSingleFood && (
                 <Text className="text-text-secondary text-sm mb-1">
                   {t('copyMeal.multipleDaysHint', {
                     defaultValue: 'Tap more days to copy to each of them.',
@@ -376,7 +397,7 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
                 </Text>
               )}
               <DateTimePicker
-                {...(source.singleFood
+                {...(isSingleFood
                   ? {
                       mode: 'single' as const,
                       date: dateValues[0] ?? new Date(),
@@ -430,34 +451,51 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
                 {t('copyMeal.targetMeal', { defaultValue: 'Target meal' })}
               </Text>
               <View className="flex-row flex-wrap gap-2 mb-6">
-                {mealTypes.map((mt) => {
-                  const isSelected = mt.id === targetMealTypeId;
-                  return (
-                    <TouchableOpacity
-                      key={mt.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={displayMealType(mt)}
-                      accessibilityState={{ selected: isSelected }}
-                      onPress={() => setTargetMealTypeId(mt.id)}
-                      activeOpacity={0.7}
-                      className={`px-4 py-2 rounded-full border ${
-                        isSelected
-                          ? 'bg-accent-primary border-accent-primary'
-                          : 'bg-raised border-border-subtle'
-                      }`}
-                    >
-                      <Text
-                        className={`text-sm ${
+                {(isMultiFood
+                  ? [
+                      {
+                        id: KEEP_MEAL,
+                        label: t('copyMeal.keepMeal', {
+                          defaultValue: 'Same meal',
+                        }),
+                      },
+                    ]
+                  : []
+                )
+                  .concat(
+                    mealTypes.map((mt) => ({
+                      id: mt.id,
+                      label: displayMealType(mt),
+                    }))
+                  )
+                  .map((mt) => {
+                    const isSelected = mt.id === targetMealTypeId;
+                    return (
+                      <TouchableOpacity
+                        key={mt.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={mt.label}
+                        accessibilityState={{ selected: isSelected }}
+                        onPress={() => setTargetMealTypeId(mt.id)}
+                        activeOpacity={0.7}
+                        className={`px-4 py-2 rounded-full border ${
                           isSelected
-                            ? 'text-white font-semibold'
-                            : 'text-text-primary'
+                            ? 'bg-accent-primary border-accent-primary'
+                            : 'bg-raised border-border-subtle'
                         }`}
                       >
-                        {displayMealType(mt)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                        <Text
+                          className={`text-sm ${
+                            isSelected
+                              ? 'text-white font-semibold'
+                              : 'text-text-primary'
+                          }`}
+                        >
+                          {mt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
               </View>
 
               <Button

@@ -4008,7 +4008,13 @@
       "addAt": "Add food at {{time}}",
       "addDescription": "Pick a food or meal. You can adjust the time and meal next.",
       "noTime": "No time",
-      "macros": "P {{p}} · C {{c}} · F {{f}}"
+      "macros": "P {{p}} · C {{c}} · F {{f}}",
+      "select": "Select",
+      "selectFood": "Select {{food}}",
+      "selectedCount": "{{count}} selected",
+      "copySelected": "Copy",
+      "foodCount_one": "{{count}} food",
+      "foodCount_other": "{{count}} foods"
     },
     "nutrientLabels": {
       "cal": "cal",
@@ -4366,7 +4372,9 @@
       "stepFloor": "Held at your safety floor; the other days give up the difference.",
       "pausedWeeklyPlan": "Calorie cycling is paused today: a weekly goal plan sets this day.",
       "pausedEarnBack": "Calorie cycling is paused: exercise calories are added back to your goal."
-    }
+    },
+    "copyFoodsSuccess": "Foods copied.",
+    "copyFoodsError": "Failed to copy some foods. Check the target day before trying again."
   },
   "nutrientGoalDirection": {
     "min": "Min",
@@ -7393,7 +7401,8 @@
     },
     "title": "Copy Food Entries",
     "titleAll": "Copy Entire Day",
-    "titleFood": "Copy {{food}}"
+    "titleFood": "Copy {{food}}",
+    "keepMeal": "Same meal"
   },
   "customNutrients": {
     "failedToAddNutrient": "Failed to add nutrient.",

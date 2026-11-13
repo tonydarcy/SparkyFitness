@@ -33,6 +33,9 @@ import { useMealTypes } from '@/hooks/Diary/useMealTypes';
 
 export type CopyQuickTarget = 'now' | 'today' | 'tomorrow';
 
+/** Meal-type choice that keeps each copied food in the meal it came from. */
+export const KEEP_SOURCE_MEAL = '__keep_source_meal__';
+
 interface CopyFoodEntryDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -43,8 +46,13 @@ interface CopyFoodEntryDialogProps {
     quickTarget: CopyQuickTarget | null
   ) => void;
   sourceMealType: string;
-  /** Set when copying one food instead of a whole meal or day. */
+  /**
+   * Set when copying foods instead of a whole meal or day: one food's name, or
+   * a label such as "3 foods" for several picked foods.
+   */
   foodName?: string;
+  /** Offer "Same meal" (`KEEP_SOURCE_MEAL`) for several picked foods. */
+  keepMealOption?: boolean;
 }
 
 const CopyFoodEntryDialog = ({
@@ -53,6 +61,7 @@ const CopyFoodEntryDialog = ({
   onCopy,
   sourceMealType,
   foodName,
+  keepMealOption = false,
 }: CopyFoodEntryDialogProps) => {
   const { t } = useTranslation();
   const { formatDateInUserTimezone, loggingLevel, timezone } = usePreferences();
@@ -240,6 +249,11 @@ const CopyFoodEntryDialog = ({
                   {availableMealTypes?.length === 0 && (
                     <SelectItem value="loading" disabled>
                       {t('common.loading', 'Loading...')}
+                    </SelectItem>
+                  )}
+                  {keepMealOption && (
+                    <SelectItem value={KEEP_SOURCE_MEAL}>
+                      {t('copyFoodEntryDialog.keepMeal', 'Same meal')}
                     </SelectItem>
                   )}
                   {availableMealTypes?.map((meal) => (

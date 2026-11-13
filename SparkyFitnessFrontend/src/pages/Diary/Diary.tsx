@@ -36,6 +36,7 @@ import { selectDisplayableHealthMetrics } from '@/utils/dailyHealthMetrics';
 import EditFoodEntryDialog from './EditFoodEntryDialog';
 import FoodUnitSelector from '@/components/FoodUnitSelector';
 import CopyFoodEntryDialog, {
+  KEEP_SOURCE_MEAL,
   type CopyQuickTarget,
 } from '@/pages/Diary/CopyFoodEntryDialog';
 import ConvertToMealDialog from '@/pages/Diary/ConvertToMealDialog';
@@ -60,6 +61,7 @@ import { useCustomNutrients } from '@/hooks/Foods/useCustomNutrients';
 import { useMealTypes } from '@/hooks/Diary/useMealTypes';
 import {
   useCopyFoodEntriesMutation,
+  useCopyFoodEntryListMutation,
   useCopySingleFoodEntryMutation,
   useCreateFoodEntryMutation,
   useDeleteFoodEntryMealMutation,
@@ -176,6 +178,11 @@ const Diary = () => {
   const { mutateAsync: copyFoodEntries } = useCopyFoodEntriesMutation();
   const { mutate: copySingleFoodEntry } = useCopySingleFoodEntryMutation();
   const [copyingEntry, setCopyingEntry] = useState<FoodEntry | null>(null);
+  const { mutate: copyFoodEntryList } = useCopyFoodEntryListMutation();
+  // Foods picked in the timeline to copy together.
+  const [copyingEntries, setCopyingEntries] = useState<FoodEntry[] | null>(
+    null
+  );
   const { mutateAsync: deleteFoodEntryMeal } = useDeleteFoodEntryMealMutation();
 
   const foodEntries = fetchedFoodEntries
@@ -250,6 +257,33 @@ const Diary = () => {
           : undefined
       )
     );
+  };
+
+  const handleCopySelectedFoods = (
+    targetDate: string,
+    targetMealType: string,
+    quickTarget: CopyQuickTarget | null
+  ) => {
+    const entries = copyingEntries ?? [];
+    const mealTypeIdByName = (name: string) =>
+      availableMealTypes?.find(
+        (mt) => mt.name.toLowerCase() === name.toLowerCase()
+      )?.id;
+    const keepMeal = targetMealType === KEEP_SOURCE_MEAL;
+    const entryTime =
+      quickTarget === 'now'
+        ? hourMinuteToEntryTime(userHourMinute(timezone))
+        : undefined;
+    const payloads = entries.flatMap((entry) => {
+      // "Same meal" keeps each food in the meal it was logged in.
+      const mealTypeId = keepMeal
+        ? (entry.meal_type_id ?? mealTypeIdByName(entry.meal_type))
+        : mealTypeIdByName(targetMealType);
+      return mealTypeId
+        ? [buildFoodEntryCopyPayload(entry, targetDate, mealTypeId, entryTime)]
+        : [];
+    });
+    if (payloads.length > 0) copyFoodEntryList(payloads);
   };
 
   const handleCopyFamilyClick = (mealType: string) => {
@@ -522,6 +556,7 @@ const Diary = () => {
             onEditEntry={handleEditEntry}
             onRemoveEntry={handleRemoveEntry}
             getEntryNutrition={getEntryNutrition}
+            onCopyEntries={setCopyingEntries}
           />
         ),
       });
@@ -715,6 +750,27 @@ const Diary = () => {
           onCopy={handleCopySingleFood}
           sourceMealType={copyingEntry.meal_type}
           foodName={copyingEntry.food_name ?? ''}
+        />
+      )}
+
+      {copyingEntries && (
+        <CopyFoodEntryDialog
+          isOpen={true}
+          onClose={() => setCopyingEntries(null)}
+          onCopy={handleCopySelectedFoods}
+          sourceMealType={
+            copyingEntries.length === 1
+              ? copyingEntries[0]!.meal_type
+              : KEEP_SOURCE_MEAL
+          }
+          keepMealOption={copyingEntries.length > 1}
+          foodName={
+            copyingEntries.length === 1
+              ? (copyingEntries[0]!.food_name ?? '')
+              : t('diary.timeline.foodCount', '{{count}} foods', {
+                  count: copyingEntries.length,
+                })
+          }
         />
       )}
 

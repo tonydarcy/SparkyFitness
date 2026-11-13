@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, Pressable } from 'react-native';
 import { useCSSVariable } from 'uniwind';
@@ -9,6 +9,15 @@ import Icon from './Icon';
 import { MEAL_CONFIG } from '../constants/meals';
 import SwipeableFoodRow from './SwipeableFoodRow';
 import SegmentedControl from './SegmentedControl';
+import Button from './ui/Button';
+import CopyMealSheet, {
+  type CopyMealSheetRef,
+  type QuickTarget,
+} from './CopyMealSheet';
+import { useCopySelectedFoods } from '../hooks/useCopySelectedFoods';
+import type { CopyFoodEntryInput } from '../hooks/useCopyFoodEntry';
+import { currentEntryTime } from '../utils/foodEntryCopy';
+import type { CopyFoodEntriesPayload } from '../services/api/foodEntriesApi';
 import { usePreferences } from '../hooks/usePreferences';
 import {
   useAppPreferencesStore,
@@ -43,7 +52,14 @@ interface FoodSummaryProps {
   ) => void;
 }
 
-interface MealSectionProps {
+/** Picking several foods to copy at once; see SwipeableFoodRow. */
+interface FoodSelectionProps {
+  selectionMode?: boolean;
+  selectedIds?: ReadonlySet<string>;
+  onToggleSelect?: (entry: FoodEntry) => void;
+}
+
+interface MealSectionProps extends FoodSelectionProps {
   group: MealGroup;
   goals?: DailyGoals;
   calorieGoal?: number;
@@ -79,6 +95,9 @@ const MealSection: React.FC<MealSectionProps> = ({
   calorieGoal,
   onAdjustServing,
   onPressMealType,
+  selectionMode,
+  selectedIds,
+  onToggleSelect,
 }) => {
   const { t } = useTranslation();
   const accentPrimary = useCSSVariable('--color-accent-primary') as string;
@@ -151,6 +170,9 @@ const MealSection: React.FC<MealSectionProps> = ({
             entry={entry}
             nutrition={nutrition}
             onAdjustServing={onAdjustServing}
+            selectionMode={selectionMode}
+            selected={selectedIds?.has(entry.id) ?? false}
+            onToggleSelect={onToggleSelect}
           />
         );
       })}
@@ -158,7 +180,7 @@ const MealSection: React.FC<MealSectionProps> = ({
   );
 };
 
-interface FoodTimelineProps {
+interface FoodTimelineProps extends FoodSelectionProps {
   foodEntries: FoodEntry[];
   mealTypes: MealType[];
   onAddFoodAt?: (time: string) => void;
@@ -170,6 +192,9 @@ const FoodTimeline: React.FC<FoodTimelineProps> = ({
   mealTypes,
   onAddFoodAt,
   onAdjustServing,
+  selectionMode,
+  selectedIds,
+  onToggleSelect,
 }) => {
   const { t } = useTranslation();
   const { preferences } = usePreferences();
@@ -192,7 +217,7 @@ const FoodTimeline: React.FC<FoodTimelineProps> = ({
               <Text className="text-xs font-semibold uppercase text-text-muted flex-1">
                 {label}
               </Text>
-              {slot && onAddFoodAt && (
+              {slot && onAddFoodAt && !selectionMode && (
                 <Pressable
                   onPress={() => onAddFoodAt(slot)}
                   hitSlop={8}
@@ -213,6 +238,9 @@ const FoodTimeline: React.FC<FoodTimelineProps> = ({
                   entry={entry}
                   nutrition={calculateEntryNutrition(entry)}
                   onAdjustServing={onAdjustServing}
+                  selectionMode={selectionMode}
+                  selected={selectedIds?.has(entry.id) ?? false}
+                  onToggleSelect={onToggleSelect}
                 />
               ))}
             </View>
@@ -237,25 +265,162 @@ const FoodSummary: React.FC<FoodSummaryProps> = ({
   const viewMode = useAppPreferencesStore((s) => s.diaryViewMode);
   const setViewMode = useAppPreferencesStore((s) => s.setDiaryViewMode);
 
+  // Foods picked to copy together. The selection belongs to one day, so
+  // moving to another day ends it.
+  const day = foodEntries[0]?.entry_date ?? '';
+  const [selection, setSelection] = useState<{
+    day: string;
+    ids: ReadonlySet<string>;
+  } | null>(null);
+  const activeSelection = selection?.day === day ? selection : null;
+  const selectionMode = activeSelection !== null;
+  const selectedIds = activeSelection?.ids;
+  const selectedEntries = useMemo(
+    () =>
+      selectedIds
+        ? foodEntries.filter((entry) => selectedIds.has(entry.id))
+        : [],
+    [foodEntries, selectedIds]
+  );
+
+  const toggleSelect = useCallback(
+    (entry: FoodEntry) => {
+      setSelection((prev) => {
+        const ids = new Set(prev?.day === day ? prev.ids : []);
+        if (ids.has(entry.id)) ids.delete(entry.id);
+        else ids.add(entry.id);
+        return { day, ids };
+      });
+    },
+    [day]
+  );
+  const endSelection = useCallback(() => setSelection(null), []);
+
+  const copySheetRef = useRef<CopyMealSheetRef>(null);
+  const { copyFoods, isPending: isCopying } = useCopySelectedFoods({
+    onSuccess: () => {
+      copySheetRef.current?.dismiss();
+      setSelection(null);
+    },
+  });
+
+  const openCopySheet = () => {
+    const [first] = selectedEntries;
+    if (!first) return;
+    const single = selectedEntries.length === 1;
+    copySheetRef.current?.present(
+      day,
+      single ? (entryMealTypeId(first, mealTypes) ?? null) : null,
+      single ? first.meal_type : '',
+      single
+        ? { foodName: first.food_name ?? '' }
+        : { count: selectedEntries.length }
+    );
+  };
+
+  const handleCopy = (
+    payloads: CopyFoodEntriesPayload[],
+    {
+      targetMealTypeId,
+      quickTarget,
+    }: { targetMealTypeId: string | null; quickTarget: QuickTarget | null }
+  ) => {
+    // "Now" logs the copies at the current time; any other target keeps the
+    // time of day each food was first logged at.
+    const entryTime = quickTarget === 'now' ? currentEntryTime() : undefined;
+    const inputs: CopyFoodEntryInput[] = [];
+    for (const { targetDate } of payloads) {
+      for (const entry of selectedEntries) {
+        // No picked meal means each food keeps the meal it came from.
+        const mealTypeId =
+          targetMealTypeId ?? entryMealTypeId(entry, mealTypes);
+        if (!mealTypeId) continue;
+        inputs.push({
+          entry,
+          targetDate,
+          targetMealTypeId: mealTypeId,
+          ...(entryTime ? { entryTime } : {}),
+        });
+      }
+    }
+    copyFoods(inputs);
+  };
+
   if (foodEntries.length === 0) {
     return <EmptyState onAddFood={onAddFood} />;
   }
 
-  const viewToggle = (
-    <SegmentedControl<DiaryViewMode>
-      segments={[
-        {
-          key: 'meals',
-          label: t('diary.view.meals', { defaultValue: 'Meals' }),
-        },
-        {
-          key: 'timeline',
-          label: t('diary.view.timeline', { defaultValue: 'Timeline' }),
-        },
-      ]}
-      activeKey={viewMode}
-      onSelect={setViewMode}
+  const selectionBar = (
+    <View className="flex-row items-center gap-2 bg-raised p-1 rounded-lg">
+      <Button
+        variant="ghost"
+        onPress={endSelection}
+        className="py-2 px-3"
+        accessibilityLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+      >
+        {t('common.cancel', { defaultValue: 'Cancel' })}
+      </Button>
+      <Text className="flex-1 text-center text-sm text-text-secondary">
+        {t('foodSummary.selectedCount', {
+          count: selectedEntries.length,
+          defaultValue: '{{count}} selected',
+          defaultValue_one: '{{count}} selected',
+          defaultValue_other: '{{count}} selected',
+        })}
+      </Text>
+      <Button
+        variant="primary"
+        onPress={openCopySheet}
+        disabled={selectedEntries.length === 0 || isCopying}
+        className="py-2 px-4"
+        accessibilityLabel={t('foodSummary.copySelected', {
+          defaultValue: 'Copy',
+        })}
+      >
+        {t('foodSummary.copySelected', { defaultValue: 'Copy' })}
+      </Button>
+    </View>
+  );
+
+  const copySheet = (
+    <CopyMealSheet
+      ref={copySheetRef}
+      isPending={isCopying}
+      onCopy={handleCopy}
     />
+  );
+
+  const viewToggle = selectionMode ? (
+    selectionBar
+  ) : (
+    <View className="flex-row items-center gap-2">
+      <View className="flex-1">
+        <SegmentedControl<DiaryViewMode>
+          segments={[
+            {
+              key: 'meals',
+              label: t('diary.view.meals', { defaultValue: 'Meals' }),
+            },
+            {
+              key: 'timeline',
+              label: t('diary.view.timeline', { defaultValue: 'Timeline' }),
+            },
+          ]}
+          activeKey={viewMode}
+          onSelect={setViewMode}
+        />
+      </View>
+      <Button
+        variant="ghost"
+        onPress={() => setSelection({ day, ids: new Set() })}
+        className="py-2 px-2"
+        accessibilityLabel={t('foodSummary.selectFoods', {
+          defaultValue: 'Select foods',
+        })}
+      >
+        {t('foodSummary.select', { defaultValue: 'Select' })}
+      </Button>
+    </View>
   );
 
   if (viewMode === 'timeline') {
@@ -267,7 +432,11 @@ const FoodSummary: React.FC<FoodSummaryProps> = ({
           mealTypes={mealTypes}
           onAddFoodAt={onAddFoodAt}
           onAdjustServing={onAdjustServing}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
         />
+        {copySheet}
       </View>
     );
   }
@@ -294,11 +463,28 @@ const FoodSummary: React.FC<FoodSummaryProps> = ({
           goals={goals}
           calorieGoal={calorieGoal}
           onAdjustServing={onAdjustServing}
-          onPressMealType={onPressMealType}
+          onPressMealType={selectionMode ? undefined : onPressMealType}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
         />
       ))}
+      {copySheet}
     </View>
   );
 };
+
+/**
+ * The meal type a diary food was logged in: its id, else the active meal type
+ * with the same name (entries from before meal-type ids carry only the name).
+ */
+function entryMealTypeId(
+  entry: FoodEntry,
+  mealTypes: MealType[]
+): string | undefined {
+  if (entry.meal_type_id) return entry.meal_type_id;
+  const name = entry.meal_type.toLowerCase();
+  return mealTypes.find((mt) => mt.name.toLowerCase() === name)?.id;
+}
 
 export default FoodSummary;
