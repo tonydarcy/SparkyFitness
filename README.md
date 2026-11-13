@@ -198,20 +198,6 @@ docker compose pull && docker compose up -d
 
 _Note: For complete configuration options, reverse proxies, and alternative install methods, visit the [Documentation Site](https://codewithcj.github.io/SparkyFitness/)._
 
-### Android app for this fork (Obtainium)
-
-The fork's Android app is built from `tdmain` and published in a separate repository, [tonydarcy/sparkyfitness-builds](https://github.com/tonydarcy/sparkyfitness-builds/releases). Each release has one APK named `sparkyfitness-dev-<version>-<commit>.apk`. It uses the package `org.SparkyApps.SparkyFitnessMobile1.dev`, so it installs alongside the official SparkyFitness app instead of replacing it.
-
-[Obtainium](https://github.com/ImranR98/Obtainium) installs it straight from GitHub and keeps it up to date:
-
-1. Install Obtainium from [its releases](https://github.com/ImranR98/Obtainium/releases) or F-Droid.
-2. In Obtainium, tap **Add App**.
-3. Paste `https://github.com/tonydarcy/sparkyfitness-builds` as the **App Source URL** (the builds repository, not this one).
-4. Leave the source as GitHub and tap **Add**, then **Install**. Allow Obtainium to install apps when Android asks.
-5. Open the app and sign in with your server's URL. Obtainium checks for new builds and offers each update.
-
-Builds are personal test builds of `tdmain`, so they work best with a server running this fork. Against an upstream server the fork-only features simply won't appear.
-
 ### 2. Cloud (for non-technical users)
 
 If you are not a technical user and prefer not to run SparkyFitness on your own server, you can deploy a hosted instance in the cloud using one of the following providers.
@@ -227,6 +213,20 @@ If you are not a technical user and prefer not to run SparkyFitness on your own 
 
 > **Note:** These are independent third-party services. We encourage you to explore features provided by each provider to determine the one that best fits your needs.
  
+
+## Android app for this fork (Obtainium)
+
+The fork's Android app is built from `tdmain` and published in a separate repository, [tonydarcy/sparkyfitness-builds](https://github.com/tonydarcy/sparkyfitness-builds/releases). Each release has one APK named `sparkyfitness-dev-<version>-<commit>.apk`. It uses the package `org.SparkyApps.SparkyFitnessMobile1.dev`, so it installs alongside the official SparkyFitness app instead of replacing it.
+
+[Obtainium](https://github.com/ImranR98/Obtainium) installs it straight from GitHub and keeps it up to date:
+
+1. Install Obtainium from [its releases](https://github.com/ImranR98/Obtainium/releases) or F-Droid.
+2. In Obtainium, tap **Add App**.
+3. Paste `https://github.com/tonydarcy/sparkyfitness-builds` as the **App Source URL** (the builds repository, not this one).
+4. Leave the source as GitHub and tap **Add**, then **Install**. Allow Obtainium to install apps when Android asks.
+5. Open the app and sign in with your server's URL. Obtainium checks for new builds and offers each update.
+
+Builds are personal test builds of `tdmain`, so they work best with a server running this fork. Against an upstream server the fork-only features simply won't appear.
 
 ## 🎥 Video Tutorial
 
