@@ -108,6 +108,47 @@ describe('AdaptiveTdeeService', () => {
     expect(result.fallbackReason).toContain('Insufficient weight history');
   });
 
+  test('fallback still reports average intake for the dashboard balance', async () => {
+    // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message
+    userRepository.getUserProfile.mockResolvedValue({});
+    // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message
+    preferenceRepository.getUserPreferences.mockResolvedValue({});
+    // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message
+    measurementRepository.getCheckInMeasurementsByDateRange.mockResolvedValue(
+      []
+    );
+    // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message
+    measurementRepository.getLatestMeasurement.mockResolvedValue({
+      weight: 80,
+    });
+    // @ts-expect-error TS(2339): Property 'mockResolvedValue' does not exist on typ... Remove this comment to see the full error message
+    reportRepository.getNutritionData.mockResolvedValue([
+      {
+        date: format(subDays(calculationDate, 1), 'yyyy-MM-dd'),
+        calories: 1800,
+      },
+      {
+        date: format(subDays(calculationDate, 2), 'yyyy-MM-dd'),
+        calories: 2200,
+      },
+      // Under 200 kcal is a partial log and does not count.
+      {
+        date: format(subDays(calculationDate, 3), 'yyyy-MM-dd'),
+        calories: 100,
+      },
+    ]);
+    // @ts-expect-error TS(2339): Property 'mockReturnValue' does not exist on type ... Remove this comment to see the full error message
+    bmrService.calculateBmr.mockReturnValue(1800);
+
+    const result = await calculateAdaptiveTdee(
+      'test-user-fallback-intake',
+      calculationDateStr
+    );
+    expect(result.isFallback).toBe(true);
+    expect(result.avgIntake).toBe(2000);
+    expect(result.daysOfData).toBe(2);
+  });
+
   test('should compute TDEE from data synchronously using computeAdaptiveTdeeFromData', () => {
     const data = {
       profile: { date_of_birth: '1990-01-01', gender: 'male' },

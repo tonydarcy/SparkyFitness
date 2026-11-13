@@ -50,6 +50,7 @@ import OralCareCard from '../components/oralCare/OralCareCard';
 import { oralCareQueryKeyRoot } from '../hooks/useOralCare';
 import ProgressPhotosCard from '../components/ProgressPhotosCard';
 import TrainingLoadDashboardCard from '../components/TrainingLoadDashboardCard';
+import EnergyBalanceCard from '../components/EnergyBalanceCard';
 import SegmentedControl, { type Segment } from '../components/SegmentedControl';
 import StatusView from '../components/StatusView';
 import { ServerStatusView } from '../components/ServerGate';
@@ -77,6 +78,7 @@ import {
   labLatestQueryKey,
   labMarkersQueryKey,
   trainingLoadRootQueryKey,
+  adaptiveTdeeRootQueryKey,
 } from '../hooks/queryKeys';
 import { useDateColumnCollapsed } from '../hooks/useDateColumnCollapsed';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
@@ -458,6 +460,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const trainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.trainingLoadCardVisible
   );
+  const energyBalanceCardVisible = useAppPreferencesStore(
+    (s) => s.energyBalanceCardVisible
+  );
 
   const { sessions: mindfulSessions, totalMindfulMinutes } =
     useMindfulnessDay(selectedDate);
@@ -507,6 +512,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       trainingLoadCardVisible
         ? queryClient.invalidateQueries({ queryKey: trainingLoadRootQueryKey })
         : Promise.resolve(),
+      // EnergyBalanceCard owns its query; new food or weight changes it.
+      queryClient.invalidateQueries({ queryKey: adaptiveTdeeRootQueryKey }),
     ]);
     setRefreshing(false);
   }, [
@@ -969,6 +976,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                   <TrainingLoadDashboardCard
                     key="trainingLoad"
                     navigation={navigation}
+                  />
+                ) : null;
+              case 'energyBalance':
+                return energyBalanceCardVisible ? (
+                  <EnergyBalanceCard
+                    key="energyBalance"
+                    selectedDate={selectedDate}
                   />
                 ) : null;
               case 'labResults':

@@ -3956,6 +3956,18 @@
     "nutritionSummary": "Nutrition Summary",
     "dailyEnergyGoal": "Daily Energy Goal",
     "waterIntake": "Water Intake",
+    "energyBalance": {
+      "title": "Expenditure & Balance",
+      "unavailable": "Your expenditure estimate is not available right now.",
+      "deficit": "Avg daily deficit",
+      "surplus": "Avg daily surplus",
+      "balance": "Avg daily balance",
+      "tdee": "TDEE",
+      "avgIntake": "Avg intake",
+      "perDay": "{{unit}}/day",
+      "adaptiveNote": "Learned from {{days}} days of logged food and your weight trend.",
+      "formulaNote": "Formula estimate from your profile and activity level. Log food and weigh in regularly for a few weeks to learn your real expenditure."
+    },
     "caffeine": {
       "title": "Caffeine Kinetics",
       "activeCaffeine": "Active Caffeine",

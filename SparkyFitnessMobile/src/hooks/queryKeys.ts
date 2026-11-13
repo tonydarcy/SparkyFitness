@@ -394,6 +394,11 @@ export const trainingConsistencyQueryKey = () =>
 
 export const trainingLoadRootQueryKey = ['trainingLoad'] as const;
 
+export const adaptiveTdeeRootQueryKey = ['adaptiveTdee'] as const;
+
+export const adaptiveTdeeQueryKey = (date: string) =>
+  [...adaptiveTdeeRootQueryKey, date] as const;
+
 export const trainingLoadQueryKey = (today: string) =>
   [...trainingLoadRootQueryKey, today] as const;
 

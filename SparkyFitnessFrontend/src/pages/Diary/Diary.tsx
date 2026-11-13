@@ -11,6 +11,7 @@ import { getNetCarbsValue } from '@/utils/nutrientUtils';
 import { compareDays } from '@workspace/shared';
 import WaterIntake from './WaterIntake';
 import CaffeineCard from './CaffeineCard';
+import EnergyBalanceCard from './EnergyBalanceCard';
 import MealCard from './MealCard';
 import DiaryTimeline from './DiaryTimeline';
 import ExerciseCard from './ExerciseCard';
@@ -32,6 +33,7 @@ import {
   UtensilsCrossed,
   Dumbbell,
   HeartPulse,
+  Scale,
 } from 'lucide-react';
 import { DailyHealthMetricsCard } from '@/components/Health/DailyHealthMetricsCard';
 import { useDailyHealthMetrics } from '@/hooks/useGenericHealth';
@@ -581,6 +583,13 @@ const Diary = () => {
           isLoading={loadingHealthMetrics}
         />
       ),
+    });
+
+    list.push({
+      key: 'energyBalance',
+      title: t('diary.energyBalance.title', 'Expenditure & Balance'),
+      icon: Scale,
+      render: () => <EnergyBalanceCard date={selectedDate} />,
     });
 
     if (viewMode === 'timeline') {
