@@ -1,5 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
@@ -27,6 +28,7 @@ import WhatsNewBanner, {
 } from './WhatsNewBanner';
 import { AnnouncementModal } from './AnnouncementModal';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
+import { useConfirmedVerticalBar } from '../hooks/useVerticalBar';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
 import { useTranslation } from 'react-i18next';
 
@@ -88,8 +90,14 @@ function renderReadableWidthScreen({
   children: React.ReactElement;
   route: { name: string };
 }) {
+  // Side insets keep tab screens clear of iPhone Duo's vertical bar; the
+  // readable column centres them on wide windows (iPad).
   return (
-    <ReadableWidthLayout routeName={route.name}>{children}</ReadableWidthLayout>
+    <ScreenSideInsets>
+      <ReadableWidthLayout routeName={route.name}>
+        {children}
+      </ReadableWidthLayout>
+    </ScreenSideInsets>
   );
 }
 
@@ -102,6 +110,21 @@ type DiaryStackParamList = {
 type LibraryStackParamList = { LibraryRoot: undefined };
 type SettingsStackParamList = { SettingsRoot: undefined };
 
+/**
+ * Keeps a tab screen's content clear of the vertical bar iPhone Duo presents on
+ * one side. Left and right only: the native header and tab bar own the top and
+ * bottom. A plain padded View, not a native SafeAreaView: wrapping the screen
+ * in the native one stops UIKit seeing the scroll view's top edge, which drops
+ * the large title and its collapse-on-scroll.
+ */
+const ScreenSideInsets = ({ children }: { children: React.ReactNode }) => {
+  const { left, right } = useSafeAreaInsets();
+  return (
+    <View style={{ flex: 1, paddingLeft: left, paddingRight: right }}>
+      {children}
+    </View>
+  );
+};
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
 const DiaryStack = createNativeStackNavigator<DiaryStackParamList>();
 const LibraryStack = createNativeStackNavigator<LibraryStackParamList>();
@@ -280,6 +303,11 @@ export function NativeTabsLayout({
   );
   const inactiveTintColor = resolveColor(tabInactive, '#8E8E93');
   const whatsNewState = useWhatsNewBannerState();
+  // Hide the Add tab only on a confirmed vertical bar, where the native
+  // detached Add button replaces it. Not on side insets (a notched iPhone has
+  // them with a horizontal bar) and not on a guess: until the system has said so
+  // the tab stays, so there is never a moment with no Add control at all.
+  const hasSideBar = useConfirmedVerticalBar();
 
   return (
     <NativeTabsOverlayContext.Provider value={whatsNewState}>
@@ -346,6 +374,7 @@ export function NativeTabsLayout({
             tabBarLabel: t('navigation.add', { defaultValue: 'Add' }),
             tabBarIcon: () => ADD_TAB_ICON,
             role: 'search',
+            tabBarItemHidden: hasSideBar,
             preventsDefault: true,
           }}
           listeners={{
