@@ -32,6 +32,7 @@ import {
   useDailySummary,
 } from '@/hooks/Diary/useDailyProgress';
 import { DailyProgressSkeleton } from './DailyProgressSkeleton';
+import DiaryMacroGoalBars, { type DiaryMacroGoal } from './DiaryMacroGoalBars';
 import { getEnergyUnitString } from '@/utils/nutritionCalculations';
 import { formatWeight } from '@/utils/numberFormatting';
 import { EnergyCircle } from './EnergyProgressCircle';
@@ -56,7 +57,18 @@ import { useNutrientGoalPreferences } from '@/hooks/Settings/useNutrientGoalPref
 import { useHiddenWebTabs } from '@/hooks/Settings/useHiddenWebTabs';
 import { getCalorieBudget } from '@/utils/calorieBudget';
 
-const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
+interface DailyProgressProps {
+  selectedDate: string;
+  /** Protein / carbs / fat against their goals, shown as thin bars. */
+  macroGoals?: DiaryMacroGoal[];
+  dayIsOver?: boolean;
+}
+
+const DailyProgress = ({
+  selectedDate,
+  macroGoals,
+  dayIsOver = false,
+}: DailyProgressProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const {
@@ -819,6 +831,10 @@ const DailyProgress = ({ selectedDate }: { selectedDate: string }) => {
             </div>
             <Progress value={effectiveProgress} className="h-2" />
           </div>
+
+          {macroGoals && (
+            <DiaryMacroGoalBars macros={macroGoals} dayIsOver={dayIsOver} />
+          )}
 
           {/* Calorie Math Breakdown Dropdown */}
           <div className="pt-3 border-t border-border/40 space-y-2.5">

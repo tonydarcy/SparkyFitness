@@ -170,6 +170,7 @@ export * from './utils/labResults.ts';
 export * from './utils/labReportImport.ts';
 export * from './utils/noteImages.ts';
 export * from './utils/markdownToolbar.ts';
+export * from './utils/macroGoalStatus.ts';
 export * from './nutrients/micronutrientCatalog.ts';
 export * from './nutrients/drinkPresetCatalog.ts';
 export * from './nutrients/macroPickerFields.ts';

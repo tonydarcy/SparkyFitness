@@ -13,6 +13,9 @@ import { useCSSVariable } from 'uniwind';
 
 import Icon from './Icon';
 import NutrientPill from './NutrientPill';
+import DiaryMacroGoalBars from './DiaryMacroGoalBars';
+import { compareDays } from '@workspace/shared';
+import { toLocalDateString } from '../utils/dateUtils';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
 import { getNetCarbsValue } from '../utils/nutrientUtils';
 import { NUTRIENT_META, getNutrientLabel } from '../constants/nutrients';
@@ -21,7 +24,7 @@ import type { UserCustomNutrient } from '../hooks/useCustomNutrients';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
 import { energyUnitLabel, formatEnergyNumber } from '../utils/energyUnit';
 
-const CORE_MACROS = ['protein', 'carbs', 'fat', 'dietary_fiber'] as const;
+const CORE_MACROS = ['protein', 'carbs', 'fat'] as const;
 
 interface CalorieBarProps {
   eaten: number;
@@ -233,9 +236,10 @@ const DiaryCalorieMacroSummary: React.FC<DiaryCalorieMacroSummaryProps> = ({
   const resolveCoreMacro = (key: (typeof CORE_MACROS)[number]) => {
     if (key === 'protein') {
       return {
+        key,
         label: t('nutrients.protein', { defaultValue: 'Protein' }),
         consumed: summary.protein.consumed,
-        goal: summary.protein.goal || undefined,
+        goal: summary.protein.goal || 0,
       };
     }
     if (key === 'carbs') {
@@ -243,26 +247,24 @@ const DiaryCalorieMacroSummary: React.FC<DiaryCalorieMacroSummaryProps> = ({
         ? getNetCarbsValue(summary.carbs.consumed, summary.fiber.consumed)
         : summary.carbs.consumed;
       return {
+        key,
         label: showNetCarbs
           ? t('nutrients.netCarbs', { defaultValue: 'Net Carbs' })
           : t('nutrients.carbs', { defaultValue: 'Carbs' }),
         consumed,
-        goal: summary.carbs.goal || undefined,
-      };
-    }
-    if (key === 'fat') {
-      return {
-        label: t('nutrients.fat', { defaultValue: 'Fat' }),
-        consumed: summary.fat.consumed,
-        goal: summary.fat.goal || undefined,
+        goal: summary.carbs.goal || 0,
       };
     }
     return {
-      label: t('nutrients.fiber', { defaultValue: 'Fiber' }),
-      consumed: summary.fiber.consumed,
-      goal: summary.fiber.goal || undefined,
+      key,
+      label: t('nutrients.fat', { defaultValue: 'Fat' }),
+      consumed: summary.fat.consumed,
+      goal: summary.fat.goal || 0,
     };
   };
+  // A past day is finished, so a macro well short of its goal is flagged.
+  const dayIsOver =
+    compareDays(summary.date, toLocalDateString(new Date())) < 0;
 
   return (
     <View className="mb-4">
@@ -304,6 +306,10 @@ const DiaryCalorieMacroSummary: React.FC<DiaryCalorieMacroSummaryProps> = ({
           progressPercent={progress / 100}
         />
       </TouchableOpacity>
+      <DiaryMacroGoalBars
+        macros={CORE_MACROS.map(resolveCoreMacro)}
+        dayIsOver={dayIsOver}
+      />
       {projection && (
         <View className="mt-2 rounded-lg bg-surface px-3 py-2">
           <Text className="text-xs font-semibold text-text-primary">
@@ -340,17 +346,11 @@ const DiaryCalorieMacroSummary: React.FC<DiaryCalorieMacroSummaryProps> = ({
       )}
       {diarySummaryExpanded && (
         <View className="flex-row flex-wrap justify-between gap-y-2 mt-3">
-          {CORE_MACROS.map((key) => {
-            const { label, consumed, goal: macroGoal } = resolveCoreMacro(key);
-            return (
-              <NutrientPill
-                key={key}
-                label={label}
-                consumed={consumed}
-                goal={macroGoal}
-              />
-            );
-          })}
+          <NutrientPill
+            label={t('nutrients.fiber', { defaultValue: 'Fiber' })}
+            consumed={summary.fiber.consumed}
+            goal={summary.fiber.goal || undefined}
+          />
           {customNutrientKeys.map((name) => {
             const customDef = customNutrients.find((cn) => cn.name === name);
             const meta = NUTRIENT_META[name];
