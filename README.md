@@ -23,6 +23,46 @@
 
 # SparkyFitness
 
+> [!NOTE]
+> **This is Tony Darcy's fork of [CodeWithCJ/SparkyFitness](https://github.com/CodeWithCJ/SparkyFitness).** The `tdmain` branch is the fork's main branch: it tracks upstream and adds the features listed below. The `main` branch is an untouched mirror of upstream. For the official project, releases and support, use the upstream repository.
+
+## What this fork adds
+
+Everything in upstream SparkyFitness, plus:
+
+### Food diary
+
+- **Timeline view.** Show the Diary by time of day instead of by meal, on web and mobile.
+- **Copy a logged food.** Copy one food to Now, Today, Tomorrow or a picked date, on web and mobile.
+- **Select several foods and copy them together.** Tick foods in the Diary (or timeline) and copy them in one go.
+- **Copy a meal to several days**, and set one time for every food in a multi-add.
+- **Smarter local food search.** Your own foods are ranked by how often and how recently you log them (with a new `food_entries` index to keep it fast).
+- **Custom nutrient fixes.** Custom nutrient amounts save correctly on foods, converted units and "save as new", and the AI and MCP tools can update them.
+
+### Workouts (mobile and web)
+
+- **Focus view** for the active workout: one exercise at a time with a media card, set editor, chips, RPE and Swap.
+- **Double and triple progression** with rep ranges and automatic deloads when you stall.
+- **Gym profiles** with your own plates, dumbbells and machine weight stacks for the plate calculator.
+- **Backup exercise** for each preset slot, for when the machine is taken.
+- **Starter workout plans** to get going quickly.
+- **Strength balance card** and an untrained-muscle heat map.
+- **Import FitNotes and Strong** workout exports.
+- **Demonstration video links** on exercises.
+- **Rest timer screen flash** and swipe to copy or undo a set.
+
+### Mobile app
+
+- **iPad support** with readable-width layouts.
+- **GPS on Android without Google Play Services** (for example GrapheneOS and other de-Googled phones).
+- **Readiness** flags a raised overnight breathing rate.
+
+### AI and integrations
+
+- **Remote MCP with OAuth 2.1**, so Claude and **Gemini** can connect to your server without an API key (off by default: Admin → Authentication Settings → Login Management → Remote MCP OAuth; needs public HTTPS).
+
+The fork's own instance runs on [Railway](https://railway.com), deployed from `tdmain`.
+
 A self-hosted, privacy-first alternative to MyFitnessPal, Flo, Hevy, Shotsy & more. Track nutrition, exercise, body metrics, and health data while keeping full control of your data.
 <img width="5120" height="2880" alt="image" src="https://github.com/user-attachments/assets/d8b09f48-cb4d-41a6-b678-ac93e551f257" />
 
@@ -173,6 +213,20 @@ If you are not a technical user and prefer not to run SparkyFitness on your own 
 
 > **Note:** These are independent third-party services. We encourage you to explore features provided by each provider to determine the one that best fits your needs.
  
+
+## Android app for this fork (Obtainium)
+
+The fork's Android app is built from `tdmain` and published in a separate repository, [tonydarcy/sparkyfitness-builds](https://github.com/tonydarcy/sparkyfitness-builds/releases). Each release has one APK named `sparkyfitness-dev-<version>-<commit>.apk`. It uses the package `org.SparkyApps.SparkyFitnessMobile1.dev`, so it installs alongside the official SparkyFitness app instead of replacing it.
+
+[Obtainium](https://github.com/ImranR98/Obtainium) installs it straight from GitHub and keeps it up to date:
+
+1. Install Obtainium from [its releases](https://github.com/ImranR98/Obtainium/releases) or F-Droid.
+2. In Obtainium, tap **Add App**.
+3. Paste `https://github.com/tonydarcy/sparkyfitness-builds` as the **App Source URL** (the builds repository, not this one).
+4. Leave the source as GitHub and tap **Add**, then **Install**. Allow Obtainium to install apps when Android asks.
+5. Open the app and sign in with your server's URL. Obtainium checks for new builds and offers each update.
+
+Builds are personal test builds of `tdmain`, so they work best with a server running this fork. Against an upstream server the fork-only features simply won't appear.
 
 ## 🎥 Video Tutorial
 
