@@ -124,7 +124,7 @@ const EnergyBalanceCard = ({ date }: EnergyBalanceCardProps) => {
           {summary.adaptive
             ? t(
                 'diary.energyBalance.adaptiveNote',
-                'Learned from {{days}} days of logged food and your weight trend.',
+                'Averages over the {{days}} logged days behind this estimate, against your weight trend.',
                 { days: summary.daysOfData }
               )
             : t(

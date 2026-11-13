@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import { upsertCheckIn } from '../services/api/measurementsApi';
 import {
+  adaptiveTdeeRootQueryKey,
   latestMeasurementsOnOrBeforeRootQueryKey,
   measurementsQueryKey,
 } from './queryKeys';
@@ -42,6 +43,8 @@ export function useUpsertCheckIn(options?: { showErrorToast?: boolean }) {
       queryClient.invalidateQueries({
         queryKey: latestMeasurementsOnOrBeforeRootQueryKey,
       });
+      // Weight feeds the adaptive expenditure estimate.
+      queryClient.invalidateQueries({ queryKey: adaptiveTdeeRootQueryKey });
       refreshHealthSyncCache(queryClient);
     },
     onError: (error) => {

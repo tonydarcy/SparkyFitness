@@ -9278,7 +9278,7 @@
     "balance": "Avg balance",
     "tdee": "TDEE",
     "avgIntake": "Avg intake",
-    "adaptiveNote": "Learned from {{days}} days of logged food and your weight trend.",
+    "adaptiveNote": "Averages over the {{days}} logged days behind this estimate, against your weight trend.",
     "formulaNote": "Formula estimate from your profile. Log food and weigh in regularly for a few weeks to learn your real expenditure."
   },
   "paceReference": {

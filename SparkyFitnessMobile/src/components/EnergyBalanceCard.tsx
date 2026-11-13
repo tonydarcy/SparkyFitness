@@ -12,8 +12,8 @@ interface EnergyBalanceCardProps {
 }
 
 const BALANCE_COLOR = {
-  deficit: 'text-text-success',
-  surplus: 'text-text-warning',
+  deficit: 'text-icon-success',
+  surplus: 'text-icon-warning',
   maintenance: 'text-text-primary',
 } as const;
 
@@ -104,7 +104,7 @@ const EnergyBalanceCard: React.FC<EnergyBalanceCardProps> = ({
           ? t('energyBalanceCard.adaptiveNote', {
               days: summary.daysOfData,
               defaultValue:
-                'Learned from {{days}} days of logged food and your weight trend.',
+                'Averages over the {{days}} logged days behind this estimate, against your weight trend.',
             })
           : t('energyBalanceCard.formulaNote', {
               defaultValue:
