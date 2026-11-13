@@ -84,6 +84,7 @@ import {
   useMindfulnessDay,
   useMindfulnessMutations,
 } from '../hooks/useMindfulness';
+import { usePrefetchAdjacentDays } from '../hooks/usePrefetchAdjacentDays';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { useVerticalBar } from '../hooks/useVerticalBar';
 import { useAppPreferencesStore } from '../stores/appPreferencesStore';
@@ -266,6 +267,10 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const { summary, isLoading, isError, refetch } = useDailySummary({
     date: selectedDate,
     enabled: isConnected,
+  });
+  usePrefetchAdjacentDays({
+    date: selectedDate,
+    enabled: isConnected && summary !== undefined,
   });
   const { profile } = useProfile();
   const {

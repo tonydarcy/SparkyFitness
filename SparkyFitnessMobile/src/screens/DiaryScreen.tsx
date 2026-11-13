@@ -71,6 +71,7 @@ import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
 import { useMeasurements } from '../hooks/useMeasurements';
 import { usePreferences } from '../hooks/usePreferences';
 import { useSleepDay } from '../hooks/useSleepDay';
+import { usePrefetchAdjacentDays } from '../hooks/usePrefetchAdjacentDays';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { useVerticalBar } from '../hooks/useVerticalBar';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
@@ -301,6 +302,10 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
   const { summary, isLoading, isError, refetch } = useDailySummary({
     date: selectedDate,
     enabled: isConnected,
+  });
+  usePrefetchAdjacentDays({
+    date: selectedDate,
+    enabled: isConnected && summary !== undefined,
   });
   const { measurements, refetch: refetchMeasurements } = useMeasurements({
     date: selectedDate,
