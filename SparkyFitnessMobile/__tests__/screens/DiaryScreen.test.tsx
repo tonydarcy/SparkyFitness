@@ -52,6 +52,10 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
+jest.mock('../../src/hooks/usePrefetchAdjacentDays', () => ({
+  usePrefetchAdjacentDays: jest.fn(),
+}));
+
 jest.mock('../../src/hooks', () => ({
   useServerConnection: jest.fn(),
   useDailySummary: jest.fn(),
