@@ -2754,7 +2754,12 @@
   "foodSummary": {
     "tapToAddFood": "Tap to add food",
     "caloriesShort": "kcal",
-    "nutritionBreakdown": "{{label}} nutrition breakdown"
+    "nutritionBreakdown": "{{label}} nutrition breakdown",
+    "select": "Select",
+    "selectFoods": "Select foods",
+    "selectedCount_one": "{{count}} selected",
+    "selectedCount_other": "{{count}} selected",
+    "copySelected": "Copy"
   },
   "exerciseSummary": {
     "tapToAdd": "Tap to add exercise",
@@ -2773,7 +2778,8 @@
     "unknownFood": "Unknown food",
     "adjustServing": "Adjust serving",
     "caloriesShort": "kcal",
-    "deleteFood": "Delete food"
+    "deleteFood": "Delete food",
+    "select": "Select"
   },
   "exerciseRow": {
     "deleteExercise": "Delete exercise"
@@ -5743,7 +5749,10 @@
     "copyToDays_other": "Copy to {{count}} days",
     "copying": "Copying...",
     "duplicateTitle": "Can't copy meal",
-    "duplicateMessage": "Duplicate meal-type names cannot currently be used for Copy Meal."
+    "duplicateMessage": "Duplicate meal-type names cannot currently be used for Copy Meal.",
+    "foodsTitle_one": "Copy {{count}} food",
+    "foodsTitle_other": "Copy {{count}} foods",
+    "keepMeal": "Same meal"
   },
   "ingredientRow": {
     "lastWarning": "This is the last ingredient. Add another before you can save, or use Delete Meal to remove the whole meal.",
@@ -5822,7 +5831,11 @@
     "successDays_other": "Meal copied to {{count}} days",
     "partial": "Copied to {{copied}} of {{total}} days",
     "foodSuccess": "Food copied",
-    "foodFailed": "Failed to copy food"
+    "foodFailed": "Failed to copy food",
+    "foodsSuccess_one": "{{count}} food copied",
+    "foodsSuccess_other": "{{count}} foods copied",
+    "foodsPartial": "Copied {{copied}} of {{total}} foods",
+    "foodsFailed": "Failed to copy foods"
   },
   "foodDelete": {
     "failed": "Failed to delete food",

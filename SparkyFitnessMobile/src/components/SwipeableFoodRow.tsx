@@ -20,17 +20,30 @@ import { useFoodImageSourceContext } from './FoodImageSourceProvider';
 import { diaryEntryImage, diaryEntryImages } from '../utils/foodImages';
 import { useOpenLightbox } from './LightboxProvider';
 import AllergenBadges from './AllergenBadges';
+import Icon from './Icon';
+import { useCSSVariable } from 'uniwind';
 
 interface SwipeableFoodRowProps {
   entry: FoodEntry;
   nutrition: EntryNutrition;
   onAdjustServing?: (entry: FoodEntry) => void;
+  /**
+   * Picking foods to copy together. While `selectionMode` is on, a tap picks
+   * or drops the food instead of opening it, and swiping is off. Outside it,
+   * the long-press menu offers Select, which starts picking with this food.
+   */
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (entry: FoodEntry) => void;
 }
 
 const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
   entry,
   nutrition,
   onAdjustServing,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
 }) => {
   const { t } = useTranslation();
   const { preferences } = usePreferences();
@@ -43,6 +56,13 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
   );
 
   const isMealComponent = !!entry.food_entry_meal_id;
+  // A logged meal's foods belong to that meal, so they are copied with it, not
+  // picked one by one.
+  const isSelectable = !isMealComponent && !!onToggleSelect;
+  const [accentPrimary, textMuted] = useCSSVariable([
+    '--color-accent-primary',
+    '--color-text-muted',
+  ]) as [string, string];
   const getImageSource = useFoodImageSourceContext();
   const entryImage = diaryEntryImage(entry);
   const openLightbox = useOpenLightbox();
@@ -118,6 +138,12 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
       style?: 'cancel' | 'destructive';
       onPress?: () => void;
     }[] = [];
+    if (isSelectable) {
+      buttons.push({
+        text: t('foodRow.select', { defaultValue: 'Select' }),
+        onPress: () => onToggleSelect!(entry),
+      });
+    }
     if (canQuickAdjust) {
       buttons.push({
         text: t('foodRow.adjustServing', { defaultValue: 'Adjust serving' }),
@@ -143,8 +169,21 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
         renderRightActions={renderRightActions}
         overshootRight={false}
         rightThreshold={40}
+        enabled={!selectionMode}
       >
-        <View className="py-1.5 flex-row items-center bg-surface">
+        <View
+          className={`py-1.5 flex-row items-center bg-surface ${
+            selectionMode && !isSelectable ? 'opacity-50' : ''
+          }`}
+        >
+          {selectionMode ? (
+            <Icon
+              name={selected ? 'checkmark-circle-filled' : 'radio-button-off'}
+              size={22}
+              color={selected ? accentPrimary : textMuted}
+              style={{ marginRight: 8 }}
+            />
+          ) : null}
           {/* Diary rows are deliberately dense, so this slot collapses to
               nothing when an entry has no photo — a photo-free day keeps the
               exact layout it had before images existed. */}
@@ -161,8 +200,16 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
           <TouchableOpacity
             className="flex-1 mr-2"
             activeOpacity={0.7}
-            onPress={handlePress}
-            onLongPress={handleLongPress}
+            onPress={
+              selectionMode
+                ? isSelectable
+                  ? () => onToggleSelect!(entry)
+                  : undefined
+                : handlePress
+            }
+            onLongPress={selectionMode ? undefined : handleLongPress}
+            disabled={selectionMode && !isSelectable}
+            accessibilityState={selectionMode ? { selected } : undefined}
           >
             <View className="flex-row flex-wrap items-baseline">
               <Text className="text-md text-text-primary" numberOfLines={1}>
@@ -183,7 +230,7 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
             </View>
             <AllergenBadges allergens={entry.allergens} traces={entry.traces} />
           </TouchableOpacity>
-          {canQuickAdjust ? (
+          {canQuickAdjust && !selectionMode ? (
             <Button
               variant="ghost"
               onPress={() => onAdjustServing!(entry)}

@@ -14,8 +14,63 @@ jest.mock('../../src/components/Icon', () => {
 });
 
 jest.mock('../../src/components/SwipeableFoodRow', () => {
-  const { View } = require('react-native');
-  return { __esModule: true, default: () => <View testID="food-row" /> };
+  const { Pressable } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({
+      entry,
+      selectionMode,
+      selected,
+      onToggleSelect,
+    }: {
+      entry: { id: string };
+      selectionMode?: boolean;
+      selected?: boolean;
+      onToggleSelect?: (e: { id: string }) => void;
+    }) => (
+      <Pressable
+        testID="food-row"
+        accessibilityLabel={`row-${entry.id}${selectionMode ? (selected ? '-on' : '-off') : ''}`}
+        onPress={() => selectionMode && onToggleSelect?.(entry)}
+      />
+    ),
+  };
+});
+
+const mockCopyFoods = jest.fn();
+jest.mock('../../src/hooks/useCopySelectedFoods', () => ({
+  useCopySelectedFoods: () => ({ copyFoods: mockCopyFoods, isPending: false }),
+}));
+
+const mockPresent = jest.fn();
+jest.mock('../../src/components/CopyMealSheet', () => {
+  const React = require('react');
+  const { Pressable } = require('react-native');
+  return {
+    __esModule: true,
+    default: React.forwardRef(
+      (
+        { onCopy }: { onCopy: (payloads: unknown[], target: unknown) => void },
+        ref: React.Ref<unknown>
+      ) => {
+        React.useImperativeHandle(ref, () => ({
+          present: mockPresent,
+          dismiss: jest.fn(),
+        }));
+        return (
+          <Pressable
+            accessibilityLabel="sheet-copy"
+            onPress={() =>
+              onCopy(
+                [{ targetDate: '2026-05-16' }, { targetDate: '2026-05-17' }],
+                { targetMealTypeId: null, quickTarget: null }
+              )
+            }
+          />
+        );
+      }
+    ),
+  };
 });
 
 const mealTypes: MealType[] = [
@@ -229,5 +284,34 @@ describe('FoodSummary', () => {
       />
     );
     expect(queryByText(/\/ 500/)).toBeNull();
+  });
+
+  it('copies the picked foods to each day, each keeping its own meal', () => {
+    const foods = [
+      { ...entry('e1', 'sys-b', 'breakfast'), entry_date: '2026-05-15' },
+      { ...entry('e2', 'sys-l', 'lunch'), entry_date: '2026-05-15' },
+      { ...entry('e3', 'sys-l', 'lunch'), entry_date: '2026-05-15' },
+    ] as FoodEntry[];
+    const { getByText, getByLabelText } = render(
+      <FoodSummary foodEntries={foods} mealTypes={mealTypes} />
+    );
+
+    fireEvent.press(getByText('Select'));
+    fireEvent.press(getByLabelText('row-e1-off'));
+    fireEvent.press(getByLabelText('row-e3-off'));
+    expect(getByText('2 selected')).toBeTruthy();
+
+    fireEvent.press(getByText('Copy'));
+    expect(mockPresent).toHaveBeenCalledWith('2026-05-15', null, '', {
+      count: 2,
+    });
+
+    fireEvent.press(getByLabelText('sheet-copy'));
+    expect(mockCopyFoods).toHaveBeenCalledWith([
+      { entry: foods[0], targetDate: '2026-05-16', targetMealTypeId: 'sys-b' },
+      { entry: foods[2], targetDate: '2026-05-16', targetMealTypeId: 'sys-l' },
+      { entry: foods[0], targetDate: '2026-05-17', targetMealTypeId: 'sys-b' },
+      { entry: foods[2], targetDate: '2026-05-17', targetMealTypeId: 'sys-l' },
+    ]);
   });
 });

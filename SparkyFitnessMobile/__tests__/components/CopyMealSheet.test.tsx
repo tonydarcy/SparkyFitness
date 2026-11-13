@@ -281,6 +281,33 @@ describe('CopyMealSheet', () => {
     );
   });
 
+  it("copies several foods, keeping each food's meal by default", () => {
+    const onCopy = jest.fn();
+    const ref = createRef<CopyMealSheetRef>();
+    const view = render(<CopyMealSheet ref={ref} onCopy={onCopy} />);
+    const sourceDate = getTodayDate();
+    act(() => ref.current?.present(sourceDate, null, '', { count: 3 }));
+
+    expect(view.getByText('Copy 3 foods')).toBeTruthy();
+    expect(view.getByLabelText('Same meal').props.accessibilityState).toEqual({
+      selected: true,
+    });
+    fireEvent.press(view.getByTestId('copy-meal-quick-tomorrow'));
+    fireEvent.press(view.getByLabelText('Copy'));
+
+    expect(onCopy).toHaveBeenCalledWith(
+      [
+        {
+          sourceDate,
+          sourceMealType: '',
+          targetDate: addDays(sourceDate, 1),
+          targetMealType: '',
+        },
+      ],
+      { targetMealTypeId: null, quickTarget: 'tomorrow' }
+    );
+  });
+
   it('copies a single food, allowing the same day and meal', () => {
     const onCopy = jest.fn();
     const ref = createRef<CopyMealSheetRef>();
