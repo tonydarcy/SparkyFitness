@@ -3294,7 +3294,13 @@
     "cycling": {
       "highDay": "High day +{{amount}} {{unit}}",
       "lowDay": "Low day −{{amount}} {{unit}}"
-    }
+    },
+    "macroLow": "Low",
+    "macroHigh": "High",
+    "macroA11y": "{{label}} {{consumed}} of {{goal}} grams",
+    "macroNoGoalA11y": "{{label}} {{consumed}} grams",
+    "macroGrams": "{{consumed}}g",
+    "macroOfGoal": "{{consumed}} / {{goal}}g"
   },
   "dateRange": {
     "removeTitle": "Select a date range to remove",

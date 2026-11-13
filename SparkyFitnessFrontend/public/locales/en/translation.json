@@ -4374,7 +4374,13 @@
       "pausedEarnBack": "Calorie cycling is paused: exercise calories are added back to your goal."
     },
     "copyFoodsSuccess": "Foods copied.",
-    "copyFoodsError": "Failed to copy some foods. Check the target day before trying again."
+    "copyFoodsError": "Failed to copy some foods. Check the target day before trying again.",
+    "macroGoal": {
+      "low": "Low",
+      "high": "High",
+      "grams": "{{consumed}}g",
+      "ofGoal": "{{consumed}} / {{goal}}g"
+    }
   },
   "nutrientGoalDirection": {
     "min": "Min",

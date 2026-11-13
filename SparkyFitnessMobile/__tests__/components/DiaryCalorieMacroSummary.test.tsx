@@ -120,7 +120,7 @@ describe('DiaryCalorieMacroSummary', () => {
     expect(toJSON()).toBeNull();
   });
 
-  it('renders only the calorie row when collapsed (default)', () => {
+  it('renders the calorie row and macro bars when collapsed (default)', () => {
     useAppPreferencesStore.setState({
       diarySummaryVisible: true,
       diarySummaryExpanded: false,
@@ -139,7 +139,41 @@ describe('DiaryCalorieMacroSummary', () => {
     expect(getByText(/500 \/ 2,000 kcal/)).toBeTruthy();
     expect(getByText(/1,500/)).toBeTruthy();
     expect(getByText(/remaining/)).toBeTruthy();
-    expect(queryByText('Protein')).toBeNull();
+    expect(getByText('Protein')).toBeTruthy();
+    expect(getByText('50 / 250g')).toBeTruthy();
+    expect(queryByText('Fiber')).toBeNull();
+  });
+
+  it('flags a finished day that fell well short of a macro goal as low', () => {
+    useAppPreferencesStore.setState({
+      diarySummaryVisible: true,
+      diarySummaryExpanded: false,
+    });
+    const { getByTestId, queryByTestId } = renderWidget({
+      summary: buildSummary({
+        date: '2020-01-01',
+        protein: { consumed: 80, goal: 150 },
+        carbs: { consumed: 240, goal: 250 },
+        fat: { consumed: 100, goal: 67 },
+      }),
+    });
+    expect(getByTestId('diary-macro-protein-status')).toHaveTextContent('Low');
+    expect(queryByTestId('diary-macro-carbs-status')).toBeNull();
+    expect(getByTestId('diary-macro-fat-status')).toHaveTextContent('High');
+  });
+
+  it('never calls an unfinished day low', () => {
+    useAppPreferencesStore.setState({
+      diarySummaryVisible: true,
+      diarySummaryExpanded: false,
+    });
+    const { queryByTestId } = renderWidget({
+      summary: buildSummary({
+        date: '2999-01-01',
+        protein: { consumed: 10, goal: 150 },
+      }),
+    });
+    expect(queryByTestId('diary-macro-protein-status')).toBeNull();
   });
 
   it('reveals the macro pill grid when diarySummaryExpanded is true', () => {

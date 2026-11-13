@@ -6,6 +6,9 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import DayNavigator from '@/components/DayNavigator';
 import NutritionSummaryCard, { DayTotals } from './NutritionSummaryCard';
 import DailyProgress from './DailyProgress';
+import type { DiaryMacroGoal } from './DiaryMacroGoalBars';
+import { getNetCarbsValue } from '@/utils/nutrientUtils';
+import { compareDays } from '@workspace/shared';
 import WaterIntake from './WaterIntake';
 import CaffeineCard from './CaffeineCard';
 import MealCard from './MealCard';
@@ -88,7 +91,7 @@ const Diary = () => {
   const { activeUserId } = useActiveUser();
   const location = useLocation();
   const navigate = useNavigate();
-  const { timezone, loggingLevel, energyUnit, convertEnergy } =
+  const { timezone, loggingLevel, energyUnit, convertEnergy, showNetCarbs } =
     usePreferences();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
   const [editingFoodEntryMeal, setEditingFoodEntryMeal] =
@@ -195,6 +198,39 @@ const Diary = () => {
     calculateDayTotals(foodEntries, foodEntryMeals),
     summaryData?.supplementTotals
   );
+
+  // Protein / carbs / fat against their goals for the glanceable bars in the
+  // Daily Energy Goal card; the Dashboard keeps the detailed view.
+  const macroGoals: DiaryMacroGoal[] | undefined = effectiveGoals
+    ? [
+        {
+          key: 'protein',
+          label: t('nutrition.protein', 'Protein'),
+          consumed: dayTotals.protein ?? 0,
+          goal: effectiveGoals.protein ?? 0,
+        },
+        {
+          key: 'carbs',
+          label: showNetCarbs
+            ? t('nutrition.netCarbs', 'Net Carbs')
+            : t('nutrition.carbs', 'Carbs'),
+          consumed: showNetCarbs
+            ? getNetCarbsValue(
+                dayTotals.carbs ?? 0,
+                dayTotals.dietary_fiber ?? 0
+              )
+            : (dayTotals.carbs ?? 0),
+          goal: effectiveGoals.carbs ?? 0,
+        },
+        {
+          key: 'fat',
+          label: t('nutrition.fat', 'Fat'),
+          consumed: dayTotals.fat ?? 0,
+          goal: effectiveGoals.fat ?? 0,
+        },
+      ]
+    : undefined;
+  const dayIsOver = compareDays(selectedDate, todayInZone(timezone)) < 0;
 
   // Handle navigation for opening food search dialog
   useEffect(() => {
@@ -496,7 +532,13 @@ const Diary = () => {
         key: 'energy',
         title: t('diary.dailyEnergyGoal', 'Daily Energy Goal'),
         icon: Flame,
-        render: () => <DailyProgress selectedDate={selectedDate} />,
+        render: () => (
+          <DailyProgress
+            selectedDate={selectedDate}
+            macroGoals={macroGoals}
+            dayIsOver={dayIsOver}
+          />
+        ),
       },
       {
         key: 'nutrition',
@@ -648,6 +690,8 @@ const Diary = () => {
     todaysHealthMetrics,
     loadingHealthMetrics,
     viewMode,
+    macroGoals,
+    dayIsOver,
     t,
   ]);
 
