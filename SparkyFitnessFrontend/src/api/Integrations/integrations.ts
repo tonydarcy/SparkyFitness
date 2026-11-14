@@ -65,6 +65,15 @@ export const linkGoogleHealthAccount = async (
   });
 };
 
+export const linkGoogleSheetsAccount = async (
+  data: IntegrationPayload
+): Promise<void> => {
+  return apiCall('/integrations/googlesheets/callback', {
+    method: 'POST',
+    body: data,
+  });
+};
+
 export const syncHevyData = async (
   fullSync: boolean = false,
   providerId?: string,

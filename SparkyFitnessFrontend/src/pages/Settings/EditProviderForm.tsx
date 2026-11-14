@@ -1072,7 +1072,8 @@ export const EditProviderForm = ({
           </p>
         </>
       )}
-      {editData.provider_type === 'googlehealth' && (
+      {(editData.provider_type === 'googlehealth' ||
+        editData.provider_type === 'googlesheets') && (
         <>
           <div>
             <Label>
@@ -1116,9 +1117,15 @@ export const EditProviderForm = ({
           </div>
           <p className="text-sm text-muted-foreground col-span-2">
             <Trans
-              i18nKey="settings.editProviderForm.googleHealthIntegrationUsesOAuth22"
+              i18nKey={
+                editData.provider_type === 'googlesheets'
+                  ? 'settings.editProviderForm.googleSheetsIntegrationUsesOAuth2'
+                  : 'settings.editProviderForm.googleHealthIntegrationUsesOAuth22'
+              }
               defaults={
-                'Google Health integration uses OAuth2. After saving, click <strong>Connect</strong> on the provider card to authorize access.<br/>In your <link>Google Cloud Console</link>, your OAuth 2.0 Web Application client must have this callback URL:'
+                editData.provider_type === 'googlesheets'
+                  ? 'Google Sheets export uses OAuth2. In your <link>Google Cloud Console</link>, enable the Google Sheets API and create an OAuth 2.0 Web Application client. After saving, click <strong>Connect</strong> on the provider card: SparkyFitness creates a spreadsheet in your Drive and rewrites it on every sync (daily by default).<br/>Your client must have this callback URL:'
+                  : 'Google Health integration uses OAuth2. After saving, click <strong>Connect</strong> on the provider card to authorize access.<br/>In your <link>Google Cloud Console</link>, your OAuth 2.0 Web Application client must have this callback URL:'
               }
               components={{
                 strong: <strong />,
@@ -1134,7 +1141,7 @@ export const EditProviderForm = ({
               }}
             />
             <strong className="flex items-center mt-1">
-              {`${window.location.origin}/googlehealth/callback`}
+              {`${window.location.origin}/${editData.provider_type}/callback`}
               <Button
                 variant="ghost"
                 size="icon"
@@ -1143,7 +1150,7 @@ export const EditProviderForm = ({
                   e.preventDefault();
                   if (navigator.clipboard) {
                     navigator.clipboard.writeText(
-                      `${window.location.origin}/googlehealth/callback`
+                      `${window.location.origin}/${editData.provider_type}/callback`
                     );
                     toast({
                       title: t('common.copied', 'Copied!'),

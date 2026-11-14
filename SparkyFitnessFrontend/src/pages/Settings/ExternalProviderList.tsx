@@ -296,6 +296,7 @@ const ExternalProviderList = ({
         editData.provider_type === 'fitbit' ||
         editData.provider_type === 'oura' ||
         editData.provider_type === 'googlehealth' ||
+        editData.provider_type === 'googlesheets' ||
         editData.provider_type === 'hevy' ||
         editData.provider_type === 'liftosaur' ||
         editData.provider_type === 'intervals' ||

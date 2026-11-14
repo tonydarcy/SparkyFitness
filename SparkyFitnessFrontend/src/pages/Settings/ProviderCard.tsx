@@ -30,6 +30,9 @@ import { Trans } from 'react-i18next';
 import {
   useConnectFitbitMutation,
   useConnectGoogleHealthMutation,
+  useConnectGoogleSheetsMutation,
+  useDisconnectGoogleSheetsMutation,
+  useExportGoogleSheetsMutation,
   useConnectOuraMutation,
   useConnectPolarMutation,
   useConnectStravaMutation,
@@ -172,6 +175,18 @@ export const ProviderCard = ({
     mutate: handleConnectGoogleHealth,
     isPending: isConnectGoogleHealthPending,
   } = useConnectGoogleHealthMutation();
+  const {
+    mutate: handleConnectGoogleSheets,
+    isPending: isConnectGoogleSheetsPending,
+  } = useConnectGoogleSheetsMutation();
+  const {
+    mutate: handleDisconnectGoogleSheets,
+    isPending: isDisconnectGoogleSheetsPending,
+  } = useDisconnectGoogleSheetsMutation();
+  const {
+    mutate: handleExportGoogleSheets,
+    isPending: isExportGoogleSheetsPending,
+  } = useExportGoogleSheetsMutation();
   const { mutate: handleConnectPolar, isPending: isConnectPolarPending } =
     useConnectPolarMutation();
   const { mutate: handleConnectStrava, isPending: isConnectStravaPending } =
@@ -338,6 +353,9 @@ export const ProviderCard = ({
     isConnectFitbitPending ||
     isConnectOuraPending ||
     isConnectGoogleHealthPending ||
+    isConnectGoogleSheetsPending ||
+    isDisconnectGoogleSheetsPending ||
+    isExportGoogleSheetsPending ||
     isConnectPolarPending ||
     isConnectStravaPending ||
     isConnectWithingsPending ||
@@ -480,6 +498,16 @@ export const ProviderCard = ({
           disconnect: () => handleDisconnectGoogleHealth(),
           sync: () => setIsSyncDialogOpen(true),
           lastSync: provider.googlehealth_last_sync_at,
+          tokenExpires: null,
+          hasToken: isLinked && provider.is_active,
+        };
+      case 'googlesheets':
+        return {
+          connect: () => handleConnectGoogleSheets(),
+          disconnect: () => handleDisconnectGoogleSheets(),
+          // Always rewrites the whole sheet, so there is no range to pick.
+          sync: () => handleExportGoogleSheets(),
+          lastSync: provider.googlesheets_last_sync_at,
           tokenExpires: null,
           hasToken: isLinked && provider.is_active,
         };
@@ -994,6 +1022,23 @@ export const ProviderCard = ({
             </p>
           );
         })()}
+
+        {provider.provider_type === 'googlesheets' &&
+          provider.googlesheets_spreadsheet_url && (
+            <p className="text-sm">
+              <a
+                href={provider.googlesheets_spreadsheet_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline font-medium"
+              >
+                {t(
+                  'settings.providerCard.openGoogleSheet',
+                  'Open the export spreadsheet'
+                )}
+              </a>
+            </p>
+          )}
 
         {config?.hasToken &&
           (config.lastSync || config.tokenExpires || garminNeverSynced) && (

@@ -75,6 +75,8 @@ export interface ExternalDataProvider {
   strava_token_expires?: string | null;
   googlehealth_last_sync_at?: string | null;
   googlehealth_token_expires?: string | null;
+  googlesheets_last_sync_at?: string | null;
+  googlesheets_spreadsheet_url?: string | null;
   sort_order?: number;
   supports_barcode?: boolean;
 }

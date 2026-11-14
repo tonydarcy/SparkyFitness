@@ -3212,7 +3212,8 @@
       "europeMcpeuCorosComNot": "Europe (mcpeu.coros.com) <span>(not yet tested)</span>",
       "mainlandChinaMcpcnCorosCom": "Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>",
       "ensureLocalUrl": "Also ensure your local URL is correct if testing locally.",
-      "stravaCallbackNote": "Note: Strava callback URL on the server is configured to: <strong>{{value}}</strong>"
+      "stravaCallbackNote": "Note: Strava callback URL on the server is configured to: <strong>{{value}}</strong>",
+      "googleSheetsIntegrationUsesOAuth2": "Google Sheets export uses OAuth2. In your <link>Google Cloud Console</link>, enable the Google Sheets API and create an OAuth 2.0 Web Application client. After saving, click <strong>Connect</strong> on the provider card: SparkyFitness creates a spreadsheet in your Drive and rewrites it on every sync (daily by default).<br/>Your client must have this callback URL:"
     },
     "externalProviderList": {
       "dragToReorderProvider": "Drag to reorder provider",
@@ -3304,7 +3305,8 @@
       "urlLabel": "URL:",
       "appIdLabel": "App ID:",
       "appKeyLabel": "App Key:",
-      "syncLabel": "Sync:"
+      "syncLabel": "Sync:",
+      "openGoogleSheet": "Open the export spreadsheet"
     },
     "routingProvider": {
       "baseUrlLabel": "Valhalla server URL",
@@ -7638,6 +7640,14 @@
     "withingsCallback": {
       "withingsOAuthError": "Withings OAuth Error",
       "missingOAuthCodeOrState": "Missing OAuth code or state in callback."
+    },
+    "googleSheetsLinkError": "Failed to link Google Sheets.",
+    "googleSheetsLinkSuccess": "Google Sheets linked. Your export spreadsheet is ready.",
+    "googleSheetsExportError": "Google Sheets export did not finish.",
+    "googleSheetsExportSuccess": "Google Sheets export updated.",
+    "googleSheetsCallback": {
+      "googleSheetsOAuthError": "Google Sheets OAuth Error",
+      "missingAuthorizationCodeInCallback": "Missing authorization code in callback."
     }
   },
   "mealCreation": {

@@ -24,6 +24,7 @@ const SCHEDULED_PROVIDER_TYPES = new Set([
   'fitbit',
   'oura',
   'googlehealth',
+  'googlesheets',
   'strava',
   'polar',
   'coros_mcp',
