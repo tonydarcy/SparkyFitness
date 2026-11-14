@@ -357,8 +357,7 @@ async function getExternalDataProvidersForUser(
 }
 
 async function createExternalDataProvider(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  authenticatedUserId: any,
+  authenticatedUserId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   providerData: any
 ) {

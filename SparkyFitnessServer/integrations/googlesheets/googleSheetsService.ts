@@ -1,6 +1,10 @@
 import axios from 'axios';
 import { getSystemClient } from '../../db/poolManager.js';
 import { log } from '../../config/logging.js';
+import {
+  noteWorkActivity,
+  throwIfWorkAborted,
+} from '../../utils/abortScope.js';
 import * as googleOAuth from '../google/googleOAuth.js';
 import { claimOAuthState, persistOAuthState } from '../../utils/oauthState.js';
 import { buildExportTabs, type SheetTab } from './googleSheetsExport.js';
@@ -102,8 +106,12 @@ export async function withSheetsRetry<T>(
   sleep: (ms: number) => Promise<void> = wait
 ): Promise<T> {
   for (let attempt = 1; ; attempt++) {
+    // A sync stopped after losing its claim must not send further requests.
+    throwIfWorkAborted();
     try {
-      return await request();
+      const result = await request();
+      noteWorkActivity();
+      return result;
     } catch (error) {
       const status = (error as { response?: { status?: number } }).response
         ?.status;
