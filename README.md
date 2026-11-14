@@ -63,6 +63,10 @@ Everything in upstream SparkyFitness, plus:
 
 The fork's own instance runs on [Railway](https://railway.com), deployed from `tdmain`.
 
+### Taking these changes upstream
+
+Upstream maintainers are welcome to take any of these changes into SparkyFitness, by cherry-picking or copying, without a pull request from me. Code I wrote in this fork is offered to codewithcj on the same terms as a contribution under clause 6 of the [license](LICENSE). Code that came from other forks keeps its own authors' terms.
+
 A self-hosted, privacy-first alternative to MyFitnessPal, Flo, Hevy, Shotsy & more. Track nutrition, exercise, body metrics, and health data while keeping full control of your data.
 <img width="5120" height="2880" alt="image" src="https://github.com/user-attachments/assets/d8b09f48-cb4d-41a6-b678-ac93e551f257" />
 
