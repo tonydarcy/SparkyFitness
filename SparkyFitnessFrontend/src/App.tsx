@@ -108,6 +108,9 @@ const OuraCallback = lazyWithChunkRecovery(
 const GoogleHealthCallback = lazyWithChunkRecovery(
   () => import('@/pages/Integrations/GoogleHealthCallback')
 );
+const GoogleSheetsCallback = lazyWithChunkRecovery(
+  () => import('@/pages/Integrations/GoogleSheetsCallback')
+);
 const PolarCallback = lazyWithChunkRecovery(
   () => import('@/pages/Integrations/PolarCallback')
 );
@@ -400,6 +403,11 @@ const router = createBrowserRouter([
       {
         path: '/googlehealth/callback',
         Component: GoogleHealthCallback,
+        ErrorBoundary: RootErrorBoundary,
+      },
+      {
+        path: '/googlesheets/callback',
+        Component: GoogleSheetsCallback,
         ErrorBoundary: RootErrorBoundary,
       },
       {

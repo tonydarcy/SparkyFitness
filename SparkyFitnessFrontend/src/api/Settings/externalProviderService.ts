@@ -77,6 +77,7 @@ export const createExternalProvider = async (
         'fitbit',
         'oura',
         'googlehealth',
+        'googlesheets',
         'strava',
         'polar',
         'coros_mcp',
@@ -533,6 +534,48 @@ export const GOOGLE_HEALTH_SYNC_TIMEOUT_MS = 3 * 60 * 1000;
 // so the call resolves once it changes. A default sync finishes well within
 // the limit; a long date range may outlast it, so the timeout message does not
 // claim the sync failed.
+// Polls a provider's status until last_sync_at moves, so a call that the
+// server answered with 202 resolves once the background sync has finished.
+const waitForLastSyncChange = async (
+  fetchLastSyncAt: () => Promise<string | null>,
+  lastSyncBefore: string | null
+) => {
+  const deadline = Date.now() + GOOGLE_HEALTH_SYNC_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) =>
+      setTimeout(resolve, GOOGLE_HEALTH_SYNC_POLL_MS)
+    );
+    let lastSyncNow: string | null;
+    try {
+      lastSyncNow = await fetchLastSyncAt();
+    } catch (error: unknown) {
+      // A lost session will not come back by waiting; anything else may be
+      // a blip while the server-side sync carries on.
+      if (
+        error instanceof HttpApiError &&
+        (error.status === 401 || error.status === 403)
+      ) {
+        throw error;
+      }
+      continue;
+    }
+    if (lastSyncNow !== lastSyncBefore) {
+      return;
+    }
+  }
+  throw new Error(
+    i18n.t(
+      'integrations.syncStillRunning',
+      'It may still be running, or it failed on the server. Check back in a few minutes.'
+    )
+  );
+};
+
+// The server answers 202 before the sync runs, because a full sync outlasts
+// common reverse-proxy timeouts. last_sync_at only moves when a sync succeeds,
+// so the call resolves once it changes. A default sync finishes well within
+// the limit; a long date range may outlast it, so the timeout message does not
+// claim the sync failed.
 export const handleManualSyncGoogleHealth = async (
   startDate?: string,
   endDate?: string,
@@ -544,36 +587,58 @@ export const handleManualSyncGoogleHealth = async (
       method: 'POST',
       body: JSON.stringify({ startDate, endDate, ...mock }),
     });
-    const deadline = Date.now() + GOOGLE_HEALTH_SYNC_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, GOOGLE_HEALTH_SYNC_POLL_MS)
-      );
-      let lastSyncNow: string | null;
-      try {
-        lastSyncNow = await fetchGoogleHealthLastSyncAt();
-      } catch (error: unknown) {
-        // A lost session will not come back by waiting; anything else may be
-        // a blip while the server-side sync carries on.
-        if (
-          error instanceof HttpApiError &&
-          (error.status === 401 || error.status === 403)
-        ) {
-          throw error;
-        }
-        continue;
-      }
-      if (lastSyncNow !== lastSyncBefore) {
-        return;
-      }
-    }
-    throw new Error(
-      'It may still be running, or it failed on the server. Check back in a few minutes.'
-    );
+    await waitForLastSyncChange(fetchGoogleHealthLastSyncAt, lastSyncBefore);
   } catch (error: unknown) {
     console.error('Error initiating manual Google Health sync:', error);
     throw error;
   }
+};
+
+export interface GoogleSheetsStatus {
+  connected: boolean;
+  lastSyncAt?: string | null;
+  spreadsheetUrl?: string | null;
+}
+
+const fetchGoogleSheetsStatus = (): Promise<GoogleSheetsStatus> =>
+  apiCall('/integrations/googlesheets/status');
+
+export const handleConnectGoogleSheets = async () => {
+  const response = await apiCall(`/integrations/googlesheets/authorize`, {
+    method: 'GET',
+  });
+  if (response && response.authUrl) {
+    window.location.href = response.authUrl;
+  } else {
+    throw new Error(
+      i18n.t(
+        'integrations.googleSheetsAuthorizeError',
+        'Failed to get Google Sheets authorization URL.'
+      )
+    );
+  }
+};
+
+export const handleDisconnectGoogleSheets = async () => {
+  if (
+    !confirm(
+      i18n.t(
+        'integrations.googleSheetsDisconnectConfirm',
+        'Disconnect Google Sheets? The export stops, and the spreadsheet already in your Drive is kept.'
+      )
+    )
+  )
+    return;
+  await apiCall(`/integrations/googlesheets/disconnect`, { method: 'POST' });
+};
+
+// Rewrites the whole export now; resolves once the server has finished.
+export const handleExportGoogleSheets = async () => {
+  const lastSyncAt = async () =>
+    (await fetchGoogleSheetsStatus()).lastSyncAt ?? null;
+  const lastSyncBefore = await lastSyncAt();
+  await apiCall(`/integrations/googlesheets/sync`, { method: 'POST' });
+  await waitForLastSyncChange(lastSyncAt, lastSyncBefore);
 };
 
 const fetchBaseProviders = async (): Promise<ExternalDataProvider[]> => {
@@ -759,6 +824,15 @@ export const getEnrichedProviders = async (): Promise<
               const status = await fetchOuraStatus();
               enriched.oura_last_sync_at = status.lastSyncAt;
               enriched.oura_token_expires = status.tokenExpiresAt;
+            }
+            break;
+          }
+          case 'googlesheets': {
+            if (provider.has_token) {
+              const status = await fetchGoogleSheetsStatus();
+              enriched.googlesheets_last_sync_at = status.lastSyncAt ?? null;
+              enriched.googlesheets_spreadsheet_url =
+                status.spreadsheetUrl ?? null;
             }
             break;
           }

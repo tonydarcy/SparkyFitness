@@ -12,6 +12,7 @@ export const providerRequirements: Record<string, string[]> = {
   withings: ['app_id', 'app_key'],
   fitbit: ['app_id', 'app_key'],
   googlehealth: ['app_id', 'app_key'],
+  googlesheets: ['app_id', 'app_key'],
   garmin: ['app_id', 'app_key'],
   polar: ['app_id', 'app_key'],
   strava: ['app_id', 'app_key'],
@@ -60,6 +61,7 @@ const PROVIDERS_WITHOUT_APP_ID = [
 ];
 const OAUTH_TOKEN_PROVIDERS = [
   'googlehealth',
+  'googlesheets',
   'fitbit',
   'withings',
   'strava',

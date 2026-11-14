@@ -40,6 +40,10 @@ const OAUTH_PROVIDER_DASHBOARDS: Record<
     labelKey: `${OAUTH_DASHBOARD_LABELS}.googlehealth`,
     url: 'https://console.cloud.google.com/apis/credentials',
   },
+  googlesheets: {
+    labelKey: `${OAUTH_DASHBOARD_LABELS}.googlehealth`,
+    url: 'https://console.cloud.google.com/apis/credentials',
+  },
   polar: {
     labelKey: `${OAUTH_DASHBOARD_LABELS}.polar`,
     url: 'https://admin.polaraccesslink.com',
@@ -74,6 +78,7 @@ export const ProviderSpecificFields = ({
     'fitbit',
     'oura',
     'googlehealth',
+    'googlesheets',
     'strava',
     'polar',
     'intervals',
@@ -89,6 +94,7 @@ export const ProviderSpecificFields = ({
     'fitbit',
     'oura',
     'googlehealth',
+    'googlesheets',
     'strava',
     'polar',
     'hevy',
@@ -184,6 +190,7 @@ export const ProviderSpecificFields = ({
               'fitbit',
               'oura',
               'googlehealth',
+              'googlesheets',
               'strava',
               'polar',
               'fatsecret',
@@ -226,6 +233,7 @@ export const ProviderSpecificFields = ({
               'fitbit',
               'oura',
               'googlehealth',
+              'googlesheets',
               'strava',
               'polar',
               'fatsecret',
@@ -557,9 +565,14 @@ export const ProviderSpecificFields = ({
         </>
       )}
 
-      {['withings', 'fitbit', 'oura', 'googlehealth', 'polar'].includes(
-        provider.provider_type || ''
-      ) && (
+      {[
+        'withings',
+        'fitbit',
+        'oura',
+        'googlehealth',
+        'googlesheets',
+        'polar',
+      ].includes(provider.provider_type || '') && (
         <p className="text-sm text-muted-foreground col-span-2">
           <Trans
             i18nKey="settings.providerSpecificFields.thisIntegrationUsesOAuth2You2"

@@ -206,6 +206,7 @@ export default defineConfig({
             { text: 'Nutrient Display', link: '/features/settings/nutrient-display-settings' },
             { text: 'Login Management', link: '/features/settings/login-management' },
             { text: 'Google Health Connect', link: '/features/settings/google-health' },
+            { text: 'Google Sheets Export', link: '/features/settings/google-sheets' },
             { text: 'Polar', link: '/features/settings/polar' },
             { text: 'COROS (MCP)', link: '/features/settings/coros' },
           ],

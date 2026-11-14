@@ -18,6 +18,7 @@ SparkyFitness supports integration with the following health and fitness data pr
 - Hevy (not tested)
 - [Liftosaur](/features/settings/liftosaur)
 - [Intervals.icu](/features/settings/intervals)
+- [Google Sheets export](/features/settings/google-sheets) (writes your food log and health data to a spreadsheet; export only)
 - [Canadian Nutrient File (Health Canada)](/features/settings/canadian-nutrient-file)
 - [Swedish Food Agency (Livsmedelsverket)](/features/settings/livsmedelsverket)
 - Swiss Food Composition Database
