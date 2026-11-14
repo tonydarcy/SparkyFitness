@@ -392,8 +392,22 @@ async function createExternalDataProvider(
       delete providerData.app_id;
       delete providerData.app_key;
     }
-    const newProvider =
-      await externalProviderRepository.createExternalDataProvider(providerData);
+    let newProvider;
+    try {
+      newProvider =
+        await externalProviderRepository.createExternalDataProvider(
+          providerData
+        );
+    } catch (err: unknown) {
+      // external_data_providers_one_googlesheets_per_user
+      if (
+        providerData.provider_type === 'googlesheets' &&
+        (err as { code?: string }).code === '23505'
+      ) {
+        throw badRequest('You already have a Google Sheets export.');
+      }
+      throw err;
+    }
     if (
       providerData.provider_type === OPEN_FOOD_FACTS_PROVIDER_TYPE &&
       newProvider?.id

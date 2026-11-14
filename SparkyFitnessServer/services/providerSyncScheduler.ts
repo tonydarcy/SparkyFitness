@@ -190,6 +190,9 @@ export const PROVIDER_SYNC_CONFIGS: readonly ProviderSyncConfig[] = [
     name: 'Google Sheets',
     types: ['googlesheets'],
     sync: async (p) => {
+      // The batch may be stale by the time this account's claim is taken.
+      const current = await googleSheetsService.getSyncSettings(p.user_id);
+      if (!current?.is_active || !isProviderSyncDue(current)) return;
       await googleSheetsService.syncGoogleSheets(p.user_id);
     },
   },

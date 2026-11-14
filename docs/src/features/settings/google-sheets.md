@@ -37,6 +37,6 @@ Times are shown in the timezone set in your profile.
 4. Under **APIs & Services → Credentials**, create an **OAuth 2.0 Client ID** of type **Web application** with the redirect URI `https://<your-sparkyfitness-url>/googlesheets/callback`.
 5. In SparkyFitness, go to **Settings → External Providers**, add a **Google Sheets** provider with the client ID and secret, and click **Connect**.
 
-SparkyFitness creates a spreadsheet called **SparkyFitness export** in your Drive and fills it straight away. Use the refresh button on the provider card to export again now, and **Open the export spreadsheet** to open it. Disconnecting stops the export and keeps the spreadsheet; reconnecting writes to the same one. If you delete the spreadsheet, the next export creates a new one.
+SparkyFitness creates a spreadsheet called **SparkyFitness export** in your Drive and fills it within a minute or so. Tabs you add yourself are left alone, and if one of yours already has an export tab's name, the export uses a name ending in "(SparkyFitness)" instead. You can rename the export's tabs. Use the refresh button on the provider card to export again now, and **Open the export spreadsheet** to open it. Disconnecting stops the export and keeps the spreadsheet; reconnecting writes to the same one. If you delete the spreadsheet, the next export creates a new one.
 
 Only you can connect or run the export: someone with family access to your account cannot.

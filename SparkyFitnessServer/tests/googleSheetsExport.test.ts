@@ -10,6 +10,7 @@ import {
 import {
   spreadsheetIdFromUrl,
   tabRange,
+  withSheetsRetry,
   writeTabs,
 } from '../integrations/googlesheets/googleSheetsService.js';
 
@@ -120,11 +121,14 @@ describe('Google Sheets writer', () => {
     expect(tabRange("Tony's tab", 'A1')).toBe("'Tony''s tab'!A1");
   });
 
-  it('resizes existing tabs, adds new ones, clears and rewrites them', async () => {
+  it("resizes its own tabs, adds new ones beside the person's, clears and rewrites them", async () => {
     await writeTabs(
       'token',
       'sheet-1',
-      [{ sheetId: 7, title: 'Food log' }],
+      [
+        { sheetId: 7, title: 'My food', exportTab: 'Food log' },
+        { sheetId: 9, title: 'Sleep', exportTab: null },
+      ],
       [
         {
           title: 'Food log',
@@ -156,7 +160,8 @@ describe('Google Sheets writer', () => {
         {
           addSheet: {
             properties: {
-              title: 'Sleep',
+              sheetId: 10,
+              title: 'Sleep (SparkyFitness)',
               gridProperties: {
                 rowCount: 1,
                 columnCount: 1,
@@ -165,14 +170,68 @@ describe('Google Sheets writer', () => {
             },
           },
         },
+        {
+          createDeveloperMetadata: {
+            developerMetadata: {
+              metadataKey: 'sparkyfitness-tab',
+              metadataValue: 'Sleep',
+              location: { sheetId: 10 },
+              visibility: 'DOCUMENT',
+            },
+          },
+        },
       ],
     });
     expect(calls[1][0]).toContain('values:batchClear');
-    expect(calls[1][1]).toEqual({ ranges: ["'Food log'", "'Sleep'"] });
+    expect(calls[1][1]).toEqual({
+      ranges: ["'My food'", "'Sleep (SparkyFitness)'"],
+    });
     expect(
       calls
         .slice(2)
         .map((c) => (c[1] as { data: { range: string }[] }).data[0].range)
-    ).toEqual(["'Food log'!A1", "'Sleep'!A1"]);
+    ).toEqual(["'My food'!A1", "'Sleep (SparkyFitness)'!A1"]);
+  });
+
+  it('removes the starter sheet of a new spreadsheet after adding the tabs', async () => {
+    await writeTabs(
+      'token',
+      'sheet-1',
+      [{ sheetId: 0, title: 'Sheet1', exportTab: null }],
+      [{ title: 'Food log', rows: [['No data logged yet']] }],
+      true
+    );
+    const { requests } = vi.mocked(axios.post).mock.calls[0][1] as {
+      requests: Record<string, unknown>[];
+    };
+    expect(requests.map((r) => Object.keys(r)[0])).toEqual([
+      'addSheet',
+      'createDeveloperMetadata',
+      'deleteSheet',
+    ]);
+    expect(requests[2]).toEqual({ deleteSheet: { sheetId: 0 } });
+  });
+
+  it('retries quota errors and gives up on other errors', async () => {
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const quota = Object.assign(new Error('quota'), {
+      response: { status: 429 },
+    });
+    const request = vi
+      .fn()
+      .mockRejectedValueOnce(quota)
+      .mockResolvedValueOnce('ok');
+    await expect(withSheetsRetry(request, sleep)).resolves.toBe('ok');
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledTimes(1);
+
+    const bad = Object.assign(new Error('bad'), { response: { status: 400 } });
+    const failing = vi.fn().mockRejectedValue(bad);
+    await expect(withSheetsRetry(failing, sleep)).rejects.toBe(bad);
+    expect(failing).toHaveBeenCalledTimes(1);
+
+    const always = vi.fn().mockRejectedValue(quota);
+    await expect(withSheetsRetry(always, sleep)).rejects.toBe(quota);
+    expect(always).toHaveBeenCalledTimes(5);
   });
 });

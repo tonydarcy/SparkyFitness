@@ -564,7 +564,10 @@ const waitForLastSyncChange = async (
     }
   }
   throw new Error(
-    'It may still be running, or it failed on the server. Check back in a few minutes.'
+    i18n.t(
+      'integrations.syncStillRunning',
+      'It may still be running, or it failed on the server. Check back in a few minutes.'
+    )
   );
 };
 
@@ -607,14 +610,22 @@ export const handleConnectGoogleSheets = async () => {
   if (response && response.authUrl) {
     window.location.href = response.authUrl;
   } else {
-    throw new Error('Failed to get Google Sheets authorization URL.');
+    throw new Error(
+      i18n.t(
+        'integrations.googleSheetsAuthorizeError',
+        'Failed to get Google Sheets authorization URL.'
+      )
+    );
   }
 };
 
 export const handleDisconnectGoogleSheets = async () => {
   if (
     !confirm(
-      'Disconnect Google Sheets? The export stops, and the spreadsheet already in your Drive is kept.'
+      i18n.t(
+        'integrations.googleSheetsDisconnectConfirm',
+        'Disconnect Google Sheets? The export stops, and the spreadsheet already in your Drive is kept.'
+      )
     )
   )
     return;

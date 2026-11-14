@@ -99,6 +99,25 @@ router.post(
         body.data.state,
         redirectUri()
       );
+      const userId = req.userId;
+      // Fill the new sheet straight away rather than at the next scheduler run.
+      try {
+        const started = await startProviderSync(
+          { userId, providerType: 'googlesheets' },
+          () => googleSheetsService.syncGoogleSheets(userId)
+        );
+        started?.running.catch((error: unknown) => {
+          log(
+            'error',
+            `First Google Sheets export failed for user ${userId}: ${describeError(error)}`
+          );
+        });
+      } catch (error) {
+        log(
+          'warn',
+          `Could not start the first Google Sheets export for user ${userId}: ${describeError(error)}`
+        );
+      }
       res.status(200).json({ message: 'Google Sheets linked successfully.' });
     } catch (error) {
       if (error instanceof OAuthStateError) {

@@ -87,17 +87,58 @@ const authHeaders = (accessToken: string) => ({
   Authorization: `Bearer ${accessToken}`,
 });
 
+// Sheets answers 429 when the per-minute quota is used up and 503 when it is
+// briefly unavailable; neither applied the request, so it is safe to repeat.
+const RETRY_STATUSES = new Set([429, 503]);
+const MAX_ATTEMPTS = 5;
+const MAX_RETRY_DELAY_MS = 32000;
+
+const wait = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Runs a Sheets request, retrying quota and availability errors with backoff. */
+export async function withSheetsRetry<T>(
+  request: () => Promise<T>,
+  sleep: (ms: number) => Promise<void> = wait
+): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await request();
+    } catch (error) {
+      const status = (error as { response?: { status?: number } }).response
+        ?.status;
+      if (
+        status === undefined ||
+        !RETRY_STATUSES.has(status) ||
+        attempt >= MAX_ATTEMPTS
+      ) {
+        throw error;
+      }
+      const delay = Math.min(
+        1000 * 2 ** (attempt - 1) + Math.random() * 1000,
+        MAX_RETRY_DELAY_MS
+      );
+      log(
+        'warn',
+        `Google Sheets answered ${status}; retrying in ${Math.round(delay)} ms.`
+      );
+      await sleep(delay);
+    }
+  }
+}
+
+const sheetsPost = (url: string, body: unknown, accessToken: string) =>
+  withSheetsRetry(() =>
+    axios.post(url, body, { headers: authHeaders(accessToken) })
+  );
+
 async function createSpreadsheet(
   accessToken: string
 ): Promise<{ id: string; url: string }> {
-  const response = await axios.post(
+  const response = await sheetsPost(
     SHEETS_API,
-    {
-      properties: { title: SPREADSHEET_TITLE },
-      // Named after the first tab so no empty "Sheet1" is left behind.
-      sheets: [{ properties: { title: 'Food log' } }],
-    },
-    { headers: authHeaders(accessToken) }
+    { properties: { title: SPREADSHEET_TITLE } },
+    accessToken
   );
   return {
     id: response.data.spreadsheetId,
@@ -105,23 +146,44 @@ async function createSpreadsheet(
   };
 }
 
-interface SheetProperties {
+// Each tab the export writes carries this developer metadata, valued with the
+// tab's export title, so a tab the person made (even one with the same name)
+// is never overwritten, and a tab the person renamed is still found.
+const TAB_METADATA_KEY = 'sparkyfitness-tab';
+
+export interface SheetInfo {
   sheetId: number;
   title: string;
+  /** The export tab this sheet holds, or null for a sheet the person made. */
+  exportTab: string | null;
+}
+
+interface SheetResource {
+  properties: { sheetId: number; title: string };
+  developerMetadata?: { metadataKey?: string; metadataValue?: string }[];
 }
 
 async function getSheets(
   accessToken: string,
   spreadsheetId: string
-): Promise<SheetProperties[] | null> {
+): Promise<SheetInfo[] | null> {
   try {
-    const response = await axios.get(`${SHEETS_API}/${spreadsheetId}`, {
-      headers: authHeaders(accessToken),
-      params: { fields: 'sheets.properties(sheetId,title)' },
-    });
-    return (response.data.sheets ?? []).map(
-      (s: { properties: SheetProperties }) => s.properties
+    const response = await withSheetsRetry(() =>
+      axios.get(`${SHEETS_API}/${spreadsheetId}`, {
+        headers: authHeaders(accessToken),
+        params: {
+          fields:
+            'sheets(properties(sheetId,title),developerMetadata(metadataKey,metadataValue))',
+        },
+      })
     );
+    return ((response.data.sheets ?? []) as SheetResource[]).map((s) => ({
+      sheetId: s.properties.sheetId,
+      title: s.properties.title,
+      exportTab:
+        s.developerMetadata?.find((m) => m.metadataKey === TAB_METADATA_KEY)
+          ?.metadataValue ?? null,
+    }));
   } catch (error) {
     const status = (error as { response?: { status?: number } }).response
       ?.status;
@@ -136,36 +198,46 @@ async function ensureSpreadsheet(userId: string, accessToken: string) {
   const existingId = spreadsheetIdFromUrl(await getSpreadsheetUrl(userId));
   if (existingId) {
     const sheets = await getSheets(accessToken, existingId);
-    if (sheets) return { id: existingId, sheets };
+    if (sheets) return { id: existingId, sheets, created: false };
   }
   const created = await createSpreadsheet(accessToken);
   await saveSpreadsheetUrl(userId, created.url);
   log('info', `Created Google Sheets export spreadsheet for user ${userId}.`);
   const sheets = (await getSheets(accessToken, created.id)) ?? [];
-  return { id: created.id, sheets };
+  return { id: created.id, sheets, created: true };
 }
 
 /**
- * Sizes each tab to its data (adding missing tabs), clears it and writes it
- * again. Tabs the person added themselves are left alone.
+ * Sizes each export tab to its data (adding missing ones), clears it and
+ * writes it again. Sheets without the export's metadata belong to the person
+ * and are left alone, except in a spreadsheet just created (`created`), whose
+ * empty starter sheet is removed once the export's tabs exist.
  */
 export async function writeTabs(
   accessToken: string,
   spreadsheetId: string,
-  existing: SheetProperties[],
-  tabs: SheetTab[]
+  existing: SheetInfo[],
+  tabs: SheetTab[],
+  created = false
 ) {
-  const headers = authHeaders(accessToken);
-  const byTitle = new Map(existing.map((s) => [s.title, s]));
+  const owned = new Map(
+    existing
+      .filter((s) => s.exportTab !== null)
+      .map((s) => [s.exportTab as string, s])
+  );
+  const usedTitles = new Set(existing.map((s) => s.title));
+  let nextSheetId = Math.max(0, ...existing.map((s) => s.sheetId)) + 1;
   const requests: Record<string, unknown>[] = [];
+  const titles: string[] = [];
   for (const tab of tabs) {
     const gridProperties = {
       rowCount: Math.max(tab.rows.length, 1),
       columnCount: Math.max(...tab.rows.map((r) => r.length), 1),
       frozenRowCount: tab.rows.length > 1 ? 1 : 0,
     };
-    const sheet = byTitle.get(tab.title);
+    const sheet = owned.get(tab.title);
     if (sheet) {
+      titles.push(sheet.title);
       requests.push({
         updateSheetProperties: {
           properties: { sheetId: sheet.sheetId, gridProperties },
@@ -173,38 +245,65 @@ export async function writeTabs(
             'gridProperties.rowCount,gridProperties.columnCount,gridProperties.frozenRowCount',
         },
       });
-    } else {
-      requests.push({
-        addSheet: { properties: { title: tab.title, gridProperties } },
-      });
+      continue;
+    }
+    let title = tab.title;
+    for (let n = 1; usedTitles.has(title); n++) {
+      title =
+        n === 1
+          ? `${tab.title} (SparkyFitness)`
+          : `${tab.title} (SparkyFitness ${n})`;
+    }
+    usedTitles.add(title);
+    titles.push(title);
+    const sheetId = nextSheetId++;
+    requests.push(
+      { addSheet: { properties: { sheetId, title, gridProperties } } },
+      {
+        createDeveloperMetadata: {
+          developerMetadata: {
+            metadataKey: TAB_METADATA_KEY,
+            metadataValue: tab.title,
+            location: { sheetId },
+            visibility: 'DOCUMENT',
+          },
+        },
+      }
+    );
+  }
+  if (created) {
+    for (const sheet of existing) {
+      if (sheet.exportTab === null) {
+        requests.push({ deleteSheet: { sheetId: sheet.sheetId } });
+      }
     }
   }
-  await axios.post(
+  await sheetsPost(
     `${SHEETS_API}/${spreadsheetId}:batchUpdate`,
     { requests },
-    { headers }
+    accessToken
   );
 
-  await axios.post(
+  await sheetsPost(
     `${SHEETS_API}/${spreadsheetId}/values:batchClear`,
-    { ranges: tabs.map((t) => tabRange(t.title)) },
-    { headers }
+    { ranges: titles.map((title) => tabRange(title)) },
+    accessToken
   );
 
-  for (const tab of tabs) {
+  for (const [index, tab] of tabs.entries()) {
     for (let start = 0; start < tab.rows.length; start += ROWS_PER_WRITE) {
-      await axios.post(
+      await sheetsPost(
         `${SHEETS_API}/${spreadsheetId}/values:batchUpdate`,
         {
           valueInputOption: 'RAW',
           data: [
             {
-              range: tabRange(tab.title, `A${start + 1}`),
+              range: tabRange(titles[index], `A${start + 1}`),
               values: tab.rows.slice(start, start + ROWS_PER_WRITE),
             },
           ],
         },
-        { headers }
+        accessToken
       );
     }
   }
@@ -225,8 +324,8 @@ async function getAccessToken(userId: string): Promise<string> {
 async function syncGoogleSheets(userId: string): Promise<string> {
   const accessToken = await getAccessToken(userId);
   const tabs = await buildExportTabs(userId);
-  const { id, sheets } = await ensureSpreadsheet(userId, accessToken);
-  await writeTabs(accessToken, id, sheets, tabs);
+  const { id, sheets, created } = await ensureSpreadsheet(userId, accessToken);
+  await writeTabs(accessToken, id, sheets, tabs, created);
   const client = await getSystemClient();
   try {
     await client.query(
@@ -270,6 +369,26 @@ async function linkAccount(
   await ensureSpreadsheet(userId, accessToken);
 }
 
+/** The provider row's sync settings, read fresh for the scheduler. */
+async function getSyncSettings(userId: string): Promise<{
+  is_active: boolean;
+  sync_frequency: string | null;
+  last_sync_at: Date | null;
+} | null> {
+  const client = await getSystemClient();
+  try {
+    const result = await client.query(
+      `SELECT is_active, sync_frequency, last_sync_at
+         FROM external_data_providers
+        WHERE user_id = $1 AND provider_type = $2`,
+      [userId, GOOGLE_SHEETS_OAUTH.providerType]
+    );
+    return result.rows[0] ?? null;
+  } finally {
+    client.release();
+  }
+}
+
 async function getStatus(userId: string) {
   const status = await googleOAuth.getStatus(GOOGLE_SHEETS_OAUTH, userId);
   const url = await getSpreadsheetUrl(userId);
@@ -285,6 +404,7 @@ export default {
   getAuthorizationUrl,
   linkAccount,
   syncGoogleSheets,
+  getSyncSettings,
   getStatus,
   disconnect,
 };

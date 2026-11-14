@@ -1,66 +1,88 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
 import { CallbackStatus } from './CallbackStatus';
 import { useLinkGoogleSheetsMutation } from '@/hooks/Integrations/useIntegrations';
 
-import { useTranslation } from 'react-i18next';
+type LinkStatus = 'processing' | 'missing' | 'linked' | 'failed';
+
 const GoogleSheetsCallback = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState(
-    'Processing Google Sheets authorization...'
-  );
+  const [status, setStatus] = useState<LinkStatus>('processing');
   const { mutateAsync: linkGoogleSheetsAccount } =
     useLinkGoogleSheetsMutation();
+  // Authorization codes are single-use: exchange each code/state pair once,
+  // even if the effect runs again (a language load changes `t`, for example).
+  const submittedRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    const key = `${code}|${state}`;
+    if (submittedRef.current === key) return;
+    submittedRef.current = key;
 
     const processCallback = async () => {
-      const params = new URLSearchParams(location.search);
-      const code = params.get('code');
-      const state = params.get('state');
-
-      if (!code) {
-        setMessage('Error: Missing Google Sheets authorization code.');
-        toast({
-          title: t(
-            'integrations.googleSheetsCallback.googleSheetsOAuthError',
-            'Google Sheets OAuth Error'
-          ),
-          description: t(
-            'integrations.googleSheetsCallback.missingAuthorizationCodeInCallback',
-            'Missing authorization code in callback.'
-          ),
-          variant: 'destructive',
-        });
-        setLoading(false);
+      if (!code || !state) {
+        setStatus('missing');
         return;
       }
-
+      let next: LinkStatus = 'linked';
       try {
+        // The mutation shows its own error toast.
         await linkGoogleSheetsAccount({ code, state });
-        setMessage('Google Sheets account successfully linked!');
-      } catch (error: unknown) {
-        console.error('Error processing Google Sheets callback:', error);
-        setMessage('Error linking Google Sheets account.');
-      } finally {
-        setLoading(false);
-        timeoutId = setTimeout(() => {
-          navigate('/settings');
-        }, 1500);
+      } catch {
+        next = 'failed';
       }
+      if (mountedRef.current) setStatus(next);
     };
+    void processCallback();
+  }, [location.search, linkGoogleSheetsAccount]);
 
-    processCallback();
+  // Back to Settings shortly after the outcome is shown. Cleared on unmount,
+  // so leaving the page first never redirects from somewhere else.
+  useEffect(() => {
+    if (status === 'processing') return;
+    const timeoutId = setTimeout(() => navigate('/settings'), 1500);
     return () => clearTimeout(timeoutId);
-  }, [location, navigate, toast, linkGoogleSheetsAccount, t]);
+  }, [status, navigate]);
 
-  return <CallbackStatus loading={loading} message={message} />;
+  const messages: Record<LinkStatus, string> = {
+    processing: t(
+      'integrations.googleSheetsCallback.processing',
+      'Processing Google Sheets authorization...'
+    ),
+    missing: t(
+      'integrations.googleSheetsCallback.missingAuthorizationCodeInCallback',
+      'Missing authorization code in callback.'
+    ),
+    linked: t(
+      'integrations.googleSheetsCallback.linked',
+      'Google Sheets linked. Your first export is running.'
+    ),
+    failed: t(
+      'integrations.googleSheetsCallback.failed',
+      'Error linking Google Sheets.'
+    ),
+  };
+
+  return (
+    <CallbackStatus
+      loading={status === 'processing'}
+      message={messages[status]}
+    />
+  );
 };
 
 export default GoogleSheetsCallback;

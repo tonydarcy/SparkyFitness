@@ -38,7 +38,7 @@ vi.mock('../models/externalProviderRepository.js', () => ({
 }));
 
 vi.mock('../integrations/googlesheets/googleSheetsService.js', () => ({
-  default: { syncGoogleSheets: vi.fn() },
+  default: { syncGoogleSheets: vi.fn(), getSyncSettings: vi.fn() },
 }));
 vi.mock('../services/withingsService.js', () => ({
   default: {

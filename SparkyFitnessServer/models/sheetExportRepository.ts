@@ -1,4 +1,5 @@
 import { getClient } from '../db/poolManager.js';
+import { supplementCountable } from './supplementSql.js';
 
 // Read-only queries behind the Google Sheets export. Every query runs on the
 // person's own RLS client and also filters on user_id, so a family member's
@@ -158,6 +159,10 @@ async function getFirstLoggedDay(userId: string): Promise<string | null> {
        SELECT MIN(entry_date) FROM exercise_entries WHERE user_id = $1
        UNION ALL
        SELECT MIN(entry_date) FROM water_intake WHERE user_id = $1
+       UNION ALL
+       -- Taken supplements count towards the daily nutrition totals too.
+       SELECT MIN(me.entry_date) FROM medication_entries me
+        WHERE me.user_id = $1 AND ${supplementCountable('me')}
      ) days`
   );
   return (rows[0]?.first_day as string | null) ?? null;

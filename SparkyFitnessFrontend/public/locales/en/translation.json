@@ -7646,9 +7646,14 @@
     "googleSheetsExportError": "Google Sheets export did not finish.",
     "googleSheetsExportSuccess": "Google Sheets export updated.",
     "googleSheetsCallback": {
-      "googleSheetsOAuthError": "Google Sheets OAuth Error",
-      "missingAuthorizationCodeInCallback": "Missing authorization code in callback."
-    }
+      "missingAuthorizationCodeInCallback": "Missing authorization code in callback.",
+      "processing": "Processing Google Sheets authorization...",
+      "linked": "Google Sheets linked. Your first export is running.",
+      "failed": "Error linking Google Sheets."
+    },
+    "syncStillRunning": "It may still be running, or it failed on the server. Check back in a few minutes.",
+    "googleSheetsAuthorizeError": "Failed to get Google Sheets authorization URL.",
+    "googleSheetsDisconnectConfirm": "Disconnect Google Sheets? The export stops, and the spreadsheet already in your Drive is kept."
   },
   "mealCreation": {
     "convertToMeal": "Create Meal from Diary",
