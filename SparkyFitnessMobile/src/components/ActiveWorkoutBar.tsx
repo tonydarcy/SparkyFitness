@@ -157,6 +157,34 @@ export function useActiveWorkoutBarPadding(
     : BAR_CONTENT_HEIGHT + LIQUID_GLASS_VERTICAL_GAP;
 }
 
+/** How far the custom tab bar's round Add button rises above the bar. */
+const CUSTOM_TAB_FAB_OVERHANG = 20;
+const FLOATING_ACTION_GAP = 8;
+
+/**
+ * How far above a tab screen's bottom edge a floating action must sit to stay
+ * clear of the tab bar and the workout bar. With iOS native tabs the screen
+ * runs under the tab bar, so its measured height is added; the custom tab bar
+ * sits below the screen, but its round Add button pokes up into it.
+ */
+export function useTabScreenFloatingBottom(): number {
+  const insets = useSafeAreaInsets();
+  const usesNativeTabs = useNativeIOSTabsActive();
+  const verticalBar = useVerticalBar();
+  const nativeTabBarHeight = useSyncExternalStore(
+    subscribeToTabBarHeight,
+    getTabBarHeightSnapshot,
+    getTabBarHeightSnapshot
+  );
+  const workoutBarPadding = useActiveWorkoutBarPadding();
+  const base = !usesNativeTabs
+    ? CUSTOM_TAB_FAB_OVERHANG
+    : verticalBar
+      ? insets.bottom
+      : (nativeTabBarHeight ?? TAB_BAR_HEIGHT + Math.max(insets.bottom, 4));
+  return base + workoutBarPadding + FLOATING_ACTION_GAP;
+}
+
 /**
  * Routes where the HUD should be hidden — either modal entry flows (food /
  * exercise search), full-screen editors and planning flows with a sticky

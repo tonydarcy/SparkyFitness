@@ -71,4 +71,20 @@ describe('CopyFoodEntryDialog', () => {
       'tomorrow'
     );
   });
+
+  it('picks the target meal with one click', () => {
+    const onCopy = renderDialog('Coffee');
+    expect(screen.getByRole('radio', { name: 'Lunch' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Breakfast' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tomorrow' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(onCopy).toHaveBeenCalledWith(
+      expect.any(String),
+      'breakfast',
+      'tomorrow'
+    );
+  });
 });

@@ -209,6 +209,37 @@ const DiaryTimeline = ({
 
   return (
     <>
+      {selecting && (
+        // Floats over the page so Cancel and Copy stay in reach however far
+        // the day is scrolled; clears the phone-width bottom tab bar.
+        <div className="fixed bottom-20 left-1/2 z-50 w-[90%] max-w-md -translate-x-1/2 rounded-xl border bg-background px-3 py-2 shadow-2xl sm:bottom-6">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-muted-foreground">
+              {t('diary.timeline.selectedCount', '{{count}} selected', {
+                count: selectedEntries.length,
+              })}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSelection(null)}
+            >
+              {t('common.cancel', 'Cancel')}
+            </Button>
+            <Button
+              size="sm"
+              disabled={selectedEntries.length === 0}
+              onClick={() => {
+                onCopyEntries?.(selectedEntries);
+                setSelection(null);
+              }}
+            >
+              <Copy className="mr-1 h-4 w-4" />
+              {t('diary.timeline.copySelected', 'Copy')}
+            </Button>
+          </div>
+        </div>
+      )}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
           <div className="flex items-baseline gap-2">
@@ -219,33 +250,7 @@ const DiaryTimeline = ({
               {formatEnergy(totalCalories)} {energyLabel}
             </span>
           </div>
-          {selecting ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                {t('diary.timeline.selectedCount', '{{count}} selected', {
-                  count: selectedEntries.length,
-                })}
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSelection(null)}
-              >
-                {t('common.cancel', 'Cancel')}
-              </Button>
-              <Button
-                size="sm"
-                disabled={selectedEntries.length === 0}
-                onClick={() => {
-                  onCopyEntries?.(selectedEntries);
-                  setSelection(null);
-                }}
-              >
-                <Copy className="mr-1 h-4 w-4" />
-                {t('diary.timeline.copySelected', 'Copy')}
-              </Button>
-            </div>
-          ) : (
+          {!selecting && (
             <div className="flex items-center gap-2">
               {onCopyEntries && foodEntries.length > 0 && (
                 <Button

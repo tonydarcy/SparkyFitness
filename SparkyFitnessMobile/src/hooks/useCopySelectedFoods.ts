@@ -3,9 +3,18 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import { createFoodEntry } from '../services/api/foodEntriesApi';
-import { buildFoodEntryCopyPayload } from '../utils/foodEntryCopy';
+import {
+  createFoodEntryMeal,
+  getFoodEntryMealWithComponents,
+} from '../services/api/foodEntryMealsApi';
+import type { FoodEntryMeal } from '../types/foodEntryMeals';
+import {
+  buildFoodEntryCopyPayload,
+  buildFoodEntryMealCopyPayload,
+} from '../utils/foodEntryCopy';
 import type { CopyFoodEntryInput } from './useCopyFoodEntry';
 import { invalidateFoodCache } from './invalidateFoodCache';
+import { invalidateMealUsageCaches } from './useMeals';
 
 interface CopyResult {
   copied: CopyFoodEntryInput[];
@@ -14,21 +23,41 @@ interface CopyResult {
 
 /**
  * Logs each copy in turn. One that fails does not stop the rest; the copy only
- * counts as failed when nothing was copied.
+ * counts as failed when nothing was copied. A logged meal (a diary row with
+ * `food_entry_meal_id`) is copied whole, as a new logged meal with its foods.
  */
 async function copyEach(inputs: CopyFoodEntryInput[]): Promise<CopyResult> {
   const copied: CopyFoodEntryInput[] = [];
   let failedCount = 0;
+  // A meal copied to several days is read once.
+  const meals = new Map<string, Promise<FoodEntryMeal>>();
   for (const { entry, targetDate, targetMealTypeId, entryTime } of inputs) {
     try {
-      await createFoodEntry(
-        buildFoodEntryCopyPayload(
-          entry,
-          targetDate,
-          targetMealTypeId,
-          entryTime
-        )
-      );
+      const mealId = entry.food_entry_meal_id;
+      if (mealId) {
+        let meal = meals.get(mealId);
+        if (!meal) {
+          meal = getFoodEntryMealWithComponents(mealId);
+          meals.set(mealId, meal);
+        }
+        await createFoodEntryMeal(
+          buildFoodEntryMealCopyPayload(
+            await meal,
+            targetDate,
+            targetMealTypeId,
+            entryTime
+          )
+        );
+      } else {
+        await createFoodEntry(
+          buildFoodEntryCopyPayload(
+            entry,
+            targetDate,
+            targetMealTypeId,
+            entryTime
+          )
+        );
+      }
       copied.push({ entry, targetDate, targetMealTypeId, entryTime });
     } catch {
       failedCount += 1;
@@ -51,6 +80,10 @@ export function useCopySelectedFoods(options?: { onSuccess?: () => void }) {
       // Only the target days change; the source entries are left untouched.
       for (const day of new Set(copied.map((input) => input.targetDate))) {
         invalidateFoodCache(queryClient, day);
+      }
+      // A copied logged meal counts as a new use of its saved meal.
+      if (copied.some((input) => input.entry.food_entry_meal_id)) {
+        invalidateMealUsageCaches(queryClient);
       }
       if (failedCount > 0) {
         Toast.show({

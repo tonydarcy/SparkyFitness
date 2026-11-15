@@ -153,11 +153,12 @@ describe('SwipeableFoodRow', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it('does not let a logged meal food be picked', () => {
+  it('lets a logged meal be picked as a whole', () => {
+    const entry = createEntry({ food_entry_meal_id: 'meal-1' });
     const onToggleSelect = jest.fn();
     const screen = renderRow(
       <SwipeableFoodRow
-        entry={createEntry({ food_entry_meal_id: 'meal-1' })}
+        entry={entry}
         nutrition={{ calories: 120, protein: 15, carbs: 8, fat: 2 }}
         selectionMode
         onToggleSelect={onToggleSelect}
@@ -165,6 +166,7 @@ describe('SwipeableFoodRow', () => {
     );
 
     fireEvent.press(screen.getByTestId('food-row-select-entry-1'));
-    expect(onToggleSelect).not.toHaveBeenCalled();
+    expect(onToggleSelect).toHaveBeenCalledWith(entry);
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });
