@@ -56,6 +56,10 @@ import {
 import type { LanguagePreference } from '../localization';
 import type { TrendRange } from '../utils/trendRange';
 import type { OwnershipFilter } from '../utils/shareStatus';
+import {
+  clampTreadmillPercent,
+  type TreadmillCorrection,
+} from '../utils/treadmillCorrection';
 import { newUuid } from '../utils/ids';
 
 const STORE_KEY = '@SparkyFitness/app-preferences';
@@ -147,6 +151,8 @@ export const PREFERENCE_DEFAULTS = {
   diarySummaryExpanded: false,
   diaryViewMode: 'meals' as DiaryViewMode,
   defaultRestSec: DEFAULT_REST_SEC as number,
+  treadmillCorrectionEnabled: false,
+  treadmillCorrectionPercent: 0,
   paceReferenceRace: null as PaceReferenceRace | null,
   paceReferenceOnWatch: false,
   restTimerSoundEnabled: true,
@@ -247,6 +253,13 @@ export type AppPreferencesData = {
   diarySummaryExpanded: boolean;
   diaryViewMode: DiaryViewMode;
   defaultRestSec: number;
+  /**
+   * Treadmill display correction (device-local): when on, a distance typed or
+   * read from a treadmill is divided by `1 + percent / 100` before it is stored.
+   */
+  treadmillCorrectionEnabled: boolean;
+  /** How far the treadmill display reads over (positive) or under (negative) the true distance. */
+  treadmillCorrectionPercent: number;
   /**
    * A recent race result the training paces are worked out from (device-local),
    * or null to use the pace of recent sessions.
@@ -412,6 +425,8 @@ export interface AppPreferencesState extends AppPreferencesData {
   setDefaultRestSec: (value: number) => void;
   setPaceReferenceRace: (value: PaceReferenceRace | null) => void;
   setPaceReferenceOnWatch: (value: boolean) => void;
+  setTreadmillCorrectionEnabled: (value: boolean) => void;
+  setTreadmillCorrectionPercent: (value: number) => void;
   setRestTimerSoundEnabled: (value: boolean) => void;
   setRestChimeThroughSilent: (value: boolean) => void;
   setRestFlashEnabled: (value: boolean) => void;
@@ -474,8 +489,20 @@ export interface AppPreferencesState extends AppPreferencesData {
  */
 const legacyAwareStorage = {
   getItem: async (name: string): Promise<string | null> => {
+    // A failing AsyncStorage read rejects here and is reported by the persist
+    // layer; only malformed content is recovered from below.
     const stored = await AsyncStorage.getItem(name);
-    if (stored !== null) return stored;
+    if (stored !== null) {
+      try {
+        JSON.parse(stored);
+        return stored;
+      } catch {
+        // Corrupt blob: drop it so hydration completes with the defaults
+        // instead of rejecting on every launch.
+        await AsyncStorage.removeItem(name);
+        return null;
+      }
+    }
 
     // No combined key yet — check whether any legacy per-key values exist.
     const entries = await Promise.all(
@@ -513,6 +540,10 @@ function withMembership<K>(list: readonly K[], key: K, include: boolean): K[] {
   }
   return Array.from(members);
 }
+
+/** Set when the persist layer reports a storage error while hydrating. */
+let hydrationFailed = false;
+const hydrationFailureListeners = new Set<() => void>();
 
 export const useAppPreferencesStore = create<AppPreferencesState>()(
   persist(
@@ -588,6 +619,10 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setDefaultRestSec: (value) => set({ defaultRestSec: value }),
       setPaceReferenceRace: (value) => set({ paceReferenceRace: value }),
       setPaceReferenceOnWatch: (value) => set({ paceReferenceOnWatch: value }),
+      setTreadmillCorrectionEnabled: (value) =>
+        set({ treadmillCorrectionEnabled: value }),
+      setTreadmillCorrectionPercent: (value) =>
+        set({ treadmillCorrectionPercent: clampTreadmillPercent(value) }),
       setRestTimerSoundEnabled: (value) =>
         set({ restTimerSoundEnabled: value }),
       setRestChimeThroughSilent: (value) =>
@@ -759,6 +794,12 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       name: STORE_KEY,
       version: STORE_VERSION,
       storage: createJSONStorage(() => legacyAwareStorage),
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          hydrationFailed = true;
+          hydrationFailureListeners.forEach((listener) => listener());
+        }
+      },
       partialize: (state) => ({
         hapticsEnabled: state.hapticsEnabled,
         soundsEnabled: state.soundsEnabled,
@@ -806,6 +847,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         diarySummaryExpanded: state.diarySummaryExpanded,
         diaryViewMode: state.diaryViewMode,
         defaultRestSec: state.defaultRestSec,
+        treadmillCorrectionEnabled: state.treadmillCorrectionEnabled,
+        treadmillCorrectionPercent: state.treadmillCorrectionPercent,
         paceReferenceRace: state.paceReferenceRace,
         paceReferenceOnWatch: state.paceReferenceOnWatch,
         restTimerSoundEnabled: state.restTimerSoundEnabled,
@@ -888,6 +931,38 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
  */
 export function getDefaultRestSec(): number {
   return useAppPreferencesStore.getState().defaultRestSec;
+}
+
+/**
+ * Resolves once the persisted preferences have been read from storage. A slow
+ * read keeps the caller waiting; it resolves early only when the persist layer
+ * reports a storage error, so a failure cannot block the caller and the
+ * defaults are used only then. Code that runs before any screen mounts (a
+ * watch run delivered at launch) would otherwise read the defaults instead of
+ * what the person set.
+ */
+export function whenPreferencesHydrated(): Promise<void> {
+  const { persist: persistApi } = useAppPreferencesStore;
+  if (persistApi.hasHydrated() || hydrationFailed) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const unsubscribe = persistApi.onFinishHydration(done);
+    hydrationFailureListeners.add(done);
+    function done() {
+      unsubscribe();
+      hydrationFailureListeners.delete(done);
+      resolve();
+    }
+  });
+}
+
+/** The treadmill correction now in force, for non-React callers. */
+export function getTreadmillCorrection(): TreadmillCorrection {
+  const { treadmillCorrectionEnabled, treadmillCorrectionPercent } =
+    useAppPreferencesStore.getState();
+  return {
+    enabled: treadmillCorrectionEnabled,
+    percent: treadmillCorrectionPercent,
+  };
 }
 
 /**

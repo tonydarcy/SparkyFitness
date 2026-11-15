@@ -44,7 +44,7 @@ import type {
   FoodUnitSelectionResult,
   FoodUnitVariant,
 } from './foodUnitVariants';
-import type { Meal, MealIngredientDraft } from './meals';
+import type { Meal, MealFood, MealIngredientDraft } from './meals';
 import type { MealPlanPickerTarget, MealPlanTemplate } from './mealPlans';
 import type { WorkoutPreset } from './workoutPresets';
 import type { WorkoutPlanTemplate } from './workoutPlans';
@@ -126,7 +126,14 @@ export type RootStackParamList = {
     { providerId: string; recipeSlug: string; scope: string } | undefined;
   MealPlans: undefined;
   WorkoutPlans: undefined;
-  WorkoutPlanForm: { template?: WorkoutPlanTemplate } | undefined;
+  WorkoutPlanForm:
+    | {
+        template?: WorkoutPlanTemplate;
+        selectedExercise?: Exercise;
+        selectionNonce?: number;
+      }
+    | undefined;
+  WorkoutPlanDetail: { template: WorkoutPlanTemplate };
   RunPrograms: undefined;
   RunProgramCalendar: undefined;
   RunProgramWorkout: { index: number };
@@ -239,6 +246,7 @@ export type RootStackParamList = {
     /** Optional canonical meal type id to pre-select when logging. */
     mealTypeId?: string;
     mealPlanTarget?: MealPlanPickerTarget;
+    customizedFoods?: MealFood[];
   };
   /** Multi-select batch review (#1980): the basket lives in
    * useFoodSearchSelectionStore, not route params, so no selection data
@@ -319,6 +327,7 @@ export type RootStackParamList = {
       }
     | {
         mode: 'adjust-entry-nutrition';
+        pendingNutritionLabelScan?: NutritionLabelScan;
         initialValues: Partial<FoodFormData>;
         returnTo: 'FoodEntryAdd' | 'FoodEntryView';
         returnKey: string;
@@ -513,6 +522,7 @@ export type RootStackParamList = {
   CustomCategoryEdit: { categoryId?: string } | undefined;
   WorkoutSettings: undefined;
   WarmupSettings: undefined;
+  TreadmillSettings: undefined;
   HeartRateZonesSettings: undefined;
   ServerSettings: undefined;
   PasskeySettings: undefined;
