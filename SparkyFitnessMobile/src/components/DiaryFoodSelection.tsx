@@ -61,6 +61,9 @@ export function useDiaryFoodSelection(
     day: string;
     ids: ReadonlySet<string>;
   } | null>(null);
+  // Drop a selection left on another day, so coming back to that day does
+  // not bring it back.
+  if (selection && selection.day !== day) setSelection(null);
   const activeSelection = selection?.day === day ? selection : null;
   const selectedIds = activeSelection?.ids;
   const selectedEntries = useMemo(
