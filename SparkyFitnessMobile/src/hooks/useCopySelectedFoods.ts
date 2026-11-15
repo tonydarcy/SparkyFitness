@@ -26,9 +26,16 @@ interface CopyResult {
  * counts as failed when nothing was copied. A logged meal (a diary row with
  * `food_entry_meal_id`) is copied whole, as a new logged meal with its foods.
  */
-async function copyEach(inputs: CopyFoodEntryInput[]): Promise<CopyResult> {
+async function copyEach({
+  inputs,
+  skipped,
+}: {
+  inputs: CopyFoodEntryInput[];
+  skipped: number;
+}): Promise<CopyResult> {
   const copied: CopyFoodEntryInput[] = [];
-  let failedCount = 0;
+  // Foods the caller could not copy (no meal to put them in) count as failed.
+  let failedCount = skipped;
   // A meal copied to several days is read once.
   const meals = new Map<string, Promise<FoodEntryMeal>>();
   for (const { entry, targetDate, targetMealTypeId, entryTime } of inputs) {
@@ -124,14 +131,17 @@ export function useCopySelectedFoods(options?: { onSuccess?: () => void }) {
   const inFlight = useRef(false);
   const { mutate } = mutation;
   const copyFoods = useCallback(
-    (inputs: CopyFoodEntryInput[]) => {
-      if (inFlight.current || inputs.length === 0) return;
+    (inputs: CopyFoodEntryInput[], skipped = 0) => {
+      if (inFlight.current || inputs.length + skipped === 0) return;
       inFlight.current = true;
-      mutate(inputs, {
-        onSettled: () => {
-          inFlight.current = false;
-        },
-      });
+      mutate(
+        { inputs, skipped },
+        {
+          onSettled: () => {
+            inFlight.current = false;
+          },
+        }
+      );
     },
     [mutate]
   );

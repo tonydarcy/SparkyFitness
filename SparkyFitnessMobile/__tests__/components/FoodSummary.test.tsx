@@ -130,7 +130,11 @@ const mealTypes: MealType[] = [
 const SelectingSummary: React.FC<{ foodEntries: FoodEntry[] }> = ({
   foodEntries,
 }) => {
-  const selection = useDiaryFoodSelection(foodEntries, mealTypes);
+  const selection = useDiaryFoodSelection(
+    foodEntries[0]?.entry_date ?? '',
+    foodEntries,
+    mealTypes
+  );
   return (
     <>
       <FoodSummary
@@ -329,12 +333,31 @@ describe('FoodSummary', () => {
     });
 
     fireEvent.press(getByLabelText('sheet-copy'));
-    expect(mockCopyFoods).toHaveBeenCalledWith([
-      { entry: foods[0], targetDate: '2026-05-16', targetMealTypeId: 'sys-b' },
-      { entry: foods[2], targetDate: '2026-05-16', targetMealTypeId: 'sys-l' },
-      { entry: foods[0], targetDate: '2026-05-17', targetMealTypeId: 'sys-b' },
-      { entry: foods[2], targetDate: '2026-05-17', targetMealTypeId: 'sys-l' },
-    ]);
+    expect(mockCopyFoods).toHaveBeenCalledWith(
+      [
+        {
+          entry: foods[0],
+          targetDate: '2026-05-16',
+          targetMealTypeId: 'sys-b',
+        },
+        {
+          entry: foods[2],
+          targetDate: '2026-05-16',
+          targetMealTypeId: 'sys-l',
+        },
+        {
+          entry: foods[0],
+          targetDate: '2026-05-17',
+          targetMealTypeId: 'sys-b',
+        },
+        {
+          entry: foods[2],
+          targetDate: '2026-05-17',
+          targetMealTypeId: 'sys-l',
+        },
+      ],
+      0
+    );
   });
 
   it('picks a whole meal section from its header while selecting', () => {

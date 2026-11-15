@@ -51,11 +51,12 @@ function entryMealTypeId(
  * Cancel / Copy bar where it stays visible while the list scrolls.
  */
 export function useDiaryFoodSelection(
+  day: string,
   foodEntries: FoodEntry[],
   mealTypes: MealType[]
 ): DiaryFoodSelection {
-  // The selection belongs to one day, so moving to another day ends it.
-  const day = foodEntries[0]?.entry_date ?? '';
+  // The selection belongs to the diary day shown, so moving to another day
+  // ends it.
   const [selection, setSelection] = useState<{
     day: string;
     ids: ReadonlySet<string>;
@@ -102,10 +103,15 @@ export function useDiaryFoodSelection(
   const endSelection = useCallback(() => setSelection(null), []);
 
   const copySheetRef = useRef<CopyMealSheetRef>(null);
+  // The picked set a running copy was made from. Its success ends only that
+  // selection, never one the user started or changed while it ran.
+  const copiedIds = useRef<ReadonlySet<string> | null>(null);
   const { copyFoods, isPending: isCopying } = useCopySelectedFoods({
     onSuccess: () => {
       copySheetRef.current?.dismiss();
-      setSelection(null);
+      const ids = copiedIds.current;
+      copiedIds.current = null;
+      setSelection((prev) => (prev && prev.ids === ids ? null : prev));
     },
   });
 
@@ -134,12 +140,16 @@ export function useDiaryFoodSelection(
     // time of day each food was first logged at.
     const entryTime = quickTarget === 'now' ? currentEntryTime() : undefined;
     const inputs: CopyFoodEntryInput[] = [];
+    let skipped = 0;
     for (const { targetDate } of payloads) {
       for (const entry of selectedEntries) {
         // No picked meal means each food keeps the meal it came from.
         const mealTypeId =
           targetMealTypeId ?? entryMealTypeId(entry, mealTypes);
-        if (!mealTypeId) continue;
+        if (!mealTypeId) {
+          skipped += 1;
+          continue;
+        }
         inputs.push({
           entry,
           targetDate,
@@ -148,7 +158,8 @@ export function useDiaryFoodSelection(
         });
       }
     }
-    copyFoods(inputs);
+    copiedIds.current = selectedIds ?? null;
+    copyFoods(inputs, skipped);
   };
 
   return {

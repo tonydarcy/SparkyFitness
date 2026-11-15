@@ -511,6 +511,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
   // Picking foods to copy. The Cancel / Copy bar floats over the list so it
   // stays in reach however far the day is scrolled.
   const foodSelection = useDiaryFoodSelection(
+    selectedDate,
     summary?.foodEntries ?? NO_FOOD_ENTRIES,
     mealTypes
   );
