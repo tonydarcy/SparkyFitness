@@ -194,4 +194,45 @@ describe('useCopySelectedFoods', () => {
     });
     expect(payload.foods[0]).not.toHaveProperty('brand');
   });
+
+  test('keeps the amount of a meal logged before the serving model change', async () => {
+    (getFoodEntryMealWithComponents as jest.Mock).mockResolvedValue({
+      id: 'old-meal',
+      meal_template_id: 'tpl-1',
+      meal_type: 'Lunch',
+      entry_date: '2026-05-15',
+      name: 'Old stew',
+      quantity: 2,
+      unit: 'serving',
+      legacy_serving_unit_math: true,
+      entry_total_servings: 4,
+      foods: [],
+    } as unknown as FoodEntryMeal);
+    (createFoodEntryMeal as jest.Mock).mockResolvedValue({});
+    const onSuccess = jest.fn();
+    const { result } = renderHook(() => useCopySelectedFoods({ onSuccess }), {
+      wrapper: createQueryWrapper(queryClient),
+    });
+
+    act(() => {
+      result.current.copyFoods([
+        {
+          entry: {
+            ...food('old-meal', 'l-id'),
+            food_entry_meal_id: 'old-meal',
+          } as FoodEntry,
+          targetDate: '2026-05-16',
+          targetMealTypeId: 'l-id',
+        },
+      ]);
+    });
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+    // Legacy maths multiplied the foods by the servings eaten (2); a yield of
+    // 1 gives the copy that same multiplier.
+    expect((createFoodEntryMeal as jest.Mock).mock.calls[0][0]).toMatchObject({
+      quantity: 2,
+      entry_total_servings: 1,
+    });
+  });
 });

@@ -61,7 +61,13 @@ export function buildFoodEntryMealCopyPayload(
     notes: meal.notes ?? null,
     quantity: meal.quantity,
     unit: meal.unit,
-    entry_total_servings: meal.entry_total_servings ?? null,
+    // A meal logged before the serving model change multiplied its foods by
+    // the servings eaten; new copies use servings / yield. A yield of 1 gives
+    // the copy that same multiplier, so it holds the same amount of food.
+    entry_total_servings:
+      meal.legacy_serving_unit_math && meal.unit === 'serving'
+        ? 1
+        : (meal.entry_total_servings ?? null),
     foods: meal.foods
       .map(buildMealIngredientDraftFromEntryMealFood)
       .map(({ brand: _brand, ...food }) => food),

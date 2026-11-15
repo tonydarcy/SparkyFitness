@@ -87,4 +87,15 @@ describe('CopyFoodEntryDialog', () => {
       'tomorrow'
     );
   });
+
+  it('moves the meal with the arrow keys from a single tab stop', () => {
+    renderDialog('Coffee');
+    const lunch = screen.getByRole('radio', { name: 'Lunch' });
+    const breakfast = screen.getByRole('radio', { name: 'Breakfast' });
+    expect(lunch).toHaveAttribute('tabindex', '0');
+    expect(breakfast).toHaveAttribute('tabindex', '-1');
+    fireEvent.keyDown(lunch, { key: 'ArrowRight' });
+    expect(breakfast).toHaveAttribute('aria-checked', 'true');
+    expect(breakfast).toHaveFocus();
+  });
 });
