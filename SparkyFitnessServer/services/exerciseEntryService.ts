@@ -141,7 +141,9 @@ async function importExerciseEntriesFromCsv(
 
   type PreparedEntry = {
     entryGroup: CsvImportEntry;
-    entryData: Record<string, unknown>;
+    entryData: Parameters<
+      typeof exerciseEntryRepository._createExerciseEntryWithClient
+    >[2];
   };
   const prepared: PreparedEntry[] = [];
   for (const entryGroup of entries) {
@@ -360,6 +362,7 @@ async function attachWatchTelemetryToExerciseEntry(
   durationMinutes?: number,
   appleZones?: unknown,
   strideLengthCm?: number | null,
+  avgCadence?: number | null,
   seriesSource = 'SparkyFitness Watch'
 ): Promise<void> {
   // Fail closed: family/delegate diary *read* can SELECT another user's
@@ -411,6 +414,9 @@ async function attachWatchTelemetryToExerciseEntry(
   }
   if (strideLengthCm !== undefined) {
     fields.stride_length_cm = strideLengthCm;
+  }
+  if (avgCadence !== undefined) {
+    fields.avg_cadence = avgCadence;
   }
 
   // Apple's finished-workout zones win over a fresh bucketing of the series.

@@ -10,7 +10,8 @@ import CopyMealSheet, {
 } from './CopyMealSheet';
 import { useCopySelectedFoods } from '../hooks/useCopySelectedFoods';
 import type { CopyFoodEntryInput } from '../hooks/useCopyFoodEntry';
-import { currentEntryTime } from '../utils/foodEntryCopy';
+import { clockInZone } from '@workspace/shared';
+import { getDeviceTimezone } from '../utils/dateUtils';
 import type { CopyFoodEntriesPayload } from '../services/api/foodEntriesApi';
 
 /** What the diary rows need to pick foods and logged meals to copy. */
@@ -141,7 +142,8 @@ export function useDiaryFoodSelection(
   ) => {
     // "Now" logs the copies at the current time; any other target keeps the
     // time of day each food was first logged at.
-    const entryTime = quickTarget === 'now' ? currentEntryTime() : undefined;
+    const entryTime =
+      quickTarget === 'now' ? clockInZone(getDeviceTimezone()) : undefined;
     const inputs: CopyFoodEntryInput[] = [];
     let skipped = 0;
     for (const { targetDate } of payloads) {

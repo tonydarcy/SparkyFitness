@@ -3,6 +3,7 @@ export * from './schemas/api/AlcoholWeek.api.zod.ts';
 export * from './schemas/api/VoiceTranscription.api.zod.ts';
 export * from './schemas/api/ApiKeys.api.zod.ts';
 export * from './schemas/api/Backup.api.zod.ts';
+export * from './schemas/api/FeatureChoices.api.zod.ts';
 export * from './schemas/api/CaffeineKinetics.api.zod.ts';
 export * from './schemas/api/CanadianNutrientFile.api.zod.ts';
 export * from './schemas/api/Livsmedelsverket.api.zod.ts';
@@ -28,6 +29,7 @@ export * from './schemas/api/FoodEntryCopy.api.zod.ts';
 export * from './schemas/api/FoodPhotoEstimate.api.zod.ts';
 export * from './schemas/api/SupplementLookup.api.zod.ts';
 export * from './schemas/api/SupplementLabelScan.api.zod.ts';
+export * from './schemas/api/NutritionLabelScan.api.zod.ts';
 export * from './schemas/api/FoodPhotoLog.api.zod.ts';
 export * from './schemas/api/HealthMetricSamples.api.zod.ts';
 export * from './schemas/api/HeartRateZones.api.zod.ts';
@@ -157,8 +159,11 @@ export * from './constants/foodVariantNutrients.ts';
 export * from './constants/nutrientGoalDefaults.ts';
 export * from './constants/chatToolCategories.ts';
 export * from './constants/webTabs.ts';
+export * from './features/optionalFeatures.ts';
 export * from './constants/exercise.ts';
 export * from './constants/exerciseTaxonomy.ts';
+export * from './constants/healthActivityTypes.ts';
+export * from './constants/healthConnectSegments.ts';
 export * from './constants/chatAskUser.ts';
 export * from './constants/mealServing.ts';
 export * from './constants/notes.ts';
@@ -321,6 +326,8 @@ export * from './schemas/api/FoodAssistant.api.zod.ts';
 export * from './schemas/database/FoodAssistant.zod.ts';
 export * from './schemas/database/Routes.zod.ts';
 export * from './constants/routingProviderTypes.ts';
+export * from './constants/mcpServerProviderTypes.ts';
+export * from './schemas/api/McpServer.api.zod.ts';
 export * from './constants/weatherProviderTypes.ts';
 export * from './utils/runProgramAdjust.ts';
 export * from './utils/runProgramBreak.ts';
@@ -383,3 +390,7 @@ export {
   type GlucoseContextEvent,
   type GlucoseContextData,
 } from './glucose/context.ts';
+
+export * from './schemas/api/Chat.api.zod.ts';
+
+export * from './utils/chatTools.ts';

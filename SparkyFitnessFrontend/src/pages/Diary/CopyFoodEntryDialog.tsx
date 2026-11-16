@@ -17,8 +17,14 @@ import {
 } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { addDays, format } from 'date-fns';
-import { pickMealTypeForTime, userHourMinute } from '@workspace/shared';
+import { format } from 'date-fns';
+import {
+  addDays as addCalendarDays,
+  dayToPickerDate,
+  pickMealTypeForTime,
+  todayInZone,
+  userHourMinute,
+} from '@workspace/shared';
 import { MealTypeButtons } from '@/components/MealTypeButtons';
 import { Label } from '@/components/ui/label';
 import { usePreferences } from '@/contexts/PreferencesContext';
@@ -77,8 +83,10 @@ const CopyFoodEntryDialog = ({
     : ['today', 'tomorrow'];
 
   const applyQuickTarget = (target: CopyQuickTarget) => {
+    // The picker shows the same preference-timezone day the copy submits.
+    const today = todayInZone(timezone);
     setSelectedDate(
-      target === 'tomorrow' ? addDays(new Date(), 1) : new Date()
+      dayToPickerDate(target === 'tomorrow' ? addCalendarDays(today, 1) : today)
     );
     // Now also picks the meal for the current time of day; Today and Tomorrow
     // keep the meal already chosen.
@@ -111,10 +119,14 @@ const CopyFoodEntryDialog = ({
 
   const handleCopyClick = () => {
     if (selectedDate) {
-      const formattedDate = formatDateInUserTimezone(
-        selectedDate,
-        'yyyy-MM-dd'
-      );
+      // Quick targets resolve against the preference timezone's calendar day,
+      // so a browser in another zone (or a DST change) can't shift them.
+      const formattedDate = quickTarget
+        ? addCalendarDays(
+            todayInZone(timezone),
+            quickTarget === 'tomorrow' ? 1 : 0
+          )
+        : formatDateInUserTimezone(selectedDate, 'yyyy-MM-dd');
       info(
         loggingLevel,
         `Attempting to copy to date: ${formattedDate}, meal type: ${selectedMealType}`
