@@ -35,7 +35,7 @@ Times are shown in the timezone set in your profile.
 2. Under **APIs & Services → Library**, enable the **Google Sheets API**.
 3. Under **APIs & Services → OAuth consent screen**, choose **External**, add the scope `https://www.googleapis.com/auth/drive.file`, add yourself as a test user and **publish** the app so the refresh token is not revoked after 7 days. `drive.file` only reaches files SparkyFitness creates, so Google needs no verification review.
 4. Under **APIs & Services → Credentials**, create an **OAuth 2.0 Client ID** of type **Web application** with the redirect URI `https://<your-sparkyfitness-url>/googlesheets/callback`.
-5. In SparkyFitness, go to **Settings → External Providers**, add a **Google Sheets** provider with the client ID and secret, and click **Connect**.
+5. In SparkyFitness, go to **Settings → Developer & Integrations → Food & Exercise Data Providers**, add a **Google Sheets** provider with the client ID and secret, and click **Connect**.
 
 SparkyFitness creates a spreadsheet called **SparkyFitness export** in your Drive and fills it within a minute or so. Tabs you add yourself are left alone, and if one of yours already has an export tab's name, the export uses a name ending in "(SparkyFitness)" instead. You can rename the export's tabs. Use the refresh button on the provider card to export again now, and **Open the export spreadsheet** to open it. Disconnecting stops the export and keeps the spreadsheet; reconnecting writes to the same one. If you delete the spreadsheet, the next export creates a new one.
 
