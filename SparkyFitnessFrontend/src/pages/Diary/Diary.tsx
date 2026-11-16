@@ -77,7 +77,7 @@ import {
 } from '@/hooks/Diary/useFoodEntries';
 import {
   buildFoodEntryCopyPayload,
-  hourMinuteToEntryTime,
+  clockInZone,
   prefillEntryTime,
   todayInZone,
   pickMealTypeForTime,
@@ -284,17 +284,17 @@ const Diary = () => {
     const mealType = availableMealTypes?.find(
       (mt) => mt.name.toLowerCase() === targetMealType.toLowerCase()
     );
-    if (!entry || !mealType) return;
-    copySingleFoodEntry(
-      buildFoodEntryCopyPayload(
+    if (!entry || !mealType || !currentUserId) return;
+    copySingleFoodEntry({
+      ...buildFoodEntryCopyPayload(
         entry,
         targetDate,
         mealType.id,
-        quickTarget === 'now'
-          ? hourMinuteToEntryTime(userHourMinute(timezone))
-          : undefined
-      )
-    );
+        quickTarget === 'now' ? clockInZone(timezone) : undefined
+      ),
+      // Copy into the diary being viewed, like adding a food does.
+      user_id: currentUserId,
+    });
   };
 
   const handleCopySelectedFoods = (
@@ -308,10 +308,7 @@ const Diary = () => {
         (mt) => mt.name.toLowerCase() === name.toLowerCase()
       )?.id;
     const keepMeal = targetMealType === KEEP_SOURCE_MEAL;
-    const entryTime =
-      quickTarget === 'now'
-        ? hourMinuteToEntryTime(userHourMinute(timezone))
-        : undefined;
+    const entryTime = quickTarget === 'now' ? clockInZone(timezone) : undefined;
     const payloads = entries.flatMap((entry) => {
       // "Same meal" keeps each food in the meal it was logged in.
       const mealTypeId = keepMeal
@@ -321,7 +318,12 @@ const Diary = () => {
         ? [buildFoodEntryCopyPayload(entry, targetDate, mealTypeId, entryTime)]
         : [];
     });
-    if (payloads.length > 0) copyFoodEntryList(payloads);
+    if (payloads.length > 0 && currentUserId) {
+      // Copy into the diary being viewed, like adding a food does.
+      copyFoodEntryList(
+        payloads.map((payload) => ({ ...payload, user_id: currentUserId }))
+      );
+    }
   };
 
   const handleCopyFamilyClick = (mealType: string) => {
