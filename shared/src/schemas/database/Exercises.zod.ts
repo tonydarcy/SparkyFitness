@@ -32,6 +32,7 @@ export const exercisesSchema = z.object({
   video_url: z.string().nullable(),
   is_quick_exercise: z.boolean().nullable(),
   modality: z.string(),
+  health_activity_type: z.string().nullable(),
 });
 
 export const exercisesInitializerSchema = z.object({
@@ -59,6 +60,7 @@ export const exercisesInitializerSchema = z.object({
   video_url: z.string().optional().nullable(),
   is_quick_exercise: z.boolean().optional().nullable(),
   modality: z.string().optional(),
+  health_activity_type: z.string().optional().nullable(),
 });
 
 export const exercisesMutatorSchema = z.object({
@@ -86,6 +88,7 @@ export const exercisesMutatorSchema = z.object({
   video_url: z.string().optional().nullable(),
   is_quick_exercise: z.boolean().optional().nullable(),
   modality: z.string().optional(),
+  health_activity_type: z.string().optional().nullable(),
 });
 
 export type Exercises = z.infer<typeof exercisesSchema>;

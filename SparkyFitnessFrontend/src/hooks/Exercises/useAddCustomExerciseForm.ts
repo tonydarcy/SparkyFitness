@@ -1,3 +1,4 @@
+import { AUTOMATIC_HEALTH_ACTIVITY_TYPE } from '@/utils/healthActivityType';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from '@/hooks/use-toast';
@@ -6,6 +7,7 @@ import { useCreateExerciseMutation } from '@/hooks/Exercises/useExercises';
 import type { Exercise } from '@/types/exercises';
 import {
   deriveExerciseModality,
+  isHealthActivityType,
   type ExerciseModality,
 } from '@workspace/shared';
 
@@ -26,6 +28,9 @@ export function useAddCustomExerciseForm(
   const [pinnedModality, setPinnedModality] = useState<ExerciseModality | null>(
     null
   );
+  // 'automatic' (no override) or a health activity type key (#1750).
+  const [newExerciseHealthActivityType, setNewExerciseHealthActivityType] =
+    useState(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
   const [newExerciseCalories, setNewExerciseCalories] = useState(300);
   const [manualCaloriesPerHour, setManualCaloriesPerHour] = useState<
     number | undefined
@@ -61,6 +66,7 @@ export function useAddCustomExerciseForm(
     setNewExerciseName('');
     setNewExerciseCategory('general');
     setPinnedModality(null);
+    setNewExerciseHealthActivityType(AUTOMATIC_HEALTH_ACTIVITY_TYPE);
     setNewExerciseCalories(300);
     setManualCaloriesPerHour(undefined);
     setNewExerciseDescription('');
@@ -84,6 +90,9 @@ export function useAddCustomExerciseForm(
         name: newExerciseName,
         category: newExerciseCategory,
         modality: newExerciseModality,
+        ...(isHealthActivityType(newExerciseHealthActivityType)
+          ? { health_activity_type: newExerciseHealthActivityType }
+          : {}),
         calories_per_hour:
           manualCaloriesPerHour !== undefined
             ? manualCaloriesPerHour
@@ -192,6 +201,8 @@ export function useAddCustomExerciseForm(
     setNewExerciseCategory,
     newExerciseModality,
     setNewExerciseModality: setPinnedModality,
+    newExerciseHealthActivityType,
+    setNewExerciseHealthActivityType,
     newExerciseCalories,
     manualCaloriesPerHour,
     setManualCaloriesPerHour,
