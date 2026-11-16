@@ -1,6 +1,10 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import FoodSummary from '../../src/components/FoodSummary';
+import {
+  FoodSelectionBar,
+  useDiaryFoodSelection,
+} from '../../src/components/DiaryFoodSelection';
 import type { DailyGoals } from '../../src/types/goals';
 import type { FoodEntry } from '../../src/types/foodEntries';
 import type { MealType } from '../../src/types/mealTypes';
@@ -121,6 +125,28 @@ const mealTypes: MealType[] = [
     show_in_quick_log: true,
   },
 ];
+
+/** The diary screen's wiring: it owns the selection and pins the bar. */
+const SelectingSummary: React.FC<{ foodEntries: FoodEntry[] }> = ({
+  foodEntries,
+}) => {
+  const selection = useDiaryFoodSelection(
+    foodEntries[0]?.entry_date ?? '',
+    foodEntries,
+    mealTypes
+  );
+  return (
+    <>
+      <FoodSummary
+        foodEntries={foodEntries}
+        mealTypes={mealTypes}
+        selection={selection}
+      />
+      <FoodSelectionBar selection={selection} />
+      {selection.copySheet}
+    </>
+  );
+};
 
 const entry = (
   id: string,
@@ -293,7 +319,7 @@ describe('FoodSummary', () => {
       { ...entry('e3', 'sys-l', 'lunch'), entry_date: '2026-05-15' },
     ] as FoodEntry[];
     const { getByText, getByLabelText } = render(
-      <FoodSummary foodEntries={foods} mealTypes={mealTypes} />
+      <SelectingSummary foodEntries={foods} />
     );
 
     fireEvent.press(getByText('Select'));
@@ -307,11 +333,54 @@ describe('FoodSummary', () => {
     });
 
     fireEvent.press(getByLabelText('sheet-copy'));
-    expect(mockCopyFoods).toHaveBeenCalledWith([
-      { entry: foods[0], targetDate: '2026-05-16', targetMealTypeId: 'sys-b' },
-      { entry: foods[2], targetDate: '2026-05-16', targetMealTypeId: 'sys-l' },
-      { entry: foods[0], targetDate: '2026-05-17', targetMealTypeId: 'sys-b' },
-      { entry: foods[2], targetDate: '2026-05-17', targetMealTypeId: 'sys-l' },
-    ]);
+    expect(mockCopyFoods).toHaveBeenCalledWith(
+      [
+        {
+          entry: foods[0],
+          targetDate: '2026-05-16',
+          targetMealTypeId: 'sys-b',
+        },
+        {
+          entry: foods[2],
+          targetDate: '2026-05-16',
+          targetMealTypeId: 'sys-l',
+        },
+        {
+          entry: foods[0],
+          targetDate: '2026-05-17',
+          targetMealTypeId: 'sys-b',
+        },
+        {
+          entry: foods[2],
+          targetDate: '2026-05-17',
+          targetMealTypeId: 'sys-l',
+        },
+      ],
+      0
+    );
+  });
+
+  it('picks a whole meal section from its header while selecting', () => {
+    const foods = [
+      { ...entry('e1', 'sys-b', 'breakfast'), entry_date: '2026-05-15' },
+      { ...entry('e2', 'sys-l', 'lunch'), entry_date: '2026-05-15' },
+      { ...entry('e3', 'sys-l', 'lunch'), entry_date: '2026-05-15' },
+    ] as FoodEntry[];
+    const { getByText, getByLabelText, queryByText } = render(
+      <SelectingSummary foodEntries={foods} />
+    );
+
+    expect(queryByText('0 selected')).toBeNull();
+    fireEvent.press(getByText('Select'));
+    expect(getByText('0 selected')).toBeTruthy();
+
+    fireEvent.press(getByLabelText('Select all of Lunch'));
+    expect(getByLabelText('row-e2-on')).toBeTruthy();
+    expect(getByLabelText('row-e3-on')).toBeTruthy();
+    expect(getByLabelText('row-e1-off')).toBeTruthy();
+
+    // Tapping again with the whole section picked drops it.
+    fireEvent.press(getByLabelText('Select all of Lunch'));
+    expect(getByText('0 selected')).toBeTruthy();
   });
 });

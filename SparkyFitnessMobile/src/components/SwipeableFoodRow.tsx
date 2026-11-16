@@ -56,9 +56,8 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
   );
 
   const isMealComponent = !!entry.food_entry_meal_id;
-  // A logged meal's foods belong to that meal, so they are copied with it, not
-  // picked one by one.
-  const isSelectable = !isMealComponent && !!onToggleSelect;
+  // A logged meal shows as one row and is picked, and copied, as a whole meal.
+  const isSelectable = !!onToggleSelect;
   const [accentPrimary, textMuted] = useCSSVariable([
     '--color-accent-primary',
     '--color-text-muted',

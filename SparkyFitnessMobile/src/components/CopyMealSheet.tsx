@@ -15,6 +15,7 @@ import DateTimePicker, { type DateType } from 'react-native-ui-datepicker';
 import Button from './ui/Button';
 import { sheetContainer, useSheetBackdrop } from './ui/sheetChrome';
 import Icon from './Icon';
+import MealTypeChips from './MealTypeChips';
 import { useMealTypes } from '../hooks/useMealTypes';
 import { getLocalizedMealLabel } from '../constants/meals';
 import { getHistoricalMealTypeLabel } from '../utils/mealNutrition';
@@ -450,8 +451,9 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
               <Text className="text-xs font-semibold uppercase text-text-muted mt-4 mb-2">
                 {t('copyMeal.targetMeal', { defaultValue: 'Target meal' })}
               </Text>
-              <View className="flex-row flex-wrap gap-2 mb-6">
-                {(isMultiFood
+              <MealTypeChips
+                className="flex-row flex-wrap gap-2 mb-6"
+                options={(isMultiFood
                   ? [
                       {
                         id: KEEP_MEAL,
@@ -461,42 +463,15 @@ const CopyMealSheet = forwardRef<CopyMealSheetRef, CopyMealSheetProps>(
                       },
                     ]
                   : []
-                )
-                  .concat(
-                    mealTypes.map((mt) => ({
-                      id: mt.id,
-                      label: displayMealType(mt),
-                    }))
-                  )
-                  .map((mt) => {
-                    const isSelected = mt.id === targetMealTypeId;
-                    return (
-                      <TouchableOpacity
-                        key={mt.id}
-                        accessibilityRole="button"
-                        accessibilityLabel={mt.label}
-                        accessibilityState={{ selected: isSelected }}
-                        onPress={() => setTargetMealTypeId(mt.id)}
-                        activeOpacity={0.7}
-                        className={`px-4 py-2 rounded-full border ${
-                          isSelected
-                            ? 'bg-accent-primary border-accent-primary'
-                            : 'bg-raised border-border-subtle'
-                        }`}
-                      >
-                        <Text
-                          className={`text-sm ${
-                            isSelected
-                              ? 'text-white font-semibold'
-                              : 'text-text-primary'
-                          }`}
-                        >
-                          {mt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-              </View>
+                ).concat(
+                  mealTypes.map((mt) => ({
+                    id: mt.id,
+                    label: displayMealType(mt),
+                  }))
+                )}
+                selectedId={targetMealTypeId}
+                onSelect={setTargetMealTypeId}
+              />
 
               <Button
                 variant="primary"

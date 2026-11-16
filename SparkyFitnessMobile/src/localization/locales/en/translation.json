@@ -2780,6 +2780,7 @@
     "nutritionBreakdown": "{{label}} nutrition breakdown",
     "select": "Select",
     "selectFoods": "Select foods",
+    "selectMeal": "Select all of {{label}}",
     "selectedCount_one": "{{count}} selected",
     "selectedCount_other": "{{count}} selected",
     "copySelected": "Copy"

@@ -158,6 +158,23 @@ jest.mock('../../src/hooks/useWorkoutPresets', () => ({
 
 jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   useActiveWorkoutBarPadding: jest.fn(() => 0),
+  useTabScreenFloatingBottom: () => 0,
+}));
+
+// The copy selection is covered by FoodSummary's own tests.
+jest.mock('../../src/components/DiaryFoodSelection', () => ({
+  useDiaryFoodSelection: () => ({
+    selectionMode: false,
+    toggleSelect: jest.fn(),
+    toggleSelectAll: jest.fn(),
+    startSelection: jest.fn(),
+    selectedCount: 0,
+    isCopying: false,
+    endSelection: jest.fn(),
+    openCopySheet: jest.fn(),
+    copySheet: null,
+  }),
+  FoodSelectionBar: () => null,
 }));
 
 jest.mock('../../src/components/AddSheet', () => ({

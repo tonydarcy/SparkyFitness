@@ -25,7 +25,14 @@ import {
 } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
-import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
+import {
+  useActiveWorkoutBarPadding,
+  useTabScreenFloatingBottom,
+} from '../components/ActiveWorkoutBar';
+import {
+  FoodSelectionBar,
+  useDiaryFoodSelection,
+} from '../components/DiaryFoodSelection';
 import { addSheetRef } from '../components/AddSheet';
 import CalendarSheet, {
   type CalendarSheetRef,
@@ -107,6 +114,10 @@ type DiaryScreenProps = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Diary'>,
   NativeStackScreenProps<RootStackParamList>
 >;
+
+const NO_FOOD_ENTRIES: FoodEntry[] = [];
+/** Room kept under the list for the floating Cancel / Copy bar. */
+const SELECTION_BAR_CLEARANCE = 64;
 
 const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
   const { t, i18n: translationI18n } = useTranslation();
@@ -497,6 +508,27 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
 
   const [refreshing, setRefreshing] = useState(false);
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding();
+  // Picking foods to copy. The Cancel / Copy bar floats over the list so it
+  // stays in reach however far the day is scrolled.
+  const foodSelection = useDiaryFoodSelection(
+    selectedDate,
+    summary?.foodEntries ?? NO_FOOD_ENTRIES,
+    mealTypes
+  );
+  const floatingBottom = useTabScreenFloatingBottom();
+  const selectionBar = foodSelection.selectionMode ? (
+    <View
+      pointerEvents="box-none"
+      style={{
+        position: 'absolute',
+        left: 16,
+        right: 16,
+        bottom: floatingBottom,
+      }}
+    >
+      <FoodSelectionBar selection={foodSelection} />
+    </View>
+  ) : null;
   const onRefresh = useCallback(async () => {
     if (!isConnected) return;
     setRefreshing(true);
@@ -609,7 +641,10 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
           // Beside a vertical bar the gap under the large title is 12 pt, the
           // same as Dashboard, Library and Settings.
           paddingTop: usesNativeTabs && verticalBar ? 12 : 8,
-          paddingBottom: 80 + activeWorkoutBarPadding,
+          paddingBottom:
+            80 +
+            activeWorkoutBarPadding +
+            (foodSelection.selectionMode ? SELECTION_BAR_CLEARANCE : 0),
         }}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
@@ -677,6 +712,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
                 servingSheetRef.current?.present(entry)
               }
               onPressMealType={openMealTypeDetail}
+              selection={foodSelection}
             />
             <ExerciseSummary
               exerciseEntries={summary.exerciseEntries}
@@ -797,8 +833,10 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         <GestureDetector gesture={swipeGesture}>
           <View collapsable={false} className="flex-1">
             {renderedContent ?? <View className="flex-1 bg-background" />}
+            {selectionBar}
           </View>
         </GestureDetector>
+        {foodSelection.copySheet}
         <CalendarSheet
           ref={calendarRef}
           selectedDate={selectedDate}
@@ -845,6 +883,8 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         )
       )}
       {renderedContent}
+      {selectionBar}
+      {foodSelection.copySheet}
       <CalendarSheet
         ref={calendarRef}
         selectedDate={selectedDate}

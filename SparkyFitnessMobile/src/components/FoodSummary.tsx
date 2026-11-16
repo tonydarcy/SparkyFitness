@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, Pressable } from 'react-native';
 import { useCSSVariable } from 'uniwind';
@@ -10,15 +10,7 @@ import { MEAL_CONFIG } from '../constants/meals';
 import SwipeableFoodRow from './SwipeableFoodRow';
 import SegmentedControl from './SegmentedControl';
 import Button from './ui/Button';
-import CopyMealSheet, {
-  type CopyMealSheetRef,
-  type QuickTarget,
-} from './CopyMealSheet';
-import { useCopySelectedFoods } from '../hooks/useCopySelectedFoods';
-import type { CopyFoodEntryInput } from '../hooks/useCopyFoodEntry';
-import { clockInZone } from '@workspace/shared';
-import { getDeviceTimezone } from '../utils/dateUtils';
-import type { CopyFoodEntriesPayload } from '../services/api/foodEntriesApi';
+import type { FoodSelection } from './DiaryFoodSelection';
 import { usePreferences } from '../hooks/usePreferences';
 import {
   useAppPreferencesStore,
@@ -51,6 +43,11 @@ interface FoodSummaryProps {
     mealTypeName: string,
     entries: FoodEntry[]
   ) => void;
+  /**
+   * Picking foods and logged meals to copy; owned by the screen, which pins
+   * the Cancel / Copy bar. Without it the list offers no Select button.
+   */
+  selection?: FoodSelection;
 }
 
 /** Picking several foods to copy at once; see SwipeableFoodRow. */
@@ -62,6 +59,8 @@ interface FoodSelectionProps {
 
 interface MealSectionProps extends FoodSelectionProps {
   group: MealGroup;
+  /** Picks every food in the section, or drops them all if all are picked. */
+  onToggleSelectAll?: (entries: FoodEntry[]) => void;
   goals?: DailyGoals;
   calorieGoal?: number;
   onAdjustServing?: (entry: FoodEntry) => void;
@@ -99,11 +98,15 @@ const MealSection: React.FC<MealSectionProps> = ({
   selectionMode,
   selectedIds,
   onToggleSelect,
+  onToggleSelectAll,
 }) => {
   const { t } = useTranslation();
   const accentPrimary = useCSSVariable('--color-accent-primary') as string;
 
   const label = getMealGroupLabel(group, t);
+  const allSelected =
+    group.entries.length > 0 &&
+    group.entries.every((entry) => selectedIds?.has(entry.id));
   // Single canonical MEAL_CONFIG lookup (read once, reuse both fields). A
   // custom category named "breakfast" still gets the neutral icon, never the
   // system one — ownership is decided by isSystem, not by the name.
@@ -139,12 +142,34 @@ const MealSection: React.FC<MealSectionProps> = ({
       {onPressMealType && (
         <Icon name="chevron-forward" size={14} color={accentPrimary} />
       )}
+      {selectionMode && onToggleSelectAll && (
+        // Keyed so the native symbol view is replaced when the tick changes.
+        <Icon
+          key={allSelected ? 'on' : 'off'}
+          name={allSelected ? 'checkmark-circle-filled' : 'radio-button-off'}
+          size={22}
+          color={accentPrimary}
+        />
+      )}
     </>
   );
 
   return (
     <View className="bg-surface rounded-xl p-4 overflow-hidden shadow-sm">
-      {onPressMealType ? (
+      {selectionMode && onToggleSelectAll ? (
+        <Pressable
+          onPress={() => onToggleSelectAll(group.entries)}
+          className="flex-row gap-2 mb-3 items-center"
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: allSelected }}
+          accessibilityLabel={t('foodSummary.selectMeal', {
+            defaultValue: 'Select all of {{label}}',
+            label,
+          })}
+        >
+          {headerContent}
+        </Pressable>
+      ) : onPressMealType ? (
         <Pressable
           onPress={() =>
             onPressMealType(group.mealTypeId, group.name, group.entries)
@@ -261,140 +286,20 @@ const FoodSummary: React.FC<FoodSummaryProps> = ({
   onAddFoodAt,
   onAdjustServing,
   onPressMealType,
+  selection,
 }) => {
   const { t } = useTranslation();
   const viewMode = useAppPreferencesStore((s) => s.diaryViewMode);
   const setViewMode = useAppPreferencesStore((s) => s.setDiaryViewMode);
-
-  // Foods picked to copy together. The selection belongs to one day, so
-  // moving to another day ends it.
-  const day = foodEntries[0]?.entry_date ?? '';
-  const [selection, setSelection] = useState<{
-    day: string;
-    ids: ReadonlySet<string>;
-  } | null>(null);
-  const activeSelection = selection?.day === day ? selection : null;
-  const selectionMode = activeSelection !== null;
-  const selectedIds = activeSelection?.ids;
-  const selectedEntries = useMemo(
-    () =>
-      selectedIds
-        ? foodEntries.filter((entry) => selectedIds.has(entry.id))
-        : [],
-    [foodEntries, selectedIds]
-  );
-
-  const toggleSelect = useCallback(
-    (entry: FoodEntry) => {
-      setSelection((prev) => {
-        const ids = new Set(prev?.day === day ? prev.ids : []);
-        if (ids.has(entry.id)) ids.delete(entry.id);
-        else ids.add(entry.id);
-        return { day, ids };
-      });
-    },
-    [day]
-  );
-  const endSelection = useCallback(() => setSelection(null), []);
-
-  const copySheetRef = useRef<CopyMealSheetRef>(null);
-  const { copyFoods, isPending: isCopying } = useCopySelectedFoods({
-    onSuccess: () => {
-      copySheetRef.current?.dismiss();
-      setSelection(null);
-    },
-  });
-
-  const openCopySheet = () => {
-    const [first] = selectedEntries;
-    if (!first) return;
-    const single = selectedEntries.length === 1;
-    copySheetRef.current?.present(
-      day,
-      single ? (entryMealTypeId(first, mealTypes) ?? null) : null,
-      single ? first.meal_type : '',
-      single
-        ? { foodName: first.food_name ?? '' }
-        : { count: selectedEntries.length }
-    );
-  };
-
-  const handleCopy = (
-    payloads: CopyFoodEntriesPayload[],
-    {
-      targetMealTypeId,
-      quickTarget,
-    }: { targetMealTypeId: string | null; quickTarget: QuickTarget | null }
-  ) => {
-    // "Now" logs the copies at the current time; any other target keeps the
-    // time of day each food was first logged at.
-    const entryTime =
-      quickTarget === 'now' ? clockInZone(getDeviceTimezone()) : undefined;
-    const inputs: CopyFoodEntryInput[] = [];
-    for (const { targetDate } of payloads) {
-      for (const entry of selectedEntries) {
-        // No picked meal means each food keeps the meal it came from.
-        const mealTypeId =
-          targetMealTypeId ?? entryMealTypeId(entry, mealTypes);
-        if (!mealTypeId) continue;
-        inputs.push({
-          entry,
-          targetDate,
-          targetMealTypeId: mealTypeId,
-          ...(entryTime ? { entryTime } : {}),
-        });
-      }
-    }
-    copyFoods(inputs);
-  };
+  const selectionMode = selection?.selectionMode ?? false;
+  const selectedIds = selection?.selectedIds;
+  const toggleSelect = selection?.toggleSelect;
 
   if (foodEntries.length === 0) {
     return <EmptyState onAddFood={onAddFood} />;
   }
 
-  const selectionBar = (
-    <View className="flex-row items-center gap-2 bg-raised p-1 rounded-lg">
-      <Button
-        variant="ghost"
-        onPress={endSelection}
-        className="py-2 px-3"
-        accessibilityLabel={t('common.cancel', { defaultValue: 'Cancel' })}
-      >
-        {t('common.cancel', { defaultValue: 'Cancel' })}
-      </Button>
-      <Text className="flex-1 text-center text-sm text-text-secondary">
-        {t('foodSummary.selectedCount', {
-          count: selectedEntries.length,
-          defaultValue: '{{count}} selected',
-          defaultValue_one: '{{count}} selected',
-          defaultValue_other: '{{count}} selected',
-        })}
-      </Text>
-      <Button
-        variant="primary"
-        onPress={openCopySheet}
-        disabled={selectedEntries.length === 0 || isCopying}
-        className="py-2 px-4"
-        accessibilityLabel={t('foodSummary.copySelected', {
-          defaultValue: 'Copy',
-        })}
-      >
-        {t('foodSummary.copySelected', { defaultValue: 'Copy' })}
-      </Button>
-    </View>
-  );
-
-  const copySheet = (
-    <CopyMealSheet
-      ref={copySheetRef}
-      isPending={isCopying}
-      onCopy={handleCopy}
-    />
-  );
-
-  const viewToggle = selectionMode ? (
-    selectionBar
-  ) : (
+  const viewToggle = (
     <View className="flex-row items-center gap-2">
       <View className="flex-1">
         <SegmentedControl<DiaryViewMode>
@@ -412,16 +317,18 @@ const FoodSummary: React.FC<FoodSummaryProps> = ({
           onSelect={setViewMode}
         />
       </View>
-      <Button
-        variant="ghost"
-        onPress={() => setSelection({ day, ids: new Set() })}
-        className="py-2 px-2"
-        accessibilityLabel={t('foodSummary.selectFoods', {
-          defaultValue: 'Select foods',
-        })}
-      >
-        {t('foodSummary.select', { defaultValue: 'Select' })}
-      </Button>
+      {selection && !selectionMode && (
+        <Button
+          variant="ghost"
+          onPress={selection.startSelection}
+          className="py-2 px-2"
+          accessibilityLabel={t('foodSummary.selectFoods', {
+            defaultValue: 'Select foods',
+          })}
+        >
+          {t('foodSummary.select', { defaultValue: 'Select' })}
+        </Button>
+      )}
     </View>
   );
 
@@ -438,7 +345,6 @@ const FoodSummary: React.FC<FoodSummaryProps> = ({
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
         />
-        {copySheet}
       </View>
     );
   }
@@ -469,24 +375,11 @@ const FoodSummary: React.FC<FoodSummaryProps> = ({
           selectionMode={selectionMode}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
+          onToggleSelectAll={selection?.toggleSelectAll}
         />
       ))}
-      {copySheet}
     </View>
   );
 };
-
-/**
- * The meal type a diary food was logged in: its id, else the active meal type
- * with the same name (entries from before meal-type ids carry only the name).
- */
-function entryMealTypeId(
-  entry: FoodEntry,
-  mealTypes: MealType[]
-): string | undefined {
-  if (entry.meal_type_id) return entry.meal_type_id;
-  const name = entry.meal_type.toLowerCase();
-  return mealTypes.find((mt) => mt.name.toLowerCase() === name)?.id;
-}
 
 export default FoodSummary;

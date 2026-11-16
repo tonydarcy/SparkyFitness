@@ -25,13 +25,7 @@ import {
   todayInZone,
   userHourMinute,
 } from '@workspace/shared';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { MealTypeButtons } from '@/components/MealTypeButtons';
 import { Label } from '@/components/ui/label';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { debug, info, warn } from '@/utils/logging';
@@ -238,43 +232,42 @@ const CopyFoodEntryDialog = ({
             </Popover>
           </div>
           {!isAllDayCopy && (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="mealType" className="text-right">
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label id="copyMealType-label" className="pt-1.5 text-right">
                 {t('copyFoodEntryDialog.mealType', 'Meal Type')}
               </Label>
-              <Select
-                onValueChange={(value) => {
-                  setSelectedMealType(value);
-                  debug(loggingLevel, 'Selected meal type in dialog:', value);
-                }}
-                value={selectedMealType}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue
-                    placeholder={t(
-                      'copyFoodEntryDialog.selectMealTypePlaceholder',
-                      'Select meal type'
-                    )}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMealTypes?.length === 0 && (
-                    <SelectItem value="loading" disabled>
-                      {t('common.loading', 'Loading...')}
-                    </SelectItem>
-                  )}
-                  {keepMealOption && (
-                    <SelectItem value={KEEP_SOURCE_MEAL}>
-                      {t('copyFoodEntryDialog.keepMeal', 'Same meal')}
-                    </SelectItem>
-                  )}
-                  {availableMealTypes?.map((meal) => (
-                    <SelectItem key={meal.id} value={meal.name}>
-                      {getDisplayName(meal.name)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {availableMealTypes?.length === 0 ? (
+                <span className="col-span-3 text-sm text-muted-foreground">
+                  {t('common.loading', 'Loading...')}
+                </span>
+              ) : (
+                <MealTypeButtons
+                  labelledBy="copyMealType-label"
+                  className="col-span-3"
+                  options={[
+                    ...(keepMealOption
+                      ? [
+                          {
+                            value: KEEP_SOURCE_MEAL,
+                            label: t(
+                              'copyFoodEntryDialog.keepMeal',
+                              'Same meal'
+                            ),
+                          },
+                        ]
+                      : []),
+                    ...(availableMealTypes ?? []).map((meal) => ({
+                      value: meal.name,
+                      label: getDisplayName(meal.name),
+                    })),
+                  ]}
+                  value={selectedMealType}
+                  onChange={(value) => {
+                    setSelectedMealType(value);
+                    debug(loggingLevel, 'Selected meal type in dialog:', value);
+                  }}
+                />
+              )}
             </div>
           )}
         </div>

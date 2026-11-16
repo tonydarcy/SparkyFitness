@@ -21,6 +21,7 @@ import { useCSSVariable } from 'uniwind';
 import Icon from '../components/Icon';
 import StepperInput from '../components/StepperInput';
 import BottomSheetPicker from '../components/BottomSheetPicker';
+import MealTypeChips from '../components/MealTypeChips';
 import TimeSheet, { type TimeSheetRef } from '../components/TimeSheet';
 import { FooterSaveBar } from '../components/FormScreenChrome';
 import { useScreenHeader } from '../hooks/useScreenHeader';
@@ -405,50 +406,24 @@ const FoodEntryMultiAddScreen: React.FC<FoodEntryMultiAddScreenProps> = ({
               })}
             </Text>
 
-            <View className="flex-row items-center mt-1">
-              <Text className="text-text-secondary text-base mr-2">
+            <View className="mt-1 mb-1">
+              <Text className="text-text-secondary text-base mb-2">
                 {t('foodEntryMultiAdd.labels.meal', { defaultValue: 'Meal' })}
               </Text>
-              <BottomSheetPicker
-                value={effectiveBulkMealTypeId}
-                options={mealTypeOptions}
+              <MealTypeChips
+                options={mealTypeOptions.map((option) => ({
+                  id: option.value,
+                  label: option.label,
+                }))}
+                selectedId={effectiveBulkMealTypeId}
                 onSelect={(mealTypeId: string) => {
                   // The store already refuses draft changes mid-batch; guard
-                  // the local label too so the trigger cannot drift from the
+                  // the local selection too so the chips cannot drift from the
                   // locked drafts while a submission is in flight.
                   if (isSubmitting) return;
                   setBulkMealTypeId(mealTypeId);
                   selection.applyMealTypeToAll(mealTypeId);
                 }}
-                title={t('foodEntryMultiAdd.pickers.selectMeal', {
-                  defaultValue: 'Select Meal',
-                })}
-                renderTrigger={({ onPress }) => (
-                  <TouchableOpacity
-                    onPress={onPress}
-                    disabled={isSubmitting}
-                    activeOpacity={0.7}
-                    className="flex-row items-center"
-                    accessibilityRole="button"
-                    accessibilityLabel={t(
-                      'foodEntryMultiAdd.accessibility.mealForAll',
-                      {
-                        meal: mealTypeLabel(effectiveBulkMealTypeId),
-                        defaultValue: 'Meal for all items: {{meal}}',
-                      }
-                    )}
-                  >
-                    <Text className="text-text-primary text-base font-medium mr-1">
-                      {mealTypeLabel(effectiveBulkMealTypeId)}
-                    </Text>
-                    <Icon
-                      name="chevron-down"
-                      size={12}
-                      color={textMuted}
-                      weight="medium"
-                    />
-                  </TouchableOpacity>
-                )}
               />
             </View>
 
