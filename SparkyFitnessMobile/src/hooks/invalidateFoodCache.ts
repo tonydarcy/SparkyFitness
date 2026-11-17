@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import {
+  adaptiveTdeeRootQueryKey,
   glucoseContextQueryKeyRoot,
   dailySummaryQueryKey,
   dailySummaryRootQueryKey,
@@ -17,6 +18,8 @@ export function invalidateFoodCache(
   entryDate?: string
 ) {
   void queryClient.invalidateQueries({ queryKey: glucoseContextQueryKeyRoot });
+  // Logged intake feeds the expenditure estimate and the average balance.
+  void queryClient.invalidateQueries({ queryKey: adaptiveTdeeRootQueryKey });
   if (entryDate) {
     void queryClient.invalidateQueries({
       queryKey: familyCopySourceQueryKey(entryDate),

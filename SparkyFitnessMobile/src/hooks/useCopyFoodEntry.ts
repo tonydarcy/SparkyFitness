@@ -7,7 +7,7 @@ import { createFoodEntry } from '../services/api/foodEntriesApi';
 import type { FoodEntry } from '../types/foodEntries';
 import { invalidateFoodCache } from './invalidateFoodCache';
 
-interface CopyFoodEntryInput {
+export interface CopyFoodEntryInput {
   entry: FoodEntry;
   targetDate: string;
   targetMealTypeId: string;

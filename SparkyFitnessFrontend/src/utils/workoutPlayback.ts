@@ -64,11 +64,25 @@ export interface WorkoutPlaybackExerciseDraft {
   workout_plan_assignment_id?: string | number | null;
   // Progression fields
   progression_mode?:
-    'rep_goal' | 'fixed' | 'step_load' | 'manual' | string | null;
+    | 'rep_goal'
+    | 'fixed'
+    | 'step_load'
+    | 'manual'
+    | 'double'
+    | 'triple'
+    | string
+    | null;
   rep_goal?: number | null;
+  rep_range_min?: number | null;
   increment_type?: 'weight' | 'reps' | string | null;
   increment_value?: number | null;
   equipment_brand?: string | null;
+  /**
+   * The preset slot's backup exercise ("machine taken"): one tap swaps it in
+   * with the same sets. After a swap it points back at the original.
+   */
+  backup_exercise_id?: string | null;
+  backup_exercise_name?: string | null;
   /** Within-session per-set ramp, kg (negative ramps down). Null = off. */
   ramp_increment?: number | null;
   /**
@@ -509,6 +523,8 @@ export function createWorkoutPlaybackDraftFromPreset(
                 .equipment_brand,
             }
           : {}),
+        backup_exercise_id: exercise.backup_exercise_id ?? null,
+        backup_exercise_name: exercise.backup_exercise_name ?? null,
         ramp_increment:
           exercise.ramp_increment != null
             ? Number(exercise.ramp_increment)
@@ -1133,7 +1149,14 @@ export function setWorkoutAdaptiveDeclined(
 export function replaceExerciseInWorkoutDraft(
   draft: WorkoutPlaybackDraft,
   exerciseIndex: number,
-  exercise: Exercise
+  exercise: Exercise,
+  options: {
+    /**
+     * Swap in the slot's backup: keep the planned sets when the movement is
+     * measured the same way, and point the backup back at the original.
+     */
+    asBackup?: boolean;
+  } = {}
 ): WorkoutPlaybackDraft {
   const current = draft.exercises[exerciseIndex];
   if (!current) return draft;
@@ -1142,6 +1165,10 @@ export function replaceExerciseInWorkoutDraft(
     exercise.category
   );
   const defaultSet = defaultSetForModality(modality);
+  const keepSets =
+    options.asBackup === true &&
+    modality === current.modality &&
+    current.sets.length > 0;
   const replaced: WorkoutPlaybackExerciseDraft = {
     exercise_id: exercise.id,
     exercise_name: exercise.name,
@@ -1159,21 +1186,33 @@ export function replaceExerciseInWorkoutDraft(
     equipment: exercise.equipment ?? undefined,
     adaptive: null,
     suggest_variation: false,
-    round_sets_count: 1,
-    sets: [
-      {
-        ...defaultSet,
-        set_number: 1,
-        set_type: defaultSet.set_type ?? 'Working Set',
-        duration: defaultSet.duration ?? null,
-        distance: null,
-        rest_time: current.sets[0]?.rest_time ?? DEFAULT_REST_SECONDS,
-        notes: null,
-        rpe: null,
-        completed: false,
-        completed_at: null,
-      },
-    ],
+    ...(options.asBackup
+      ? {
+          backup_exercise_id: current.exercise_id,
+          backup_exercise_name: current.exercise_name,
+        }
+      : {}),
+    round_sets_count: keepSets ? current.round_sets_count : 1,
+    sets: keepSets
+      ? current.sets.map((set) => ({
+          ...set,
+          completed: false,
+          completed_at: null,
+        }))
+      : [
+          {
+            ...defaultSet,
+            set_number: 1,
+            set_type: defaultSet.set_type ?? 'Working Set',
+            duration: defaultSet.duration ?? null,
+            distance: null,
+            rest_time: current.sets[0]?.rest_time ?? DEFAULT_REST_SECONDS,
+            notes: null,
+            rpe: null,
+            completed: false,
+            completed_at: null,
+          },
+        ],
   };
   const exercises = draft.exercises.map((entry, index) =>
     index === exerciseIndex ? replaced : entry

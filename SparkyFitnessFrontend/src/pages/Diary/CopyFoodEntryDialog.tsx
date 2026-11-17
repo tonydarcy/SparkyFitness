@@ -25,19 +25,16 @@ import {
   todayInZone,
   userHourMinute,
 } from '@workspace/shared';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { MealTypeButtons } from '@/components/MealTypeButtons';
 import { Label } from '@/components/ui/label';
 import { usePreferences } from '@/contexts/PreferencesContext';
 import { debug, info, warn } from '@/utils/logging';
 import { useMealTypes } from '@/hooks/Diary/useMealTypes';
 
 export type CopyQuickTarget = 'now' | 'today' | 'tomorrow';
+
+/** Meal-type choice that keeps each copied food in the meal it came from. */
+export const KEEP_SOURCE_MEAL = '__keep_source_meal__';
 
 interface CopyFoodEntryDialogProps {
   isOpen: boolean;
@@ -49,8 +46,13 @@ interface CopyFoodEntryDialogProps {
     quickTarget: CopyQuickTarget | null
   ) => void;
   sourceMealType: string;
-  /** Set when copying one food instead of a whole meal or day. */
+  /**
+   * Set when copying foods instead of a whole meal or day: one food's name, or
+   * a label such as "3 foods" for several picked foods.
+   */
   foodName?: string;
+  /** Offer "Same meal" (`KEEP_SOURCE_MEAL`) for several picked foods. */
+  keepMealOption?: boolean;
 }
 
 const CopyFoodEntryDialog = ({
@@ -59,6 +61,7 @@ const CopyFoodEntryDialog = ({
   onCopy,
   sourceMealType,
   foodName,
+  keepMealOption = false,
 }: CopyFoodEntryDialogProps) => {
   const { t } = useTranslation();
   const { formatDateInUserTimezone, loggingLevel, timezone } = usePreferences();
@@ -229,38 +232,42 @@ const CopyFoodEntryDialog = ({
             </Popover>
           </div>
           {!isAllDayCopy && (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="mealType" className="text-right">
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label id="copyMealType-label" className="pt-1.5 text-right">
                 {t('copyFoodEntryDialog.mealType', 'Meal Type')}
               </Label>
-              <Select
-                onValueChange={(value) => {
-                  setSelectedMealType(value);
-                  debug(loggingLevel, 'Selected meal type in dialog:', value);
-                }}
-                value={selectedMealType}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue
-                    placeholder={t(
-                      'copyFoodEntryDialog.selectMealTypePlaceholder',
-                      'Select meal type'
-                    )}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMealTypes?.length === 0 && (
-                    <SelectItem value="loading" disabled>
-                      {t('common.loading', 'Loading...')}
-                    </SelectItem>
-                  )}
-                  {availableMealTypes?.map((meal) => (
-                    <SelectItem key={meal.id} value={meal.name}>
-                      {getDisplayName(meal.name)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {availableMealTypes?.length === 0 ? (
+                <span className="col-span-3 text-sm text-muted-foreground">
+                  {t('common.loading', 'Loading...')}
+                </span>
+              ) : (
+                <MealTypeButtons
+                  labelledBy="copyMealType-label"
+                  className="col-span-3"
+                  options={[
+                    ...(keepMealOption
+                      ? [
+                          {
+                            value: KEEP_SOURCE_MEAL,
+                            label: t(
+                              'copyFoodEntryDialog.keepMeal',
+                              'Same meal'
+                            ),
+                          },
+                        ]
+                      : []),
+                    ...(availableMealTypes ?? []).map((meal) => ({
+                      value: meal.name,
+                      label: getDisplayName(meal.name),
+                    })),
+                  ]}
+                  value={selectedMealType}
+                  onChange={(value) => {
+                    setSelectedMealType(value);
+                    debug(loggingLevel, 'Selected meal type in dialog:', value);
+                  }}
+                />
+              )}
             </div>
           )}
         </div>

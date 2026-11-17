@@ -302,10 +302,12 @@ const WorkoutPresetDetailScreen: React.FC<WorkoutPresetDetailScreenProps> = ({
           // The copy keeps the original's progression and ramp settings.
           progression_mode: exercise.progression_mode ?? null,
           rep_goal: exercise.rep_goal ?? null,
+          rep_range_min: exercise.rep_range_min ?? null,
           increment_type: exercise.increment_type ?? null,
           increment_value: exercise.increment_value ?? null,
           equipment_brand: exercise.equipment_brand ?? null,
           ramp_increment: exercise.ramp_increment ?? null,
+          backup_exercise_id: exercise.backup_exercise_id ?? null,
           sets: exercise.sets.map((set) => ({
             set_number: set.set_number,
             set_type: set.set_type,

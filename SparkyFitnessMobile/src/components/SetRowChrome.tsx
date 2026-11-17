@@ -719,6 +719,12 @@ export function useSetEditAccessoryBar({
   return { onRegisterAccessoryHandle, accessoryBar };
 }
 
+/**
+ * Sideways drag, in points, before a set row's swipe actions engage. Higher
+ * than the library's 10 so vertical scrolling through sets stays smooth.
+ */
+export const SET_ROW_SWIPE_OFFSET = 15;
+
 /** Right-swipe Delete action for ReanimatedSwipeable's renderRightActions. */
 export function SetSwipeDeleteAction({
   onPress,
@@ -740,6 +746,32 @@ export function SetSwipeDeleteAction({
     >
       <Text className="text-text-danger font-semibold text-sm">
         {t('common.delete', { defaultValue: 'Delete' })}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+/** Left-swipe Copy action for ReanimatedSwipeable's renderLeftActions. */
+export function SetSwipeCopyAction({
+  onPress,
+  accessibilityLabel,
+}: {
+  onPress: () => void;
+  accessibilityLabel?: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <TouchableOpacity
+      className="bg-raised justify-center items-center"
+      style={{ width: 72 }}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityLabel={
+        accessibilityLabel ?? t('common.copy', { defaultValue: 'Copy' })
+      }
+    >
+      <Text className="text-accent-primary font-semibold text-sm">
+        {t('common.copy', { defaultValue: 'Copy' })}
       </Text>
     </TouchableOpacity>
   );

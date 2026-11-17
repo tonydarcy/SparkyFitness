@@ -92,6 +92,7 @@ export const EXERCISE_SECTIONS = [
   'exercise.overview',
   'exercise.setsPerMuscle',
   'exercise.heatMap',
+  'exercise.strengthBalance',
   'exercise.consistency',
   'exercise.load',
   'exercise.analysis',

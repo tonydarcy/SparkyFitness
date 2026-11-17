@@ -244,7 +244,14 @@ function computeAdaptiveTdeeFromData(
         ? (measurementsByDay.get(stable.lastWeightDate) ?? null)
         : null,
       stable.currentCalorieDays,
-      metadata
+      {
+        ...metadata,
+        // The dashboard's average deficit needs intake even before the
+        // adaptive estimate has enough weight history.
+        ...(stable.currentAvgIntake !== undefined
+          ? { avgIntake: Math.round(stable.currentAvgIntake) }
+          : {}),
+      }
     );
   }
 

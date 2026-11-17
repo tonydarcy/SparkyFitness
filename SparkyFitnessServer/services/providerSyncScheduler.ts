@@ -9,6 +9,7 @@ import polarService from './polarService.js';
 import corosService from './corosService.js';
 import stravaService from './stravaService.js';
 import googleHealthService from './googleHealthService.js';
+import googleSheetsService from '../integrations/googlesheets/googleSheetsService.js';
 import hevyService from '../integrations/hevy/hevyService.js';
 import hevyProviderRepository from '../integrations/hevy/hevyProviderRepository.js';
 import liftosaurService from '../integrations/liftosaur/liftosaurService.js';
@@ -181,6 +182,18 @@ export const PROVIDER_SYNC_CONFIGS: readonly ProviderSyncConfig[] = [
         p,
         result.failedRequiredFetches
       );
+    },
+  },
+  {
+    // Rewrites the whole export; sync_frequency (daily by default) decides
+    // whether the hourly tick is due. The service stamps last_sync_at.
+    name: 'Google Sheets',
+    types: ['googlesheets'],
+    sync: async (p) => {
+      // The batch may be stale by the time this account's claim is taken.
+      const current = await googleSheetsService.getSyncSettings(p.user_id);
+      if (!current?.is_active || !isProviderSyncDue(current)) return;
+      await googleSheetsService.syncGoogleSheets(p.user_id);
     },
   },
   {

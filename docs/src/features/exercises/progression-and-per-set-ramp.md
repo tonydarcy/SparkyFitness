@@ -61,6 +61,8 @@ Progression moves the weight (or the reps) **between workouts**, once you've ear
 | **Total Rep Goal** | A total number of reps across your working sets | Weight, or reps |
 | **Fixed Target** | A number of reps on every working set | Weight, or reps per set |
 | **Step-Load** | A total number of reps | Reps, at the same load |
+| **Double Progression** | Every working set at the top of a rep range (for example 8 to 12) | Weight, then reps start again at the bottom of the range |
+| **Triple Progression** | Same as Double | A set first (up to 2 more than planned), then weight |
 | **Manual** | — | Nothing (off) |
 
 When last session met the goal, the next workout is pre-filled with the increase:
@@ -68,13 +70,32 @@ When last session met the goal, the next workout is pre-filled with the increase
 - **Weight increase**: each working set starts from its own previous weight plus the increment, so pyramid sets keep their shape.
 - **Rep increase**: Fixed Target raises the target on every working set (8 → 9 reps). Total Rep Goal and Step-Load split the new total across the working sets, with earlier sets taking any remainder (26 reps over 3 sets → 9 / 9 / 8).
 
+- **Double and Triple Progression**: while any set is short of the top of the range, the weight holds and the aim is the top. Once every set gets there, the weight goes up by your increment and every working set drops to the bottom of the range. Triple adds a set first; once it is two sets over the plan and every set is at the top, the weight goes up and you go back to the planned sets. On the web the extra set is added for you; on mobile the hint tells you to add it.
+
 Warm-up sets are never counted or changed.
+
+### Stalls and deloads
+
+In every mode that adds weight, three sessions in a row that miss the goal at the same weight trigger a deload: the next workout starts about 10% lighter, rounded down to whole increments so the plates still work (100 kg with a 2.5 kg increment → 90 kg; 62.5 kg → 55 kg). The hint says why. Then you build back up from there. Rep-only modes (Step-Load, or a reps increment) never deload.
+
+With [gyms](./plate-calculator.md#gyms-dumbbells-and-machine-stacks) set up, a raised or deloaded dumbbell or machine weight is also rounded to the dumbbells or pin settings the active gym really has: up for an increase, down for a deload.
 
 ### Updating the preset after a workout (mobile)
 
 When you finish a workout on mobile, the app offers to update the preset if what you did differs from it. Values that progression or the ramp filled in, logged as shown, don't count as a difference, so they neither trigger the prompt nor overwrite the weights stored in the preset. Only values you changed yourself do.
 
 ---
+
+## Backup exercise ("machine taken")
+
+Each exercise in a preset can have a **backup exercise** for when its machine or station is busy.
+
+- **Web:** in the preset editor, open the exercise's settings and use **Backup exercise** to pick one (the **×** removes it).
+- **Mobile:** in the preset form, open the exercise's **⋮** menu and choose **Set backup exercise…**. The menu then shows the backup and offers **Remove backup exercise**.
+
+During a workout, before you log a set of that exercise, **Taken? Use …** swaps the backup in. It appears under the exercise name in the web workout player and in the exercise's **⋮** menu on mobile. When the backup is measured the same way (weight and reps, for example), the planned sets, weights and reps stay as they are. On the web the backup then points back at the original, so you can swap back.
+
+Backups need an up-to-date server; with an older one the option doesn't appear.
 
 ## AI assistant & MCP
 

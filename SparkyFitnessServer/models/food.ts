@@ -719,6 +719,26 @@ function appendProviderTypeClause(
   }
 }
 
+/**
+ * Per-food usage score for one user, joined by `getFoodsWithPagination` when
+ * sorting by `usage:desc`. Each diary log in the last year adds a weight that
+ * halves every 30 days, so a food logged weekly now outranks one logged daily
+ * a year ago. Foods never logged get no row and sort last.
+ */
+function buildFoodUsageScoreSql(userParamIndex: number): string {
+  return `
+    SELECT
+      fe.food_id,
+      SUM(POWER(0.5, GREATEST(CURRENT_DATE - fe.entry_date, 0) / 30.0)) AS usage_score,
+      MAX(fe.entry_date) AS last_logged
+    FROM food_entries fe
+    WHERE fe.user_id = $${userParamIndex}
+      AND fe.food_id IS NOT NULL
+      AND fe.entry_date >= CURRENT_DATE - 365
+    GROUP BY fe.food_id
+  `;
+}
+
 async function getFoodsWithPagination(
   searchTerm: string | null | undefined,
   foodFilter: string | null | undefined,
@@ -763,16 +783,31 @@ async function getFoodsWithPagination(
     // later LIMIT/OFFSET/exact-match placeholders don't collide with it.
     paramIndex = queryParams.length + 1;
 
+    // `usage:desc` puts the user's own habits first: foods they log often and
+    // recently come before ones they rarely or never log. Older servers don't
+    // know this value and fall back to the default name order.
+    const sortByUsage = sortBy === 'usage:desc';
+    let usageJoinSql = '';
+    if (sortByUsage) {
+      usageJoinSql = `
+      LEFT JOIN (${buildFoodUsageScoreSql(paramIndex)}) food_usage ON food_usage.food_id = f.id`;
+      queryParams.push(authenticatedUserId);
+      paramIndex++;
+    }
+
     let query = `
       SELECT
         f.id, f.name, f.brand, f.barcode, f.is_custom, f.user_id, f.shared_with_public, f.provider_external_id, f.provider_type, f.provider_verified, f.images, f.notes,
         ${DEFAULT_VARIANT_JSON_SQL}
       FROM foods f
-      ${PREFERRED_DEFAULT_VARIANT_JOIN_SQL}
+      ${PREFERRED_DEFAULT_VARIANT_JOIN_SQL}${usageJoinSql}
       WHERE ${whereClauses.join(' AND ')}
     `;
     let orderByClause = 'f.name ASC, f.id ASC';
-    if (sortBy) {
+    if (sortByUsage) {
+      orderByClause =
+        'food_usage.usage_score DESC NULLS LAST, food_usage.last_logged DESC NULLS LAST, f.name ASC, f.id ASC';
+    } else if (sortBy) {
       const [sortField, sortOrder] = sortBy.split(':');
       const nutritionSortFields = ['calories', 'protein', 'carbs', 'fat'];
       const allowedSortFields = ['name', ...nutritionSortFields];

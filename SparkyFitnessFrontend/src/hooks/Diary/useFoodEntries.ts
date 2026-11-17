@@ -32,6 +32,7 @@ import type { FoodDiaryImportRow, FoodDiaryImportScope } from '@/types/diary';
 import { goalKeys } from '@/api/keys/goals';
 import { foodEntryKeys, foodEntryMealKeys } from '@/api/keys/diary';
 import type { FoodEntry } from '@/types/food';
+import type { FoodEntryCopyPayload } from '@workspace/shared';
 import type { FoodEntryMeal } from '@/types/meal';
 import i18n from '@/i18n';
 import { useFoodEntryInvalidation } from '../useInvalidateKeys';
@@ -159,6 +160,29 @@ export const useCopySingleFoodEntryMutation = () => {
     meta: {
       successMessage: t('diary.copyFoodSuccess', 'Food copied.'),
       errorMessage: t('diary.copyFoodError', 'Failed to copy food.'),
+    },
+  });
+};
+
+/** Logs several diary foods again, one request at a time. */
+export const useCopyFoodEntryListMutation = () => {
+  const { t } = useTranslation();
+  const invalidate = useFoodEntryInvalidation();
+
+  return useMutation({
+    mutationFn: async (payloads: FoodEntryCopyPayload[]) => {
+      for (const payload of payloads) {
+        await createFoodEntryCopy(payload);
+      }
+    },
+    // Some copies may have landed before a failure, so refresh either way.
+    onSettled: () => invalidate(),
+    meta: {
+      successMessage: t('diary.copyFoodsSuccess', 'Foods copied.'),
+      errorMessage: t(
+        'diary.copyFoodsError',
+        'Failed to copy some foods. Check the target day before trying again.'
+      ),
     },
   });
 };

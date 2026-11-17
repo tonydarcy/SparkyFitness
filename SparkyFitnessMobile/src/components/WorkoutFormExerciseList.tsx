@@ -129,6 +129,11 @@ interface WorkoutFormExerciseListProps {
    */
   onReplaceExercise?: (clientId: string) => void;
   /**
+   * Enables the ⋮ "Backup exercise" items (preset form): pick the exercise
+   * swapped in when this one is taken, or remove it.
+   */
+  onPickBackupExercise?: (clientId: string) => void;
+  /**
    * Enables the ⋮ "Duplicate exercise" item: adds an independent copy of the
    * entry (same sets, notes, calories) right after it, ungrouped even if the
    * original is in a superset. Preset form only.
@@ -218,6 +223,7 @@ const WorkoutFormExerciseList = forwardRef<
     setExerciseCalories,
     setExerciseNotes,
     onReplaceExercise,
+    onPickBackupExercise,
     onDuplicateExercise,
     addWarmupSets,
     clearExerciseCompletions,
@@ -708,6 +714,39 @@ const WorkoutFormExerciseList = forwardRef<
         onPress: () => onReplaceExercise(clientId),
       });
     }
+    if (onPickBackupExercise) {
+      const backupName = exercises.find(
+        (e) => e.clientId === clientId
+      )?.backupExerciseName;
+      const hasBackup =
+        exercises.find((e) => e.clientId === clientId)?.backupExerciseId !=
+        null;
+      items.push({
+        key: 'backup',
+        label: hasBackup
+          ? t('workoutForm.changeBackupExercise', {
+              defaultValue: 'Backup: {{name}}',
+              name: backupName ?? '',
+            })
+          : t('workoutForm.setBackupExercise', {
+              defaultValue: 'Set backup exercise…',
+            }),
+        onPress: () => onPickBackupExercise(clientId),
+      });
+      if (hasBackup && setExerciseProgression) {
+        items.push({
+          key: 'backup-clear',
+          label: t('workoutForm.removeBackupExercise', {
+            defaultValue: 'Remove backup exercise',
+          }),
+          onPress: () =>
+            setExerciseProgression(clientId, {
+              backupExerciseId: null,
+              backupExerciseName: null,
+            }),
+        });
+      }
+    }
     if (addWarmupSets) {
       const target = exercises.find((e) => e.clientId === clientId);
       const card = cardExercises.find((c) => c.id === clientId);
@@ -775,6 +814,8 @@ const WorkoutFormExerciseList = forwardRef<
     supersetWith,
     ungroupExercise,
     onReplaceExercise,
+    onPickBackupExercise,
+    setExerciseProgression,
     onDuplicateExercise,
     addWarmupSets,
     weightUnit,

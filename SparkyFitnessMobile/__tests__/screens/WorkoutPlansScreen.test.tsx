@@ -5,8 +5,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import WorkoutPlansScreen from '../../src/screens/WorkoutPlansScreen';
 import {
+  useAddStarterWorkoutPlan,
   useDeleteWorkoutPlan,
   useServerConnection,
+  useStarterWorkoutPlans,
   useUpdateWorkoutPlan,
   useWorkoutPlans,
 } from '../../src/hooks';
@@ -17,6 +19,8 @@ jest.mock('../../src/hooks', () => ({
   useServerConnection: jest.fn(),
   useUpdateWorkoutPlan: jest.fn(),
   useWorkoutPlans: jest.fn(),
+  useStarterWorkoutPlans: jest.fn(),
+  useAddStarterWorkoutPlan: jest.fn(),
 }));
 
 jest.mock('../../src/components/ActiveWorkoutBar', () => ({
@@ -36,6 +40,13 @@ const mockUseUpdate = useUpdateWorkoutPlan as jest.MockedFunction<
   typeof useUpdateWorkoutPlan
 >;
 
+const mockUseStarter = useStarterWorkoutPlans as jest.MockedFunction<
+  typeof useStarterWorkoutPlans
+>;
+const mockUseAddStarter = useAddStarterWorkoutPlan as jest.MockedFunction<
+  typeof useAddStarterWorkoutPlan
+>;
+const addStarterPlanAsync = jest.fn();
 const deleteWorkoutPlanAsync = jest.fn();
 const updateWorkoutPlanAsync = jest.fn();
 const refetch = jest.fn();
@@ -94,8 +105,47 @@ describe('WorkoutPlansScreen', () => {
     });
     mockUseDelete.mockReturnValue({ deleteWorkoutPlanAsync, isPending: false });
     deleteWorkoutPlanAsync.mockResolvedValue(undefined);
+    mockUseStarter.mockReturnValue({ starterPlans: [] });
+    mockUseAddStarter.mockReturnValue({
+      addStarterPlanAsync,
+      pendingKey: undefined,
+    } as unknown as ReturnType<typeof useAddStarterWorkoutPlan>);
+    addStarterPlanAsync.mockResolvedValue({ id: 'plan-2' });
     mockUseUpdate.mockReturnValue({ updateWorkoutPlanAsync, isPending: false });
     updateWorkoutPlanAsync.mockResolvedValue({ ...plan });
+  });
+
+  test('hides starter plans when the server offers none', () => {
+    const screen = renderScreen();
+    expect(screen.queryByText('Starter plans')).toBeNull();
+  });
+
+  test('adds a starter plan with translated names', async () => {
+    mockUseStarter.mockReturnValue({
+      starterPlans: [
+        {
+          key: 'push_pull_legs',
+          session_keys: ['push', 'pull', 'legs'],
+          exercise_count: 15,
+        },
+      ],
+    });
+    const screen = renderScreen();
+    expect(screen.getByText('Push → Pull → Legs')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('Add plan'));
+    await waitFor(() =>
+      expect(addStarterPlanAsync).toHaveBeenCalledWith({
+        key: 'push_pull_legs',
+        body: expect.objectContaining({
+          plan_name: 'Push / Pull / Legs',
+          session_names: { push: 'Push', pull: 'Pull', legs: 'Legs' },
+        }),
+      })
+    );
+    expect(Toast.show).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'success' })
+    );
   });
 
   test('shows a plan and opens its detail screen', () => {

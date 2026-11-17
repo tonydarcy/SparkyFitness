@@ -117,8 +117,9 @@ describe('exercise modality writers', () => {
       await exerciseDb.updateExercise(id, uuidv4(), { modality: 'duration' });
       const params = lastQuery(mockClient)[1];
       expect(params[params.length - 1]).toBe(id);
-      // modality, source_id, the two health_activity_type binds, then the id.
-      expect(params).toHaveLength(UPDATE_MODALITY_PARAM + 5);
+      // modality, source_id, the two video_url binds, the two
+      // health_activity_type binds, then the id.
+      expect(params).toHaveLength(UPDATE_MODALITY_PARAM + 7);
     });
   });
 

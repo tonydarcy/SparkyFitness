@@ -14,6 +14,7 @@ import { useCSSVariable } from 'uniwind';
 import FooterActionBar from '../components/FooterActionBar';
 import Icon from '../components/Icon';
 import StatusView from '../components/StatusView';
+import StarterPlansSection from '../components/StarterPlansSection';
 import ServerGate from '../components/ServerGate';
 import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
@@ -386,6 +387,7 @@ const WorkoutPlansScreen: React.FC<WorkoutPlansScreenProps> = ({
             tintColor={accentColor}
           />
         }
+        ListFooterComponent={<StarterPlansSection enabled={isConnected} />}
         ListEmptyComponent={
           <StatusView
             inline

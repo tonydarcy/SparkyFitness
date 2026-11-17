@@ -78,6 +78,7 @@ const getValidAiConfidence = (
   return result.success ? result.data : null;
 };
 
+import { MealTypeButtons } from '@/components/MealTypeButtons';
 import { AiEstimateSection } from '@/components/FoodUnitSelector/AiEstimateSection';
 import FavoriteStarButton from '@/components/FavoriteStarButton';
 import { MarkdownView } from '@/components/ui/MarkdownView';
@@ -189,8 +190,19 @@ const FoodUnitSelector = ({
         availableMealTypes &&
         availableMealTypes.length > 0
       ) {
-        const nowTime = userHourMinute(timezone);
-        const matched = defaultMealTypeForTime(availableMealTypes, nowTime);
+        // Follow the prefilled time when there is one (the Diary timeline
+        // opens this at a chosen slot), else the current time.
+        const prefilled = toHourMinute(initialTime);
+        const referenceTime = prefilled
+          ? {
+              hour: Number(prefilled.slice(0, 2)),
+              minute: Number(prefilled.slice(3, 5)),
+            }
+          : userHourMinute(timezone);
+        const matched = defaultMealTypeForTime(
+          availableMealTypes,
+          referenceTime
+        );
         setMealType(matched);
       }
     }
@@ -875,26 +887,18 @@ const FoodUnitSelector = ({
                 availableMealTypes &&
                 availableMealTypes.length > 0 && (
                   <div className="space-y-1">
-                    <Label htmlFor="mealType">
+                    <Label id="mealType-label">
                       {t('foodUnitSelector.meal', 'Meal')}
                     </Label>
-                    <Select value={mealType} onValueChange={setMealType}>
-                      <SelectTrigger id="mealType" className="w-full text-sm">
-                        <SelectValue
-                          placeholder={t(
-                            'foodUnitSelector.selectMeal',
-                            'Select meal'
-                          )}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableMealTypes.map((t) => (
-                          <SelectItem key={t.id} value={t.name}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <MealTypeButtons
+                      labelledBy="mealType-label"
+                      options={availableMealTypes.map((type) => ({
+                        value: type.name,
+                        label: type.name,
+                      }))}
+                      value={mealType}
+                      onChange={setMealType}
+                    />
                   </div>
                 )}
 

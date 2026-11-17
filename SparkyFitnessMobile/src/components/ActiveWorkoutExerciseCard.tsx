@@ -72,6 +72,8 @@ import type { ExerciseProgressionPatch } from '../hooks/draftExercisesSlice';
 import { useLiveHeartRate } from '../stores/liveHeartRateStore';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
 import AdaptiveSuggestionBanner from './AdaptiveSuggestionBanner';
+import ExerciseVideoCard from './ExerciseVideoCard';
+import { useExerciseVideoUrl } from '../hooks/useExerciseVideoUrl';
 import ProgressionHintBanner from './ProgressionHintBanner';
 import type {
   ActiveSetPatch,
@@ -426,14 +428,25 @@ function ActiveWorkoutExerciseCard({
   // (#1691); "View exercise" stays in the ⋯ menu. Other modes keep the
   // thumbnail → details behaviour.
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  // Only the expanded live card looks the video up, so a workout fetches one
+  // exercise at a time as the lifter moves through it.
+  const videoUrl = useExerciseVideoUrl(
+    exercise.exercise_id,
+    exercise.exercise_snapshot?.video_url,
+    isLive && expanded
+  );
   const thumbImages = exercise.exercise_snapshot?.images ?? [];
   const opensImageViewer = isLive && thumbImages.length > 0;
   const [editMode, setEditMode] = useState<
-    'rep_goal' | 'fixed' | 'step_load' | 'manual'
+    'rep_goal' | 'fixed' | 'step_load' | 'manual' | 'double' | 'triple'
   >(exercise.progression_mode ?? 'rep_goal');
   const [editRepGoal, setEditRepGoal] = useState<string>(
     exercise.rep_goal != null ? String(exercise.rep_goal) : ''
   );
+  const [editRepRangeMin, setEditRepRangeMin] = useState<string>(
+    exercise.rep_range_min != null ? String(exercise.rep_range_min) : ''
+  );
+  const editIsRange = editMode === 'double' || editMode === 'triple';
   // Weight increments are stored kg and edited in the lifter's unit.
   const [editIncrementValue, setEditIncrementValue] = useState<string>(() =>
     exercise.increment_value == null
@@ -857,6 +870,13 @@ function ActiveWorkoutExerciseCard({
           </Animated.View>
         </Pressable>
       </View>
+      {isLive && videoUrl ? (
+        <ExerciseVideoCard
+          url={videoUrl}
+          exerciseName={name}
+          variant="compact"
+        />
+      ) : null}
 
       <Animated.View
         entering={hasRenderedCollapsed ? FadeInDown.duration(200) : undefined}
@@ -890,26 +910,44 @@ function ActiveWorkoutExerciseCard({
                     ? t('activeWorkout.progression.manualOff', {
                         defaultValue: 'Manual (Off)',
                       })
-                    : editMode === 'fixed'
-                      ? t('activeWorkout.progression.fixedSummary', {
-                          defaultValue: 'Fixed Target · +{{value}} {{unit}}',
-                          value: editIncrementValue,
-                          unit: weightUnit,
-                        })
-                      : editMode === 'step_load'
-                        ? t('activeWorkout.progression.stepLoadSummary', {
+                    : editIsRange
+                      ? editMode === 'double'
+                        ? t('activeWorkout.progression.doubleSummary', {
                             defaultValue:
-                              'Step-Load · {{reps}} reps · +{{value}} reps',
-                            reps: editRepGoal || '–',
-                            value: editIncrementValue,
-                          })
-                        : t('activeWorkout.progression.repGoalSummary', {
-                            defaultValue:
-                              'Rep Goal · {{reps}} reps · +{{value}} {{unit}}',
-                            reps: editRepGoal || '–',
+                              'Double · {{min}}–{{max}} reps · +{{value}} {{unit}}',
+                            min: editRepRangeMin || '–',
+                            max: editRepGoal || '–',
                             value: editIncrementValue,
                             unit: weightUnit,
-                          })}
+                          })
+                        : t('activeWorkout.progression.tripleSummary', {
+                            defaultValue:
+                              'Triple · {{min}}–{{max}} reps · +{{value}} {{unit}}',
+                            min: editRepRangeMin || '–',
+                            max: editRepGoal || '–',
+                            value: editIncrementValue,
+                            unit: weightUnit,
+                          })
+                      : editMode === 'fixed'
+                        ? t('activeWorkout.progression.fixedSummary', {
+                            defaultValue: 'Fixed Target · +{{value}} {{unit}}',
+                            value: editIncrementValue,
+                            unit: weightUnit,
+                          })
+                        : editMode === 'step_load'
+                          ? t('activeWorkout.progression.stepLoadSummary', {
+                              defaultValue:
+                                'Step-Load · {{reps}} reps · +{{value}} reps',
+                              reps: editRepGoal || '–',
+                              value: editIncrementValue,
+                            })
+                          : t('activeWorkout.progression.repGoalSummary', {
+                              defaultValue:
+                                'Rep Goal · {{reps}} reps · +{{value}} {{unit}}',
+                              reps: editRepGoal || '–',
+                              value: editIncrementValue,
+                              unit: weightUnit,
+                            })}
                 </Text>
               </View>
               <Icon
@@ -927,7 +965,7 @@ function ActiveWorkoutExerciseCard({
                       defaultValue: 'Overload Mode',
                     })}
                   </Text>
-                  <View className="flex-row bg-raised rounded-lg p-0.5 border border-border-subtle">
+                  <View className="flex-row flex-wrap bg-raised rounded-lg p-0.5 border border-border-subtle">
                     {(
                       [
                         {
@@ -949,6 +987,18 @@ function ActiveWorkoutExerciseCard({
                           }),
                         },
                         {
+                          key: 'double',
+                          label: t('activeWorkout.progression.modeDouble', {
+                            defaultValue: 'Double',
+                          }),
+                        },
+                        {
+                          key: 'triple',
+                          label: t('activeWorkout.progression.modeTriple', {
+                            defaultValue: 'Triple',
+                          }),
+                        },
+                        {
                           key: 'manual',
                           label: t('activeWorkout.progression.modeOff', {
                             defaultValue: 'Off',
@@ -962,10 +1012,14 @@ function ActiveWorkoutExerciseCard({
                           key={tab.key}
                           onPress={() => {
                             setEditMode(tab.key);
+                            // Step-load always raises reps; double and
+                            // triple always add load.
                             const newIncType =
                               tab.key === 'step_load'
                                 ? 'reps'
-                                : editIncrementType;
+                                : tab.key === 'double' || tab.key === 'triple'
+                                  ? 'weight'
+                                  : editIncrementType;
                             setEditIncrementType(newIncType);
                             handleCommitProgression({
                               progressionMode: tab.key,
@@ -977,7 +1031,7 @@ function ActiveWorkoutExerciseCard({
                               newIncType
                             );
                           }}
-                          className={`flex-1 py-1.5 rounded-md items-center justify-center ${
+                          className={`w-1/3 py-1.5 rounded-md items-center justify-center ${
                             isActive ? 'bg-surface shadow-sm' : ''
                           }`}
                         >
@@ -1000,13 +1054,17 @@ function ActiveWorkoutExerciseCard({
                   <View className="flex-row items-center gap-3">
                     <View className="flex-1">
                       <Text className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
-                        {editMode === 'fixed'
-                          ? t('activeWorkout.progression.targetRepsPerSet', {
-                              defaultValue: 'Target Reps / Set',
+                        {editIsRange
+                          ? t('activeWorkout.progression.repRangeTop', {
+                              defaultValue: 'Top of Rep Range',
                             })
-                          : t('activeWorkout.progression.targetRepsTotal', {
-                              defaultValue: 'Target Reps (Total)',
-                            })}
+                          : editMode === 'fixed'
+                            ? t('activeWorkout.progression.targetRepsPerSet', {
+                                defaultValue: 'Target Reps / Set',
+                              })
+                            : t('activeWorkout.progression.targetRepsTotal', {
+                                defaultValue: 'Target Reps (Total)',
+                              })}
                       </Text>
                       <FormInput
                         value={editRepGoal}
@@ -1018,7 +1076,9 @@ function ActiveWorkoutExerciseCard({
                           });
                         }}
                         keyboardType="number-pad"
-                        placeholder={editMode === 'fixed' ? '8' : '75'}
+                        placeholder={
+                          editIsRange ? '12' : editMode === 'fixed' ? '8' : '75'
+                        }
                         style={{
                           height: 38,
                           fontSize: 14,
@@ -1026,6 +1086,33 @@ function ActiveWorkoutExerciseCard({
                         }}
                       />
                     </View>
+
+                    {editIsRange && (
+                      <View className="flex-1">
+                        <Text className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
+                          {t('activeWorkout.progression.repRangeBottom', {
+                            defaultValue: 'Bottom of Rep Range',
+                          })}
+                        </Text>
+                        <FormInput
+                          value={editRepRangeMin}
+                          onChangeText={(val) => {
+                            setEditRepRangeMin(val);
+                            const num = parseInt(val, 10);
+                            handleCommitProgression({
+                              repRangeMin: isNaN(num) ? null : num,
+                            });
+                          }}
+                          keyboardType="number-pad"
+                          placeholder="8"
+                          style={{
+                            height: 38,
+                            fontSize: 14,
+                            paddingHorizontal: 10,
+                          }}
+                        />
+                      </View>
+                    )}
 
                     <View className="flex-1">
                       <Text className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">

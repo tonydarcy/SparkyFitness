@@ -89,6 +89,9 @@ export type ActiveWorkoutView = 'list' | 'focus';
 export type FocusMediaDefault = 'expanded' | 'minimized';
 
 /** Which stat the active-workout log shows in its per-set metric column. */
+/** How the Diary lays out food: grouped by meal, or one list by time of day. */
+export type DiaryViewMode = 'meals' | 'timeline';
+
 export type ActiveWorkoutMetricColumn =
   'rpe' | 'rir' | 'volume' | 'e1rm' | 'tenrm';
 
@@ -130,6 +133,7 @@ export const PREFERENCE_DEFAULTS = {
   oralCareCardVisible: false,
   labResultsCardVisible: true,
   trainingLoadCardVisible: true,
+  energyBalanceCardVisible: true,
   dashboardCardOrder: [...DASHBOARD_CARD_KEYS] as DashboardCardKey[],
   medicationRemindersEnabled: true,
   medicationReminderRepeats: true,
@@ -148,6 +152,7 @@ export const PREFERENCE_DEFAULTS = {
   activeWorkoutMetricColumn: 'rpe' as ActiveWorkoutMetricColumn,
   diarySummaryVisible: false,
   diarySummaryExpanded: false,
+  diaryViewMode: 'meals' as DiaryViewMode,
   defaultRestSec: DEFAULT_REST_SEC as number,
   treadmillCorrectionEnabled: false,
   treadmillCorrectionPercent: 0,
@@ -155,6 +160,7 @@ export const PREFERENCE_DEFAULTS = {
   paceReferenceOnWatch: false,
   restTimerSoundEnabled: true,
   restChimeThroughSilent: false,
+  restFlashEnabled: false,
   duckMusicDuringCues: false,
   workoutKeepAwakeEnabled: false,
   focusNextSetOnRestEnd: true,
@@ -234,6 +240,7 @@ export type AppPreferencesData = {
   oralCareCardVisible: boolean;
   labResultsCardVisible: boolean;
   trainingLoadCardVisible: boolean;
+  energyBalanceCardVisible: boolean;
   dashboardCardOrder: DashboardCardKey[];
   medicationRemindersEnabled: boolean;
   medicationReminderRepeats: boolean;
@@ -252,6 +259,7 @@ export type AppPreferencesData = {
   activeWorkoutMetricColumn: ActiveWorkoutMetricColumn;
   diarySummaryVisible: boolean;
   diarySummaryExpanded: boolean;
+  diaryViewMode: DiaryViewMode;
   defaultRestSec: number;
   /**
    * Treadmill display correction (device-local): when on, a distance typed or
@@ -274,6 +282,8 @@ export type AppPreferencesData = {
    * session alive for the length of each rest. Off by default.
    */
   restChimeThroughSilent: boolean;
+  /** Flash the screen once when a rest ends with the app open. Off by default. */
+  restFlashEnabled: boolean;
   /**
    * Lower other apps' music while an interval cue or guided line plays
    * (#1560). Off by default: cues normally mix over music untouched.
@@ -411,6 +421,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setOralCareCardVisible: (value: boolean) => void;
   setLabResultsCardVisible: (value: boolean) => void;
   setTrainingLoadCardVisible: (value: boolean) => void;
+  setEnergyBalanceCardVisible: (value: boolean) => void;
   setDashboardCardOrder: (order: DashboardCardKey[]) => void;
   setMedicationRemindersEnabled: (value: boolean) => void;
   setMedicationReminderRepeats: (value: boolean) => void;
@@ -429,6 +440,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setLiquidGlassTabBarEnabled: (value: boolean) => void;
   setActiveWorkoutMetricColumn: (value: ActiveWorkoutMetricColumn) => void;
   setDiarySummaryVisible: (value: boolean) => void;
+  setDiaryViewMode: (value: DiaryViewMode) => void;
   setDiarySummaryExpanded: (value: boolean) => void;
   setDefaultRestSec: (value: number) => void;
   setPaceReferenceRace: (value: PaceReferenceRace | null) => void;
@@ -437,6 +449,7 @@ export interface AppPreferencesState extends AppPreferencesData {
   setTreadmillCorrectionPercent: (value: number) => void;
   setRestTimerSoundEnabled: (value: boolean) => void;
   setRestChimeThroughSilent: (value: boolean) => void;
+  setRestFlashEnabled: (value: boolean) => void;
   setDuckMusicDuringCues: (value: boolean) => void;
   setWorkoutKeepAwakeEnabled: (value: boolean) => void;
   setFocusNextSetOnRestEnd: (value: boolean) => void;
@@ -596,6 +609,8 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ labResultsCardVisible: value }),
       setTrainingLoadCardVisible: (value) =>
         set({ trainingLoadCardVisible: value }),
+      setEnergyBalanceCardVisible: (value) =>
+        set({ energyBalanceCardVisible: value }),
       setDashboardCardOrder: (order) => set({ dashboardCardOrder: order }),
       setMedicationRemindersEnabled: (value) =>
         set({ medicationRemindersEnabled: value }),
@@ -625,6 +640,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
       setActiveWorkoutMetricColumn: (value) =>
         set({ activeWorkoutMetricColumn: value }),
       setDiarySummaryVisible: (value) => set({ diarySummaryVisible: value }),
+      setDiaryViewMode: (value) => set({ diaryViewMode: value }),
       setDiarySummaryExpanded: (value) => set({ diarySummaryExpanded: value }),
       setDefaultRestSec: (value) => set({ defaultRestSec: value }),
       setPaceReferenceRace: (value) => set({ paceReferenceRace: value }),
@@ -637,6 +653,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         set({ restTimerSoundEnabled: value }),
       setRestChimeThroughSilent: (value) =>
         set({ restChimeThroughSilent: value }),
+      setRestFlashEnabled: (value) => set({ restFlashEnabled: value }),
       setDuckMusicDuringCues: (value) => set({ duckMusicDuringCues: value }),
       setWorkoutKeepAwakeEnabled: (value) =>
         set({ workoutKeepAwakeEnabled: value }),
@@ -840,6 +857,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         oralCareCardVisible: state.oralCareCardVisible,
         labResultsCardVisible: state.labResultsCardVisible,
         trainingLoadCardVisible: state.trainingLoadCardVisible,
+        energyBalanceCardVisible: state.energyBalanceCardVisible,
         dashboardCardOrder: state.dashboardCardOrder,
         medicationRemindersEnabled: state.medicationRemindersEnabled,
         medicationReminderRepeats: state.medicationReminderRepeats,
@@ -860,6 +878,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         activeWorkoutMetricColumn: state.activeWorkoutMetricColumn,
         diarySummaryVisible: state.diarySummaryVisible,
         diarySummaryExpanded: state.diarySummaryExpanded,
+        diaryViewMode: state.diaryViewMode,
         defaultRestSec: state.defaultRestSec,
         treadmillCorrectionEnabled: state.treadmillCorrectionEnabled,
         treadmillCorrectionPercent: state.treadmillCorrectionPercent,
@@ -867,6 +886,7 @@ export const useAppPreferencesStore = create<AppPreferencesState>()(
         paceReferenceOnWatch: state.paceReferenceOnWatch,
         restTimerSoundEnabled: state.restTimerSoundEnabled,
         restChimeThroughSilent: state.restChimeThroughSilent,
+        restFlashEnabled: state.restFlashEnabled,
         duckMusicDuringCues: state.duckMusicDuringCues,
         workoutKeepAwakeEnabled: state.workoutKeepAwakeEnabled,
         focusNextSetOnRestEnd: state.focusNextSetOnRestEnd,

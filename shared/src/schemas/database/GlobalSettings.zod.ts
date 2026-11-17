@@ -13,6 +13,57 @@ export const MCP_OAUTH_LOOPBACK_REDIRECT_PATTERNS = [
   'http://[::1]:*',
 ] as const;
 
+/**
+ * Google's OAuth callbacks for Gemini custom MCP apps. Each Gemini integration
+ * gets its own path below these prefixes, so they are path-prefix patterns.
+ */
+export const MCP_OAUTH_GEMINI_REDIRECT_PATTERNS = [
+  'https://oauth-redirect.googleusercontent.com/r/*',
+  'https://oauth-redirect.googleusercontent.com/a/*',
+] as const;
+
+const MCP_OAUTH_LOOPBACK_HOSTNAMES = new Set([
+  'localhost',
+  '127.0.0.1',
+  '[::1]',
+]);
+
+/**
+ * Parses an HTTPS path-prefix pattern such as
+ * `https://oauth-redirect.googleusercontent.com/r/*`: the origin must match
+ * exactly and the redirect path must continue past the prefix. Only a single
+ * trailing `/*` after at least one fixed path segment is accepted. Returns
+ * null for anything else.
+ */
+export function parseMcpOAuthPathPrefixPattern(
+  value: string
+): { origin: string; pathPrefix: string } | null {
+  if (!value.endsWith('/*') || value.indexOf('*') !== value.length - 1) {
+    return null;
+  }
+  const base = value.slice(0, -1);
+  let url: URL;
+  try {
+    url = new URL(base);
+  } catch {
+    return null;
+  }
+  if (
+    url.protocol !== 'https:' ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    MCP_OAUTH_LOOPBACK_HOSTNAMES.has(url.hostname) ||
+    url.pathname === '/' ||
+    // Reject anything URL parsing rewrote (case, dot segments, encodings).
+    `${url.origin}${url.pathname}` !== base
+  ) {
+    return null;
+  }
+  return { origin: url.origin, pathPrefix: url.pathname };
+}
+
 const mcpOAuthLoopbackRedirectPatterns = new Set<string>(
   MCP_OAUTH_LOOPBACK_REDIRECT_PATTERNS
 );
@@ -22,6 +73,7 @@ export const mcpOAuthAllowedRedirectUriSchema = z
   .min(1)
   .refine((value) => {
     if (mcpOAuthLoopbackRedirectPatterns.has(value)) return true;
+    if (parseMcpOAuthPathPrefixPattern(value)) return true;
     if (value !== value.trim() || value.includes('*')) return false;
     try {
       const url = new URL(value);
@@ -36,7 +88,7 @@ export const mcpOAuthAllowedRedirectUriSchema = z
     } catch {
       return false;
     }
-  }, 'Must be an exact redirect URI or a supported loopback-any-port pattern.');
+  }, 'Must be an exact redirect URI, a supported loopback-any-port pattern, or an HTTPS path-prefix pattern ending in /*.');
 
 export const globalSettingsSchema = z.object({
   id: globalSettingsIdSchema,
