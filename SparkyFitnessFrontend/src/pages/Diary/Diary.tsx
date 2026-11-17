@@ -11,6 +11,7 @@ import { getNetCarbsValue } from '@/utils/nutrientUtils';
 import { compareDays } from '@workspace/shared';
 import WaterIntake from './WaterIntake';
 import CaffeineCard from './CaffeineCard';
+import BloodAlcoholCard from './BloodAlcoholCard';
 import EnergyBalanceCard from './EnergyBalanceCard';
 import MealCard from './MealCard';
 import DiaryTimeline from './DiaryTimeline';
@@ -30,6 +31,7 @@ import {
   Salad,
   Droplet,
   Coffee,
+  Wine,
   UtensilsCrossed,
   Dumbbell,
   HeartPulse,
@@ -90,7 +92,7 @@ import { getCalorieBudget } from '@/utils/calorieBudget';
 
 const Diary = () => {
   const { t } = useTranslation();
-  const { activeUserId } = useActiveUser();
+  const { activeUserId, isActingOnBehalf } = useActiveUser();
   const location = useLocation();
   const navigate = useNavigate();
   const { timezone, loggingLevel, energyUnit, convertEnergy, showNetCarbs } =
@@ -683,6 +685,17 @@ const Diary = () => {
       render: () => <CaffeineCard date={selectedDate} userId={activeUserId} />,
     });
 
+    // Owner only: the estimate needs the person's own body data, and the
+    // server refuses it to a delegate.
+    if (!isActingOnBehalf) {
+      list.push({
+        key: 'bloodAlcohol',
+        title: t('diary.bloodAlcohol.title', 'Estimated Blood Alcohol'),
+        icon: Wine,
+        render: () => <BloodAlcoholCard date={selectedDate} />,
+      });
+    }
+
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -700,6 +713,7 @@ const Diary = () => {
     openFoodSearchForMealType,
     todaysHealthMetrics,
     loadingHealthMetrics,
+    isActingOnBehalf,
     viewMode,
     macroGoals,
     dayIsOver,
