@@ -154,6 +154,27 @@ describe('persistOAuthState', () => {
       })
     ).rejects.toThrow(/not configured/);
   });
+
+  it('issues a state without a client of its own when the provider may borrow one', async () => {
+    const client = mockClient({
+      rows: [
+        {
+          id: 'provider-row-1',
+          encrypted_app_id: null,
+          app_id_iv: null,
+          app_id_tag: null,
+        },
+      ],
+      rowCount: 1,
+    });
+    const issued = await persistOAuthState(client, {
+      userId: 'owner-1',
+      providerType: 'googlesheets',
+      requireClient: false,
+      now: NOW,
+    });
+    expect(issued.id).toBe('provider-row-1');
+  });
 });
 
 describe('claimOAuthState', () => {

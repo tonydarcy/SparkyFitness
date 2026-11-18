@@ -16,6 +16,7 @@ import { WeatherProviderFields } from './WeatherProviderFields';
 import { McpServerFields } from './McpServerFields';
 import { MCP_SERVER_PROVIDER_TYPE } from '@workspace/shared';
 import { isProviderTypeOffered } from '@/utils/settings';
+import { GoogleSheetsSetupGuide } from './GoogleSheetsSetupGuide';
 import { Trans, useTranslation } from 'react-i18next';
 import type { ExternalDataProvider } from './ExternalProviderSettings';
 import { toast } from '@/hooks/use-toast';
@@ -1144,69 +1145,91 @@ export const EditProviderForm = ({
               autoComplete="off"
             />
           </div>
-          <p className="text-sm text-muted-foreground col-span-2">
-            <Trans
-              i18nKey={
-                editData.provider_type === 'googlesheets'
-                  ? 'settings.editProviderForm.googleSheetsIntegrationUsesOAuth2'
-                  : 'settings.editProviderForm.googleHealthIntegrationUsesOAuth22'
-              }
-              defaults={
-                editData.provider_type === 'googlesheets'
-                  ? 'Google Sheets export uses OAuth2. In your <link>Google Cloud Console</link>, enable the Google Sheets API and create an OAuth 2.0 Web Application client. After saving, click <strong>Connect</strong> on the provider card: SparkyFitness creates a spreadsheet in your Drive and rewrites it on every sync (daily by default).<br/>Your client must have this callback URL:'
-                  : 'Google Health integration uses OAuth2. After saving, click <strong>Connect</strong> on the provider card to authorize access.<br/>In your <link>Google Cloud Console</link>, your OAuth 2.0 Web Application client must have this callback URL:'
-              }
-              components={{
-                strong: <strong />,
-                br: <br />,
-                link: (
-                  <a
-                    href="https://console.cloud.google.com/apis/credentials"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 underline"
-                  />
-                ),
+          {editData.provider_type === 'googlesheets' ? (
+            <GoogleSheetsSetupGuide
+              mode="edit"
+              onCopy={async (text) => {
+                try {
+                  await navigator.clipboard.writeText(text);
+                  toast({
+                    title: t('common.copied', 'Copied!'),
+                    description: t(
+                      'settings.editProviderForm.callbackURLCopiedToClipboard',
+                      'Callback URL copied to clipboard.'
+                    ),
+                  });
+                } catch {
+                  toast({
+                    title: t(
+                      'settings.editProviderForm.copyFailed',
+                      'Copy Failed'
+                    ),
+                    description: t(
+                      'settings.googleSheetsSetup.copyManually',
+                      'Select the text and copy it by hand.'
+                    ),
+                    variant: 'destructive',
+                  });
+                }
               }}
             />
-            <strong className="flex items-center mt-1">
-              {`${window.location.origin}/${editData.provider_type}/callback`}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="ml-2 h-5 w-5"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (navigator.clipboard) {
-                    navigator.clipboard.writeText(
-                      `${window.location.origin}/${editData.provider_type}/callback`
-                    );
-                    toast({
-                      title: t('common.copied', 'Copied!'),
-                      description: t(
-                        'settings.editProviderForm.callbackURLCopiedToClipboard',
-                        'Callback URL copied to clipboard.'
-                      ),
-                    });
-                  } else {
-                    toast({
-                      title: t(
-                        'settings.editProviderForm.copyFailed',
-                        'Copy Failed'
-                      ),
-                      description: t(
-                        'settings.editProviderForm.clipboardAccessRequiresASecure',
-                        'Clipboard access requires a secure context (HTTPS).'
-                      ),
-                      variant: 'destructive',
-                    });
-                  }
+          ) : (
+            <p className="text-sm text-muted-foreground col-span-2">
+              <Trans
+                i18nKey="settings.editProviderForm.googleHealthIntegrationUsesOAuth22"
+                defaults="Google Health integration uses OAuth2. After saving, click <strong>Connect</strong> on the provider card to authorize access.<br/>In your <link>Google Cloud Console</link>, your OAuth 2.0 Web Application client must have this callback URL:"
+                components={{
+                  strong: <strong />,
+                  br: <br />,
+                  link: (
+                    <a
+                      href="https://console.cloud.google.com/apis/credentials"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 underline"
+                    />
+                  ),
                 }}
-              >
-                <Clipboard className="h-4 w-4" />
-              </Button>
-            </strong>
-          </p>
+              />
+              <strong className="flex items-center mt-1">
+                {`${window.location.origin}/googlehealth/callback`}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-2 h-5 w-5"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(
+                        `${window.location.origin}/googlehealth/callback`
+                      );
+                      toast({
+                        title: t('common.copied', 'Copied!'),
+                        description: t(
+                          'settings.editProviderForm.callbackURLCopiedToClipboard',
+                          'Callback URL copied to clipboard.'
+                        ),
+                      });
+                    } else {
+                      toast({
+                        title: t(
+                          'settings.editProviderForm.copyFailed',
+                          'Copy Failed'
+                        ),
+                        description: t(
+                          'settings.editProviderForm.clipboardAccessRequiresASecure',
+                          'Clipboard access requires a secure context (HTTPS).'
+                        ),
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                >
+                  <Clipboard className="h-4 w-4" />
+                </Button>
+              </strong>
+            </p>
+          )}
         </>
       )}
       {editData.provider_type === 'hevy' && (

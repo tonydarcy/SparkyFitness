@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getSystemClient } from '../../db/poolManager.js';
 import { log } from '../../config/logging.js';
+import { describeError } from '../../utils/errors.js';
 import {
   noteWorkActivity,
   throwIfWorkAborted,
@@ -13,10 +14,59 @@ import { buildExportTabs, type SheetTab } from './googleSheetsExport.js';
 // server creates one spreadsheet in their Drive and rewrites its tabs on every
 // sync, so the sheet always mirrors what SparkyFitness holds.
 
-export const GOOGLE_SHEETS_OAUTH = {
+export const GOOGLE_SHEETS_OAUTH: googleOAuth.GoogleOAuthProvider = {
   providerType: 'googlesheets',
   label: 'Google Sheets',
-} as const;
+  // A Sheets provider saved without a client of its own uses the person's
+  // Google Health client, so one Google Cloud client serves both.
+  credentialFallbackTypes: ['googlehealth'],
+};
+
+const SHEETS_API_LIBRARY_URL =
+  'https://console.cloud.google.com/apis/library/sheets.googleapis.com';
+
+/** The Google Sheets API is turned off in the person's Google Cloud project. */
+export class SheetsApiDisabledError extends Error {
+  constructor(readonly activationUrl: string) {
+    super(
+      'Google Sheets is linked, but the Google Sheets API is turned off in your Google Cloud project. Turn it on, wait a minute, then press the refresh button on the Google Sheets provider.'
+    );
+    this.name = 'SheetsApiDisabledError';
+  }
+}
+
+interface GoogleApiErrorBody {
+  error?: {
+    message?: string;
+    details?: {
+      reason?: string;
+      metadata?: { activationUrl?: string };
+    }[];
+  };
+}
+
+/**
+ * Recognises Google's "API has not been used in project ... or it is
+ * disabled" answer, which every Sheets call gets until the API is turned on.
+ */
+export function sheetsApiDisabledError(
+  error: unknown
+): SheetsApiDisabledError | null {
+  const response = (
+    error as { response?: { status?: number; data?: GoogleApiErrorBody } }
+  ).response;
+  if (response?.status !== 403) return null;
+  const body = response.data?.error;
+  const info = body?.details?.find((d) => d.reason === 'SERVICE_DISABLED');
+  const disabled =
+    info !== undefined ||
+    /has not been used in project|it is disabled/i.test(body?.message ?? '');
+  if (!disabled) return null;
+  const url = info?.metadata?.activationUrl;
+  return new SheetsApiDisabledError(
+    url && url.startsWith('https://') ? url : SHEETS_API_LIBRARY_URL
+  );
+}
 
 // drive.file only reaches files this app created, so it is a non-sensitive
 // scope: no Google verification review, and no access to the rest of Drive.
@@ -47,6 +97,8 @@ async function getAuthorizationUrl(userId: string, redirectUri: string) {
     ({ state } = await persistOAuthState(client, {
       userId,
       providerType: 'googlesheets',
+      // The client may be the Google Health one; googleOAuth checks for it.
+      requireClient: false,
     }));
   } finally {
     client.release();
@@ -159,6 +211,9 @@ async function createSpreadsheet(
 // is never overwritten, and a tab the person renamed is still found.
 const TAB_METADATA_KEY = 'sparkyfitness-tab';
 
+// Light grey behind the header row.
+const HEADER_BACKGROUND = { red: 0.93, green: 0.94, blue: 0.96 };
+
 export interface SheetInfo {
   sheetId: number;
   title: string;
@@ -195,6 +250,8 @@ async function getSheets(
   } catch (error) {
     const status = (error as { response?: { status?: number } }).response
       ?.status;
+    // The API itself is off: the sheet is still there, so keep its link.
+    if (sheetsApiDisabledError(error)) throw error;
     // Deleted, or made outside this app's drive.file reach: start a new one.
     if (status === 404 || status === 403) return null;
     throw error;
@@ -217,9 +274,11 @@ async function ensureSpreadsheet(userId: string, accessToken: string) {
 
 /**
  * Sizes each export tab to its data (adding missing ones), clears it and
- * writes it again. Sheets without the export's metadata belong to the person
- * and are left alone, except in a spreadsheet just created (`created`), whose
- * empty starter sheet is removed once the export's tabs exist.
+ * writes it again, with a bold header row and columns fitted to their
+ * contents. Export tabs not in `tabs` (nothing logged there any more) are
+ * removed. Sheets without the export's metadata belong to the person and are
+ * left alone, except in a spreadsheet just created (`created`), whose empty
+ * starter sheet is removed once the export's tabs exist.
  */
 export async function writeTabs(
   accessToken: string,
@@ -237,6 +296,7 @@ export async function writeTabs(
   let nextSheetId = Math.max(0, ...existing.map((s) => s.sheetId)) + 1;
   const requests: Record<string, unknown>[] = [];
   const titles: string[] = [];
+  const sheetIds: number[] = [];
   for (const tab of tabs) {
     const gridProperties = {
       rowCount: Math.max(tab.rows.length, 1),
@@ -246,6 +306,7 @@ export async function writeTabs(
     const sheet = owned.get(tab.title);
     if (sheet) {
       titles.push(sheet.title);
+      sheetIds.push(sheet.sheetId);
       requests.push({
         updateSheetProperties: {
           properties: { sheetId: sheet.sheetId, gridProperties },
@@ -265,6 +326,7 @@ export async function writeTabs(
     usedTitles.add(title);
     titles.push(title);
     const sheetId = nextSheetId++;
+    sheetIds.push(sheetId);
     requests.push(
       { addSheet: { properties: { sheetId, title, gridProperties } } },
       {
@@ -279,11 +341,30 @@ export async function writeTabs(
       }
     );
   }
-  if (created) {
-    for (const sheet of existing) {
-      if (sheet.exportTab === null) {
-        requests.push({ deleteSheet: { sheetId: sheet.sheetId } });
-      }
+  // A bold, shaded header row on every tab that has data.
+  for (const [index, tab] of tabs.entries()) {
+    if (tab.rows.length < 2) continue;
+    requests.push({
+      repeatCell: {
+        range: { sheetId: sheetIds[index], startRowIndex: 0, endRowIndex: 1 },
+        cell: {
+          userEnteredFormat: {
+            textFormat: { bold: true },
+            backgroundColor: HEADER_BACKGROUND,
+          },
+        },
+        fields: 'userEnteredFormat(textFormat,backgroundColor)',
+      },
+    });
+  }
+  const wanted = new Set(tabs.map((tab) => tab.title));
+  for (const sheet of existing) {
+    // An export tab that no longer has data (or a starter sheet in a new
+    // spreadsheet) goes; tabs the person made otherwise stay.
+    const stale = sheet.exportTab !== null && !wanted.has(sheet.exportTab);
+    const starter = created && sheet.exportTab === null;
+    if (stale || starter) {
+      requests.push({ deleteSheet: { sheetId: sheet.sheetId } });
     }
   }
   await sheetsPost(
@@ -315,6 +396,28 @@ export async function writeTabs(
       );
     }
   }
+
+  // Fit each column to its contents once the values are in. Cosmetic only:
+  // the data is written, so a failure here is logged and retried next sync.
+  try {
+    await sheetsPost(
+      `${SHEETS_API}/${spreadsheetId}:batchUpdate`,
+      {
+        requests: sheetIds.map((sheetId) => ({
+          autoResizeDimensions: {
+            dimensions: { sheetId, dimension: 'COLUMNS' },
+          },
+        })),
+      },
+      accessToken
+    );
+  } catch (error) {
+    throwIfWorkAborted();
+    log(
+      'warn',
+      `Could not fit Google Sheets export columns: ${describeError(error)}`
+    );
+  }
 }
 
 async function getAccessToken(userId: string): Promise<string> {
@@ -332,8 +435,20 @@ async function getAccessToken(userId: string): Promise<string> {
 async function syncGoogleSheets(userId: string): Promise<string> {
   const accessToken = await getAccessToken(userId);
   const tabs = await buildExportTabs(userId);
-  const { id, sheets, created } = await ensureSpreadsheet(userId, accessToken);
-  await writeTabs(accessToken, id, sheets, tabs, created);
+  let id: string;
+  try {
+    const spreadsheet = await ensureSpreadsheet(userId, accessToken);
+    id = spreadsheet.id;
+    await writeTabs(
+      accessToken,
+      id,
+      spreadsheet.sheets,
+      tabs,
+      spreadsheet.created
+    );
+  } catch (error) {
+    throw sheetsApiDisabledError(error) ?? error;
+  }
   const client = await getSystemClient();
   try {
     await client.query(
@@ -374,7 +489,11 @@ async function linkAccount(
     code,
     redirectUri
   );
-  await ensureSpreadsheet(userId, accessToken);
+  try {
+    await ensureSpreadsheet(userId, accessToken);
+  } catch (error) {
+    throw sheetsApiDisabledError(error) ?? error;
+  }
 }
 
 /** The provider row's sync settings, read fresh for the scheduler. */

@@ -2,9 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CallbackStatus } from './CallbackStatus';
+import { Button } from '@/components/ui/button';
 import { useLinkGoogleSheetsMutation } from '@/hooks/Integrations/useIntegrations';
 
-type LinkStatus = 'processing' | 'missing' | 'linked' | 'failed';
+type LinkStatus =
+  'processing' | 'missing' | 'linked' | 'failed' | 'apiDisabled';
+
+const SHEETS_API_URL =
+  'https://console.cloud.google.com/apis/library/sheets.googleapis.com';
 
 const GoogleSheetsCallback = () => {
   const { t } = useTranslation();
@@ -42,8 +47,13 @@ const GoogleSheetsCallback = () => {
       try {
         // The mutation shows its own error toast.
         await linkGoogleSheetsAccount({ code, state });
-      } catch {
-        next = 'failed';
+      } catch (error) {
+        // Linked, but the Sheets API is off: the one setup step Google does
+        // not check while signing in.
+        next =
+          (error as { code?: unknown } | null)?.code === 'SHEETS_API_DISABLED'
+            ? 'apiDisabled'
+            : 'failed';
       }
       if (mountedRef.current) setStatus(next);
     };
@@ -53,7 +63,8 @@ const GoogleSheetsCallback = () => {
   // Back to Settings shortly after the outcome is shown. Cleared on unmount,
   // so leaving the page first never redirects from somewhere else.
   useEffect(() => {
-    if (status === 'processing') return;
+    // A step is left for the person, so stay here until they act.
+    if (status === 'processing' || status === 'apiDisabled') return;
     const timeoutId = setTimeout(() => navigate('/settings'), 1500);
     return () => clearTimeout(timeoutId);
   }, [status, navigate]);
@@ -75,7 +86,41 @@ const GoogleSheetsCallback = () => {
       'integrations.googleSheetsCallback.failed',
       'Error linking Google Sheets.'
     ),
+    apiDisabled: t(
+      'integrations.googleSheetsCallback.apiDisabled',
+      'Google Sheets is linked, but the Google Sheets API is turned off in your Google Cloud project. Turn it on, wait a minute, then press the refresh button on the Google Sheets provider in Settings.'
+    ),
   };
+
+  if (status === 'apiDisabled') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-transparent">
+        <div className="p-8 bg-card rounded-xl shadow-lg border text-center max-w-md w-full space-y-4">
+          <p className="text-foreground">{messages.apiDisabled}</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button asChild>
+              <a
+                href={SHEETS_API_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t(
+                  'integrations.googleSheetsCallback.turnOnApi',
+                  'Turn on the Google Sheets API'
+                )}
+              </a>
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/settings')}>
+              {t(
+                'integrations.googleSheetsCallback.backToSettings',
+                'Back to Settings'
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <CallbackStatus

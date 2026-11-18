@@ -16,6 +16,7 @@ import { RoutingProviderFields } from './RoutingProviderFields';
 import { McpServerFields } from './McpServerFields';
 import { MCP_SERVER_PROVIDER_TYPE } from '@workspace/shared';
 import { WeatherProviderFields } from './WeatherProviderFields';
+import { GoogleSheetsSetupGuide } from './GoogleSheetsSetupGuide';
 
 // Developer dashboards where each OAuth provider's Client ID/Secret and callback
 // URL are configured. Kept in sync with the per-provider text in EditProviderForm.
@@ -584,14 +585,13 @@ export const ProviderSpecificFields = ({
         </>
       )}
 
-      {[
-        'withings',
-        'fitbit',
-        'oura',
-        'googlehealth',
-        'googlesheets',
-        'polar',
-      ].includes(provider.provider_type || '') && (
+      {provider.provider_type === 'googlesheets' && (
+        <GoogleSheetsSetupGuide mode="add" onCopy={onCopy} />
+      )}
+
+      {['withings', 'fitbit', 'oura', 'googlehealth', 'polar'].includes(
+        provider.provider_type || ''
+      ) && (
         <p className="text-sm text-muted-foreground col-span-2">
           <Trans
             i18nKey="settings.providerSpecificFields.thisIntegrationUsesOAuth2You2"
