@@ -37,7 +37,7 @@ import OidcCallback from '@/components/OidcCallback';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import {
   useCurrentVersionQuery,
-  useInvalidateGithubVersion,
+  useRefreshGithubVersion,
 } from './hooks/useGeneralQueries';
 import {
   RootErrorBoundary,
@@ -185,13 +185,16 @@ const Root = () => {
   const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false);
   const { data: appVersion } = useCurrentVersionQuery();
   const navigate = useNavigate();
-  const invalidateGithubVersion = useInvalidateGithubVersion();
+  const refreshGithubVersion = useRefreshGithubVersion();
 
-  const handleShowNewReleaseDialog = () => {
-    invalidateGithubVersion();
+  const handleShowNewReleaseDialog = async () => {
     // The background check is silent when GitHub can't be reached, so a
-    // manual "What's New" with nothing loaded says why nothing opens.
-    if (!latestRelease) {
+    // manual "What's New" waits for a fresh check and says when it failed.
+    try {
+      const release = await refreshGithubVersion();
+      setLatestRelease(release);
+      setShowNewReleaseDialog(true);
+    } catch {
       toast({
         title: t('release.checkFailedTitle', "Couldn't check for updates"),
         description: t(
@@ -200,9 +203,7 @@ const Root = () => {
         ),
         variant: 'destructive',
       });
-      return;
     }
-    setShowNewReleaseDialog(true);
   };
 
   const handleDismissRelease = (version: string) => {

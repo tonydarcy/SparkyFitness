@@ -533,7 +533,7 @@ const Auth = () => {
               )}
               {(loginSettings?.email?.enabled ?? true) ? (
                 <Tabs
-                  value={activeTab}
+                  value={loginSettings?.signup_disabled ? 'signin' : activeTab}
                   onValueChange={setActiveTab}
                   className="w-full"
                 >
