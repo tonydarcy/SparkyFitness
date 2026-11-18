@@ -1526,7 +1526,12 @@
     "retry": "Retry",
     "title": "Diary",
     "addFood": "Add Food",
-    "emptyDay": "No entries recorded for this day"
+    "emptyDay": "No entries recorded for this day",
+    "dayNote": {
+      "title": "Day Note",
+      "placeholder": "How did today go? Anything worth remembering about what you ate.",
+      "saveFailed": "Couldn't save the day note"
+    }
   },
   "medications": {
     "title": "Medications",

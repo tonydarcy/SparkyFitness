@@ -4145,6 +4145,15 @@
     "nutritionSummary": "Nutrition Summary",
     "dailyEnergyGoal": "Daily Energy Goal",
     "waterIntake": "Water Intake",
+    "dayNote": {
+      "title": "Day Note",
+      "placeholder": "How did today go? Anything worth remembering about what you ate.",
+      "hint": "Saves when you click away. Clear the text to delete it.",
+      "saving": "Saving...",
+      "saved": "Saved",
+      "failedToLoad": "Failed to load the day's note.",
+      "failedToSave": "Failed to save the day's note."
+    },
     "energyBalance": {
       "title": "Expenditure & Balance",
       "unavailable": "Your expenditure estimate is not available right now.",

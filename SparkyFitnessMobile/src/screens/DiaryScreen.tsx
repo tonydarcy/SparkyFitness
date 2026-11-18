@@ -39,6 +39,7 @@ import CalendarSheet, {
 } from '../components/CalendarSheet';
 import CheckInPhotosSummary from '../components/CheckInPhotosSummary';
 import DateNavigator from '../components/DateNavigator';
+import DayNoteCard from '../components/DayNoteCard';
 import DiaryCalorieMacroSummary from '../components/DiaryCalorieMacroSummary';
 import EmptyDayIllustration from '../components/EmptyDayIllustration';
 import ExerciseSummary from '../components/ExerciseSummary';
@@ -699,6 +700,9 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
             >
               {t('diary.addFood', { defaultValue: 'Add Food' })}
             </Button>
+            <View className="mt-4">
+              <DayNoteCard key={selectedDate} date={selectedDate} />
+            </View>
           </>
         ) : (
           <>
@@ -732,6 +736,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
               onPressMealType={openMealTypeDetail}
               selection={foodSelection}
             />
+            <DayNoteCard key={selectedDate} date={selectedDate} />
             <ExerciseSummary
               exerciseEntries={summary.exerciseEntries}
               entryDate={selectedDate}

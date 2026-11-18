@@ -11,6 +11,7 @@ import { getNetCarbsValue } from '@/utils/nutrientUtils';
 import { compareDays } from '@workspace/shared';
 import WaterIntake from './WaterIntake';
 import CaffeineCard from './CaffeineCard';
+import DayNoteCard from './DayNoteCard';
 import BloodAlcoholCard from './BloodAlcoholCard';
 import EnergyBalanceCard from './EnergyBalanceCard';
 import MealCard from './MealCard';
@@ -31,6 +32,7 @@ import {
   Salad,
   Droplet,
   Coffee,
+  NotebookPen,
   Wine,
   UtensilsCrossed,
   Dumbbell,
@@ -663,6 +665,15 @@ const Diary = () => {
     }
 
     list.push({
+      key: 'dayNote',
+      title: t('diary.dayNote.title', 'Day Note'),
+      icon: NotebookPen,
+      render: () => (
+        <DayNoteCard date={selectedDate} userId={activeUserId ?? undefined} />
+      ),
+    });
+
+    list.push({
       key: 'exercise',
       title: t('diary.exercise', 'Exercise'),
       icon: Dumbbell,
@@ -714,6 +725,7 @@ const Diary = () => {
     todaysHealthMetrics,
     loadingHealthMetrics,
     isActingOnBehalf,
+    activeUserId,
     viewMode,
     macroGoals,
     dayIsOver,

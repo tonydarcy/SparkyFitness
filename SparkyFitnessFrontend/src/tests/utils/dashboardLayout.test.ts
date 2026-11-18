@@ -24,6 +24,7 @@ describe('buildWidgetKeys', () => {
       'energyBalance',
       'meal:a',
       'meal:b',
+      'dayNote',
       'exercise',
       'caffeine',
       'bloodAlcohol',
