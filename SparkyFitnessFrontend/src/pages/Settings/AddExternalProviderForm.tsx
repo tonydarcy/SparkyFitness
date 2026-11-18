@@ -126,6 +126,8 @@ const AddExternalProviderForm = ({
   );
 
   const [fullSyncOnConnect, setFullSyncOnConnect] = useState(false);
+  // True while the name is the one filled in for Sheets and not yet edited.
+  const [nameAutoFilled, setNameAutoFilled] = useState(false);
 
   const connectionHandlers: Record<string, (id: string) => Promise<void>> = {
     withings: () => handleConnectWithings(),
@@ -279,6 +281,7 @@ const AddExternalProviderForm = ({
         ),
       });
 
+      setNameAutoFilled(false);
       setNewProvider({
         provider_name: '',
         provider_type: 'openfoodfacts',
@@ -360,12 +363,13 @@ const AddExternalProviderForm = ({
               <Input
                 id="new_provider_name"
                 value={newProvider.provider_name}
-                onChange={(e) =>
+                onChange={(e) => {
+                  setNameAutoFilled(false);
                   setNewProvider((prev) => ({
                     ...prev,
                     provider_name: e.target.value,
-                  }))
-                }
+                  }));
+                }}
                 placeholder={t(
                   'settings.addExternalProviderForm.myProviderName',
                   'My Provider name'
@@ -381,18 +385,19 @@ const AddExternalProviderForm = ({
               </Label>
               <Select
                 value={newProvider.provider_type}
-                onValueChange={(value) =>
+                onValueChange={(value) => {
+                  const sheetsName = t(
+                    'settings.googleSheetsSetup.defaultName',
+                    'Google Sheets export'
+                  );
+                  // Only a name filled in for Sheets is swapped; one the
+                  // person typed stays.
+                  const ownName = nameAutoFilled
+                    ? ''
+                    : (newProvider.provider_name ?? '');
+                  const fill = !ownName && value === 'googlesheets';
+                  setNameAutoFilled(fill);
                   setNewProvider((prev) => {
-                    const sheetsName = t(
-                      'settings.googleSheetsSetup.defaultName',
-                      'Google Sheets export'
-                    );
-                    // Only the name filled in for Sheets is swapped; one the
-                    // person typed stays.
-                    const ownName =
-                      prev.provider_name === sheetsName
-                        ? ''
-                        : prev.provider_name;
                     return {
                       ...prev,
                       provider_type:
@@ -415,8 +420,8 @@ const AddExternalProviderForm = ({
                           ? { allowed_tools: [], send_user_id: false }
                           : undefined,
                     };
-                  })
-                }
+                  });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />

@@ -372,9 +372,11 @@ export async function getStatus(provider: GoogleOAuthProvider, userId: string) {
 }
 
 /**
- * True when another linked Google integration of this user may hold the same
- * grant, because one of the two has no client of its own and borrows the
- * other's. Revoking would then cut that integration off too.
+ * True when another Google integration of this user is still linked. It may
+ * hold the same grant (a borrowed client, or another client in the same Google
+ * project), and Google revokes a grant for every client in the project, so a
+ * revoke here would cut that integration off too. The person can still remove
+ * access at myaccount.google.com.
  */
 async function sharesGoogleGrant(
   client: Queryable,
@@ -382,17 +384,13 @@ async function sharesGoogleGrant(
   userId: string
 ): Promise<boolean> {
   const result = await client.query(
-    `SELECT provider_type,
-            (encrypted_app_id IS NOT NULL AND encrypted_app_key IS NOT NULL) AS own_client
-       FROM external_data_providers
+    `SELECT 1 FROM external_data_providers
       WHERE user_id = $1 AND provider_type = ANY($2::text[])
-        AND (provider_type = $3 OR encrypted_refresh_token IS NOT NULL)`,
+        AND provider_type <> $3 AND encrypted_refresh_token IS NOT NULL
+      LIMIT 1`,
     [userId, GOOGLE_GRANT_SHARING_TYPES, provider.providerType]
   );
-  const rows = result.rows as { provider_type: string; own_client: boolean }[];
-  const self = rows.find((r) => r.provider_type === provider.providerType);
-  const others = rows.filter((r) => r.provider_type !== provider.providerType);
-  return others.some((other) => !self?.own_client || !other.own_client);
+  return result.rows.length > 0;
 }
 
 /** Revokes the access token with Google (best effort) and clears the stored tokens. */
@@ -414,7 +412,7 @@ export async function disconnect(
       if (await sharesGoogleGrant(client, provider, userId)) {
         log(
           'info',
-          `Skipped revoking ${provider.label} token for user ${userId}: another linked Google integration shares its client.`
+          `Skipped revoking ${provider.label} token for user ${userId}: another Google integration is still linked.`
         );
       } else if (tokenRow?.encrypted_access_token) {
         const accessToken = await decryptField(
