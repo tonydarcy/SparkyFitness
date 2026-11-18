@@ -4,10 +4,13 @@ import {
   buildDailySummaryTab,
   buildFoodLogTab,
   buildTableTab,
+  columnLabel,
   daysBetween,
+  dropEmptyColumns,
   toCell,
 } from '../integrations/googlesheets/googleSheetsExport.js';
 import {
+  sheetsApiDisabledError,
   spreadsheetIdFromUrl,
   tabRange,
   withSheetsRetry,
@@ -44,17 +47,20 @@ describe('Google Sheets export tabs', () => {
     const [header, row] = tab.rows;
     const col = (name: string) => row[header.indexOf(name)];
     expect(tab.title).toBe('Food log');
-    expect(col('date')).toBe('2026-11-13');
-    expect(col('time')).toBe('07:30');
-    expect(col('calories (kcal)')).toBe(300);
-    expect(col('protein (g)')).toBe(10);
-    expect(col('carbs (g)')).toBe('');
+    expect(col('Date')).toBe('2026-11-13');
+    expect(col('Time')).toBe('07:30');
+    expect(col('Meal')).toBe('breakfast');
+    expect(col('Calories (kcal)')).toBe(300);
+    expect(col('Protein (g)')).toBe(10);
     expect(col('Omega3 (g)')).toBe(0.2);
+    // Columns nothing was logged in are left out.
+    expect(header).not.toContain('Carbs (g)');
+    expect(header).not.toContain('Brand');
     // Timestamps are shown in the person's own timezone, not UTC.
-    expect(col('logged_at')).toBe('2026-11-13 07:31');
+    expect(col('Logged at')).toBe('2026-11-13 07:31');
   });
 
-  it('copies table rows without ids or audit columns', () => {
+  it('copies table rows newest first, without ids, audit columns or machine data', () => {
     const tab = buildTableTab(
       'Body',
       [
@@ -64,14 +70,47 @@ describe('Google Sheets export tabs', () => {
           created_by_user_id: 'u',
           entry_date: '2026-11-01',
           weight: 80.5,
-          tags: ['a'],
+          water_ml: null,
+          tags: ['a', 'b'],
+          stage_events: [{ stage: 'deep' }],
+          updated_at: new Date('2026-11-01T00:00:00Z'),
+        },
+        {
+          id: 'y',
+          entry_date: '2026-11-02',
+          weight: 80.1,
+          water_ml: null,
+          tags: [],
+          stage_events: null,
         },
       ],
       TZ
     );
     expect(tab.rows).toEqual([
-      ['entry_date', 'weight', 'tags'],
-      ['2026-11-01', 80.5, '["a"]'],
+      ['Date', 'Weight', 'Tags'],
+      ['2026-11-02', 80.1, ''],
+      ['2026-11-01', 80.5, 'a, b'],
+    ]);
+  });
+
+  it('turns column names into readable headers', () => {
+    expect(columnLabel('water_ml')).toBe('Water (ml)');
+    expect(columnLabel('resting_heart_rate')).toBe('Resting heart rate');
+    expect(columnLabel('avg_hrv')).toBe('Avg HRV');
+    expect(columnLabel('duration_minutes')).toBe('Duration (min)');
+    expect(columnLabel('entry_date')).toBe('Date');
+    expect(columnLabel('dietary_fiber', 'g')).toBe('Fiber (g)');
+  });
+
+  it('drops columns that are empty in every row but keeps the first', () => {
+    expect(
+      dropEmptyColumns([
+        ['Date', 'A', 'B'],
+        ['', 1, ''],
+      ])
+    ).toEqual([
+      ['Date', 'A'],
+      ['', 1],
     ]);
   });
 
@@ -89,15 +128,17 @@ describe('Google Sheets export tabs', () => {
       [{ entry_date: '2026-11-01', active_calories: 400, other_calories: 300 }],
       [{ entry_date: '2026-11-02', water_ml: 1500 }]
     );
-    const [header, day1, day2] = tab.rows;
+    // Newest day first.
+    const [header, day2, day1] = tab.rows;
     const col = (row: unknown[], name: string) => row[header.indexOf(name)];
-    expect(col(day1, 'calories (kcal)')).toBe(2000);
-    expect(col(day1, 'dietary_fiber (g)')).toBe(30);
-    expect(col(day1, 'goal_calories (kcal)')).toBe(2200);
-    expect(col(day1, 'exercise_calories (kcal)')).toBe(300);
-    expect(col(day2, 'date')).toBe('2026-11-02');
-    expect(col(day2, 'calories (kcal)')).toBe(0);
-    expect(col(day2, 'water_ml')).toBe(1500);
+    expect(col(day1, 'Date')).toBe('2026-11-01');
+    expect(col(day1, 'Calories (kcal)')).toBe(2000);
+    expect(col(day1, 'Fiber (g)')).toBe(30);
+    expect(col(day1, 'Calorie goal (kcal)')).toBe(2200);
+    expect(col(day1, 'Exercise calories (kcal)')).toBe(300);
+    expect(col(day2, 'Date')).toBe('2026-11-02');
+    expect(col(day2, 'Calories (kcal)')).toBe(0);
+    expect(col(day2, 'Water (ml)')).toBe(1500);
   });
 
   it('truncates cells to the Sheets limit', () => {
@@ -180,6 +221,11 @@ describe('Google Sheets writer', () => {
             },
           },
         },
+        {
+          repeatCell: expect.objectContaining({
+            range: { sheetId: 7, startRowIndex: 0, endRowIndex: 1 },
+          }),
+        },
       ],
     });
     expect(calls[1][0]).toContain('values:batchClear');
@@ -188,9 +234,65 @@ describe('Google Sheets writer', () => {
     });
     expect(
       calls
-        .slice(2)
+        .slice(2, -1)
         .map((c) => (c[1] as { data: { range: string }[] }).data[0].range)
     ).toEqual(["'My food'!A1", "'Sleep (SparkyFitness)'!A1"]);
+    // Columns are fitted to their contents after the values are written.
+    expect(calls[calls.length - 1][1]).toEqual({
+      requests: [7, 10].map((sheetId) => ({
+        autoResizeDimensions: {
+          dimensions: { sheetId, dimension: 'COLUMNS' },
+        },
+      })),
+    });
+  });
+
+  it("removes its own tabs that no longer have data, never the person's", async () => {
+    await writeTabs(
+      'token',
+      'sheet-1',
+      [
+        { sheetId: 1, title: 'Food log', exportTab: 'Food log' },
+        { sheetId: 2, title: 'Sleep', exportTab: 'Sleep' },
+        { sheetId: 3, title: 'Notes', exportTab: null },
+      ],
+      [{ title: 'Food log', rows: [['No data logged yet']] }]
+    );
+    const { requests } = vi.mocked(axios.post).mock.calls[0][1] as {
+      requests: Record<string, unknown>[];
+    };
+    expect(requests.filter((r) => 'deleteSheet' in r)).toEqual([
+      { deleteSheet: { sheetId: 2 } },
+    ]);
+  });
+
+  it('recognises a Google Sheets API that is turned off', () => {
+    const disabled = sheetsApiDisabledError({
+      response: {
+        status: 403,
+        data: {
+          error: {
+            message: 'Google Sheets API has not been used in project 1',
+            details: [
+              {
+                reason: 'SERVICE_DISABLED',
+                metadata: {
+                  activationUrl:
+                    'https://console.developers.google.com/apis/api/sheets.googleapis.com/overview?project=1',
+                },
+              },
+            ],
+          },
+        },
+      },
+    });
+    expect(disabled?.activationUrl).toContain('project=1');
+    expect(
+      sheetsApiDisabledError({
+        response: { status: 403, data: { error: { message: 'nope' } } },
+      })
+    ).toBeNull();
+    expect(sheetsApiDisabledError(new Error('boom'))).toBeNull();
   });
 
   it('removes the starter sheet of a new spreadsheet after adding the tabs', async () => {

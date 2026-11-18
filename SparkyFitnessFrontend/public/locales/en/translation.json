@@ -3333,8 +3333,7 @@
       "europeMcpeuCorosComNot": "Europe (mcpeu.coros.com) <span>(not yet tested)</span>",
       "mainlandChinaMcpcnCorosCom": "Mainland China (mcpcn.coros.com) <span>(not yet tested)</span>",
       "ensureLocalUrl": "Also ensure your local URL is correct if testing locally.",
-      "stravaCallbackNote": "Note: Strava callback URL on the server is configured to: <strong>{{value}}</strong>",
-      "googleSheetsIntegrationUsesOAuth2": "Google Sheets export uses OAuth2. In your <link>Google Cloud Console</link>, enable the Google Sheets API and create an OAuth 2.0 Web Application client. After saving, click <strong>Connect</strong> on the provider card: SparkyFitness creates a spreadsheet in your Drive and rewrites it on every sync (daily by default).<br/>Your client must have this callback URL:"
+      "stravaCallbackNote": "Note: Strava callback URL on the server is configured to: <strong>{{value}}</strong>"
     },
     "externalProviderList": {
       "dragToReorderProvider": "Drag to reorder provider",
@@ -3656,6 +3655,17 @@
         "setupHint": "Answer a few questions to finish setting it up.",
         "setupAction": "Set up"
       }
+    },
+    "googleSheetsSetup": {
+      "title": "Set up the export (about 5 minutes, once)",
+      "reuseGoogleHealth": "You already use Google Health, so you can skip making a new client: leave the Client ID and Client Secret blank to use the Google Health one. Do step 1, then open <link>your Google Health client</link> and add the redirect URI from step 3 to it.",
+      "step1": "Turn on the <link>Google Sheets API</link>. If Google asks, create a project first (any name).",
+      "step2": "If you have not before, set up the <link>Google Auth Platform</link> (app name, your email, audience External). Then on <audience>Audience</audience>, click <strong>Publish app</strong>, so the connection does not expire after 7 days. No Google review is needed.",
+      "step3": "<link>Create an OAuth client</link> of type <strong>Web application</strong>, with this <strong>Authorized redirect URI</strong>:",
+      "step4Add": "Paste the Client ID and Client Secret here and click Add Provider. Google opens so you can allow access, and your spreadsheet fills in about a minute.",
+      "step4Edit": "Paste the Client ID and Client Secret here, save, then click Connect on the provider card.",
+      "copy": "Copy",
+      "defaultName": "Google Sheets export"
     }
   },
   "admin": {
@@ -7962,7 +7972,10 @@
       "missingAuthorizationCodeInCallback": "Missing authorization code in callback.",
       "processing": "Processing Google Sheets authorization...",
       "linked": "Google Sheets linked. Your first export is running.",
-      "failed": "Error linking Google Sheets."
+      "failed": "Error linking Google Sheets.",
+      "apiDisabled": "Google Sheets is linked, but the Google Sheets API is turned off in your Google Cloud project. Turn it on, wait a minute, then press the refresh button on the Google Sheets provider in Settings.",
+      "turnOnApi": "Turn on the Google Sheets API",
+      "backToSettings": "Back to Settings"
     },
     "syncStillRunning": "It may still be running, or it failed on the server. Check back in a few minutes.",
     "googleSheetsAuthorizeError": "Failed to get Google Sheets authorization URL.",

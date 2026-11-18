@@ -20,6 +20,7 @@ import {
   useConnectCorosMutation,
   useConnectStravaMutation,
   useConnectWithingsMutation,
+  useConnectGoogleSheetsMutation,
   useLoginGarminMutation,
   useSyncHevyMutation,
   useSyncLiftosaurMutation,
@@ -88,6 +89,10 @@ const AddExternalProviderForm = ({
     mutateAsync: handleConnectWithings,
     isPending: isConnectingWithings,
   } = useConnectWithingsMutation();
+  const {
+    mutateAsync: handleConnectGoogleSheets,
+    isPending: isConnectingGoogleSheets,
+  } = useConnectGoogleSheetsMutation();
 
   const isAnyIntegrationPending =
     isSyncingHevy ||
@@ -101,7 +106,8 @@ const AddExternalProviderForm = ({
     isConnectingPolar ||
     isConnectingCoros ||
     isConnectingStrava ||
-    isConnectingWithings;
+    isConnectingWithings ||
+    isConnectingGoogleSheets;
 
   const [newProvider, setNewProvider] = useState<Partial<ExternalDataProvider>>(
     {
@@ -128,6 +134,7 @@ const AddExternalProviderForm = ({
     polar: (id) => handleConnectPolar(id),
     coros_mcp: (id) => handleConnectCoros(id),
     strava: () => handleConnectStrava(),
+    googlesheets: () => handleConnectGoogleSheets(),
   };
   const handleAddProvider = async () => {
     if (!user) {
@@ -287,8 +294,11 @@ const AddExternalProviderForm = ({
 
       onAddSuccess();
 
+      // Google Sheets has nothing to do until it is linked, so it goes
+      // straight on to Google whether or not "Activate" was switched on.
       if (
-        createdProvider?.is_active &&
+        (createdProvider?.is_active ||
+          createdProvider?.provider_type === 'googlesheets') &&
         connectionHandlers[createdProvider.provider_type]
       ) {
         connectionHandlers[createdProvider.provider_type]?.(createdProvider.id);
@@ -373,6 +383,13 @@ const AddExternalProviderForm = ({
                     ...prev,
                     provider_type:
                       value as ExternalDataProvider['provider_type'],
+                    provider_name:
+                      !prev.provider_name && value === 'googlesheets'
+                        ? t(
+                            'settings.googleSheetsSetup.defaultName',
+                            'Google Sheets export'
+                          )
+                        : prev.provider_name,
                     app_id: '',
                     app_key: '',
                     base_url:

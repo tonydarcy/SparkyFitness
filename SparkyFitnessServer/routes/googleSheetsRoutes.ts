@@ -1,6 +1,9 @@
 import express from 'express';
 import { z } from 'zod/v4';
-import googleSheetsService from '../integrations/googlesheets/googleSheetsService.js';
+import googleSheetsService, {
+  SheetsApiDisabledError,
+} from '../integrations/googlesheets/googleSheetsService.js';
+import { GoogleClientMissingError } from '../integrations/google/googleOAuth.js';
 import { log } from '../config/logging.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import requireSelfActor from '../middleware/requireSelfMiddleware.js';
@@ -49,6 +52,10 @@ router.get(
       );
       res.json({ authUrl });
     } catch (error) {
+      if (error instanceof GoogleClientMissingError) {
+        res.status(400).json({ message: error.message });
+        return;
+      }
       log(
         'error',
         `Error starting Google Sheets authorization: ${describeError(error)}`
@@ -120,6 +127,20 @@ router.post(
       }
       res.status(200).json({ message: 'Google Sheets linked successfully.' });
     } catch (error) {
+      // The tokens are saved and only the API switch is missing: say where it
+      // is, rather than a generic failure.
+      if (error instanceof SheetsApiDisabledError) {
+        res.status(400).json({
+          message: error.message,
+          code: 'SHEETS_API_DISABLED',
+          activationUrl: error.activationUrl,
+        });
+        return;
+      }
+      if (error instanceof GoogleClientMissingError) {
+        res.status(400).json({ message: error.message });
+        return;
+      }
       if (error instanceof OAuthStateError) {
         log('warn', `Google Sheets OAuth state rejected (${error.reason}).`);
         res

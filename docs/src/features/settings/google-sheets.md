@@ -4,6 +4,8 @@ The Google Sheets export copies your whole food log and health history into a sp
 
 Each sync replaces the SparkyFitness tabs completely. Edits you make inside those tabs are overwritten; tabs you add yourself are left alone.
 
+Every tab has a bold header row with readable column names (units in brackets), lists the newest rows first and fits its columns to their contents. Food log and Daily summary are always there; the other tabs appear once you log something they hold, and columns you never fill in are left out.
+
 ## What the spreadsheet holds
 
 | Tab                 | One row per                                                                                                                     |
@@ -31,11 +33,16 @@ Times are shown in the timezone set in your profile.
 
 ## Setup
 
-1. In the [Google Cloud Console](https://console.cloud.google.com), create a project (or reuse the one you made for Google Health).
-2. Under **APIs & Services → Library**, enable the **Google Sheets API**.
-3. Under **APIs & Services → OAuth consent screen**, choose **External**, add the scope `https://www.googleapis.com/auth/drive.file`, add yourself as a test user and **publish** the app so the refresh token is not revoked after 7 days. `drive.file` only reaches files SparkyFitness creates, so Google needs no verification review.
-4. Under **APIs & Services → Credentials**, create an **OAuth 2.0 Client ID** of type **Web application** with the redirect URI `https://<your-sparkyfitness-url>/googlesheets/callback`.
-5. In SparkyFitness, go to **Settings → Developer & Integrations → Food & Exercise Data Providers**, add a **Google Sheets** provider with the client ID and secret, and click **Connect**.
+The add form walks you through these steps with direct links to each Google Cloud page, and shows the redirect URI with a copy button. It takes about five minutes, once.
+
+1. Turn on the [Google Sheets API](https://console.cloud.google.com/apis/library/sheets.googleapis.com). If Google asks, create a project first (any name), or reuse the one you made for Google Health.
+2. If you have not already, set up the [Google Auth Platform](https://console.cloud.google.com/auth/overview) (app name, your email, audience **External**). Then on [Audience](https://console.cloud.google.com/auth/audience), click **Publish app** so the connection is not revoked after 7 days. The export only asks for `drive.file`, which reaches only files SparkyFitness creates, so Google needs no verification review.
+3. [Create an OAuth client](https://console.cloud.google.com/auth/clients/create) of type **Web application** with the authorized redirect URI `https://<your-sparkyfitness-url>/googlesheets/callback`.
+4. In SparkyFitness, go to **Settings → Developer & Integrations → Food & Exercise Data Providers**, add a **Google Sheets** provider with the client ID and secret, and click **Add Provider**. Google opens straight away so you can allow access.
+
+**Already use Google Health?** Leave the client ID and secret blank: the export uses your Google Health client. Turn on the Google Sheets API (step 1) and add the redirect URI from step 3 to that client.
+
+If the Google Sheets API is still off when you connect, SparkyFitness says so and links to the switch. Turn it on, wait a minute, and press the refresh button on the provider card.
 
 SparkyFitness creates a spreadsheet called **SparkyFitness export** in your Drive and fills it within a minute or so. Tabs you add yourself are left alone, and if one of yours already has an export tab's name, the export uses a name ending in "(SparkyFitness)" instead. You can rename the export's tabs. Use the refresh button on the provider card to export again now, and **Open the export spreadsheet** to open it. Disconnecting stops the export and keeps the spreadsheet; reconnecting writes to the same one. If you delete the spreadsheet, the next export creates a new one.
 
