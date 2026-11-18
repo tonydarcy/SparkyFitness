@@ -31,6 +31,9 @@ export const bloodAlcoholRootQueryKey = ['bloodAlcohol'] as const;
 export const bloodAlcoholQueryKey = (date: string) =>
   ['bloodAlcohol', date] as const;
 
+export const foodDiaryNoteQueryKey = (date: string) =>
+  ['foodDiaryNote', date] as const;
+
 export const measurementsQueryKey = (date: string) =>
   ['measurements', date] as const;
 

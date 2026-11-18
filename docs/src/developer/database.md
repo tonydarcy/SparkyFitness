@@ -94,6 +94,7 @@ These tables are managed by Better Auth and are not exposed through family shari
 | `food_variants` | Serving size options for foods |
 | `food_entries` | Logged meals/calories for the day |
 | `food_entry_meals` | Meal details associated with logged entries |
+| `food_diary_notes` | One free-text note per diary day (the food log note) |
 | `meals` | Custom meal templates |
 | `meal_foods` | Ingredients assigned to meals |
 | `meal_types` | Custom meal type definitions (breakfast, lunch, etc.) |

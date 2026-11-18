@@ -53,6 +53,10 @@ The switch is remembered on each device, and each view keeps its own widget layo
 
 ---
 
+## Daily Food Log Note
+
+Each diary day has one free-text note, for anything worth remembering when you look back: a meal out where you guessed the portions, a day you felt unwell, a change you are trying. On the website it is the **Day Note** card on the Diary; in the mobile app it sits at the end of the day's diary. The note saves when you click or tap away, and clearing the text deletes it. Family members with **Manage Diary** can read and edit it; **View Reports** can read it.
+
 ## Custom Meals
 
 Custom meals can be created and consist of previously added foods. That way, you can group foods together and don't have to add them one by one. An example of how this might look like is provided below:

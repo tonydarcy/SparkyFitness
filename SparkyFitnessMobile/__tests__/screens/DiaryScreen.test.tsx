@@ -161,6 +161,12 @@ jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   useTabScreenFloatingBottom: () => 0,
 }));
 
+// The day note has its own tests (DayNoteCard.test.tsx).
+jest.mock('../../src/components/DayNoteCard', () => () => null);
+jest.mock('../../src/hooks/useFoodDiaryNote', () => ({
+  useFoodDiaryNote: () => ({ refetch: jest.fn() }),
+}));
+
 // The copy selection is covered by FoodSummary's own tests.
 jest.mock('../../src/components/DiaryFoodSelection', () => ({
   useDiaryFoodSelection: () => ({

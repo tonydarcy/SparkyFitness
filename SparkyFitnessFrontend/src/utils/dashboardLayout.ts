@@ -295,6 +295,7 @@ export function buildWidgetKeys(
     ...(hasDisplayableHealthMetrics ? ['healthMetrics'] : []),
     'energyBalance',
     ...visibleMealTypeIds.map(mealWidgetKey),
+    'dayNote',
     'exercise',
     'caffeine',
     'bloodAlcohol',
@@ -326,6 +327,9 @@ export function generateDefaultLayouts(mealKeys: string[]): DashboardLayouts {
     lg.push({ i: key, x: 0, y: lgY, w: 12, h: 4, minW: 3, minH: 3 });
     lgY += 4;
   }
+  // The day note closes the food log, as the last entry under the meals.
+  lg.push({ i: 'dayNote', x: 0, y: lgY, w: 12, h: 5, minW: 3, minH: 4 });
+  lgY += 5;
   lg.push({ i: 'exercise', x: 0, y: lgY, w: 12, h: 4, minW: 3, minH: 3 });
   // Full width and last: the caffeine card carries a curve, which is
   // unreadable in a quarter-width tile.
@@ -353,6 +357,8 @@ export function generateDefaultLayouts(mealKeys: string[]): DashboardLayouts {
     md.push({ i: key, x: 0, y: mdY, w: 10, h: 4, minW: 3, minH: 3 });
     mdY += 4;
   }
+  md.push({ i: 'dayNote', x: 0, y: mdY, w: 10, h: 5, minW: 3, minH: 4 });
+  mdY += 5;
   md.push({ i: 'exercise', x: 0, y: mdY, w: 10, h: 4, minW: 3, minH: 3 });
   md.push({ i: 'caffeine', x: 0, y: mdY + 4, w: 10, h: 11, minW: 4, minH: 7 });
   md.push({
@@ -380,6 +386,7 @@ export function generateDefaultLayouts(mealKeys: string[]): DashboardLayouts {
     push('healthMetrics', 6, 4);
     push('energyBalance', 8, 5);
     for (const key of mealKeys) push(key, 4, 3);
+    push('dayNote', 5, 4);
     push('exercise', 4, 3);
     push('caffeine', 11, 7);
     push('bloodAlcohol', 12, 7);
