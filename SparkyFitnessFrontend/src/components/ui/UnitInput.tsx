@@ -23,6 +23,11 @@ interface UnitInputProps {
   className?: string;
   inputClassName?: string;
   'aria-label'?: string;
+  /**
+   * Report the value on every keystroke instead of only on blur, so a form can
+   * enable its submit button while the person is still typing.
+   */
+  commitOnChange?: boolean;
 }
 
 type UnitInputType = UnitInputProps['type'];
@@ -64,6 +69,7 @@ export const UnitInput: React.FC<UnitInputProps> = ({
   className,
   inputClassName = '',
   'aria-label': ariaLabel,
+  commitOnChange = false,
 }) => {
   const metricValue =
     value === null || value === undefined || value === ''
@@ -105,8 +111,27 @@ export const UnitInput: React.FC<UnitInputProps> = ({
       ? null
       : placeholderValue;
 
+  // Pass a typed value up without the sync above rewriting the text being
+  // typed: recording it as already seen keeps "85." from turning into "85".
+  const commitTyped = (next: number | null) => {
+    setPrevMetricValue(next);
+    if (next !== metricValue) {
+      onChange(next);
+    }
+  };
+
   const handleSingleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setVal1(e.target.value);
+    if (!commitOnChange) return;
+    const num = parseFloat(e.target.value);
+    if (e.target.value.trim() === '' || Number.isNaN(num)) {
+      commitTyped(null);
+      return;
+    }
+    let converted = num;
+    if (unit === 'lbs') converted = lbsToKg(num);
+    if (unit === 'inches') converted = inchesToCm(num);
+    commitTyped(converted);
   };
   const handleSingleBlur = () => {
     if (val1.trim() === '') {
@@ -131,8 +156,19 @@ export const UnitInput: React.FC<UnitInputProps> = ({
   };
 
   const handleSplitChange = (v1: string, v2: string) => {
-    setVal1(v1.replace(/[^0-9]/g, ''));
+    const whole = v1.replace(/[^0-9]/g, '');
+    setVal1(whole);
     setVal2(v2);
+    if (!commitOnChange) return;
+    if (whole.trim() === '' && v2.trim() === '') {
+      commitTyped(null);
+      return;
+    }
+    const n1 = parseFloat(whole) || 0;
+    const n2 = parseFloat(v2) || 0;
+    commitTyped(
+      unit === 'st_lbs' ? stonesLbsToKg(n1, n2) : feetInchesToCm(n1, n2)
+    );
   };
 
   const handleSplitBlur = () => {

@@ -2022,6 +2022,7 @@
     "noSavedFoodsOrMeals": "No saved foods or meals found.",
     "searchOnlineToImport": "Search to find foods from your online provider.",
     "onlineSearchFailed": "Failed to search the online provider.",
+    "onlineSearchFailedNamed": "Couldn't reach {{provider}}. Try again, or pick another source.",
     "loadMore": "Load more",
     "loadMoreFailed": "Failed to load more results.",
     "scannedProduct": "Scanned product",
@@ -4752,7 +4753,10 @@
     "noFoodsAddedYet": "No foods added yet"
   },
   "mealCard": {
+    "addFood": "Add food",
     "addFoodToMeal": "Add Food to {{mealName}}",
+    "moreActions": "More actions",
+    "moreActionsFor": "More actions for {{mealName}}",
     "copyFood": "Copy food",
     "searchFoodsForMeal": "Search for foods to add to your {{mealName}}.",
     "addFoodTo": "Add Food to",
@@ -8484,11 +8488,14 @@
     "entryNotes": "Note for this entry (optional)"
   },
   "release": {
+    "checkFailed": "GitHub could not be reached. Try again later.",
+    "checkFailedTitle": "Couldn't check for updates",
     "whatsNew": "What's New"
   },
   "foodUnitSelector": {
     "editTitle": "Edit {{name}}",
     "addTitle": "Add {{name}} to Meal",
+    "addToMealTitle": "Add {{name}} to {{mealName}}",
     "editDescription": "Edit the quantity and unit for {{name}}.",
     "addDescription": "Select the quantity and unit for your food entry.",
     "loadingUnits": "Loading units...",

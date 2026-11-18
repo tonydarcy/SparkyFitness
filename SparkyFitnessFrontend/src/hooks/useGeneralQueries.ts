@@ -87,11 +87,15 @@ export const useLatestReleaseQuery = ({
   });
 };
 
-export const useInvalidateGithubVersion = () => {
+/** Re-checks GitHub now and resolves with the release, or rejects on failure. */
+export const useRefreshGithubVersion = () => {
   const queryClient = useQueryClient();
-  return () => {
-    queryClient.invalidateQueries({ queryKey: generalKeys.githubVersion });
-  };
+  return () =>
+    queryClient.fetchQuery({
+      queryKey: generalKeys.githubVersion,
+      queryFn: getLatestGithubRelease,
+      staleTime: 0,
+    });
 };
 
 export const useAnnouncementQuery = ({
