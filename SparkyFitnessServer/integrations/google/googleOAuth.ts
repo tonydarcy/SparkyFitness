@@ -14,6 +14,26 @@ const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 export interface GoogleOAuthProvider {
   providerType: string;
   label: string;
+  /**
+   * Provider types whose Google client the person may reuse when this
+   * provider has no client ID and secret of its own (Google Sheets borrows the
+   * Google Health client, so the person makes only one Google Cloud client).
+   */
+  credentialFallbackTypes?: readonly string[];
+}
+
+/** No Google client ID and secret to use for this provider. */
+// Integrations that can run on one shared Google client (Sheets may borrow
+// Google Health's), and so on one Google grant.
+const GOOGLE_GRANT_SHARING_TYPES = ['googlehealth', 'googlesheets'];
+
+export class GoogleClientMissingError extends Error {
+  constructor(provider: GoogleOAuthProvider) {
+    super(
+      `Add your Google client ID and secret to the ${provider.label} provider in Settings.`
+    );
+    this.name = 'GoogleClientMissingError';
+  }
 }
 
 async function decryptField(
@@ -22,6 +42,58 @@ async function decryptField(
   tag: string
 ): Promise<string> {
   return (await decrypt(text, iv, tag, ENCRYPTION_KEY)) as string;
+}
+
+type Queryable = Awaited<ReturnType<typeof getSystemClient>>;
+
+/**
+ * The Google client ID and secret for a provider: its own when stored,
+ * otherwise those of the first fallback provider type that has both.
+ */
+async function getClientCredentials(
+  client: Queryable,
+  provider: GoogleOAuthProvider,
+  userId: string
+): Promise<{ clientId: string; clientSecret: string }> {
+  const types = [
+    provider.providerType,
+    ...(provider.credentialFallbackTypes ?? []),
+  ];
+  interface CredentialRow {
+    provider_type: string;
+    encrypted_app_id: string;
+    app_id_iv: string;
+    app_id_tag: string;
+    encrypted_app_key: string;
+    app_key_iv: string;
+    app_key_tag: string;
+  }
+  const result = await client.query(
+    `SELECT provider_type, encrypted_app_id, app_id_iv, app_id_tag,
+            encrypted_app_key, app_key_iv, app_key_tag
+       FROM external_data_providers
+      WHERE user_id = $1 AND provider_type = ANY($2::text[])
+        AND encrypted_app_id IS NOT NULL AND encrypted_app_key IS NOT NULL`,
+    [userId, types]
+  );
+  const row = types
+    .map((type) =>
+      (result.rows as CredentialRow[]).find((r) => r.provider_type === type)
+    )
+    .find((r) => r !== undefined);
+  if (!row) throw new GoogleClientMissingError(provider);
+  return {
+    clientId: await decryptField(
+      row.encrypted_app_id,
+      row.app_id_iv,
+      row.app_id_tag
+    ),
+    clientSecret: await decryptField(
+      row.encrypted_app_key,
+      row.app_key_iv,
+      row.app_key_tag
+    ),
+  };
 }
 
 export async function getAuthorizationUrl(
@@ -33,23 +105,7 @@ export async function getAuthorizationUrl(
 ): Promise<string> {
   const client = await getSystemClient();
   try {
-    const result = await client.query(
-      `SELECT encrypted_app_id, app_id_iv, app_id_tag
-       FROM external_data_providers
-       WHERE user_id = $1 AND provider_type = $2`,
-      [userId, provider.providerType]
-    );
-    if (result.rows.length === 0) {
-      throw new Error(
-        `${provider.label} client credentials not found for user.`
-      );
-    }
-    const { encrypted_app_id, app_id_iv, app_id_tag } = result.rows[0];
-    const clientId = await decryptField(
-      encrypted_app_id,
-      app_id_iv,
-      app_id_tag
-    );
+    const { clientId } = await getClientCredentials(client, provider, userId);
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: clientId,
@@ -79,27 +135,10 @@ export async function exchangeCodeForTokens(
 ): Promise<{ success: true; externalUserId: string; accessToken: string }> {
   const client = await getSystemClient();
   try {
-    const providerResult = await client.query(
-      `SELECT encrypted_app_id, app_id_iv, app_id_tag, encrypted_app_key, app_key_iv, app_key_tag
-       FROM external_data_providers
-       WHERE user_id = $1 AND provider_type = $2`,
-      [userId, provider.providerType]
-    );
-    if (providerResult.rows.length === 0) {
-      throw new Error(
-        `${provider.label} client credentials not found for user.`
-      );
-    }
-    const row = providerResult.rows[0];
-    const clientId = await decryptField(
-      row.encrypted_app_id,
-      row.app_id_iv,
-      row.app_id_tag
-    );
-    const clientSecret = await decryptField(
-      row.encrypted_app_key,
-      row.app_key_iv,
-      row.app_key_tag
+    const { clientId, clientSecret } = await getClientCredentials(
+      client,
+      provider,
+      userId
     );
 
     // Google uses POST body params (not HTTP Basic auth)
@@ -166,8 +205,7 @@ export async function refreshAccessToken(
   try {
     return await withProviderTokenLock(client, async () => {
       const providerResult = await client.query(
-        `SELECT encrypted_app_id, app_id_iv, app_id_tag, encrypted_app_key, app_key_iv, app_key_tag,
-              encrypted_refresh_token, refresh_token_iv, refresh_token_tag
+        `SELECT encrypted_refresh_token, refresh_token_iv, refresh_token_tag
        FROM external_data_providers
        WHERE user_id = $1 AND provider_type = $2
        FOR UPDATE`,
@@ -179,15 +217,10 @@ export async function refreshAccessToken(
         );
       }
       const row = providerResult.rows[0];
-      const clientId = await decryptField(
-        row.encrypted_app_id,
-        row.app_id_iv,
-        row.app_id_tag
-      );
-      const clientSecret = await decryptField(
-        row.encrypted_app_key,
-        row.app_key_iv,
-        row.app_key_tag
+      const { clientId, clientSecret } = await getClientCredentials(
+        client,
+        provider,
+        userId
       );
       const refreshToken = await decryptField(
         row.encrypted_refresh_token,
@@ -338,6 +371,28 @@ export async function getStatus(provider: GoogleOAuthProvider, userId: string) {
   }
 }
 
+/**
+ * True when another Google integration of this user is still linked. It may
+ * hold the same grant (a borrowed client, or another client in the same Google
+ * project), and Google revokes a grant for every client in the project, so a
+ * revoke here would cut that integration off too. The person can still remove
+ * access at myaccount.google.com.
+ */
+async function sharesGoogleGrant(
+  client: Queryable,
+  provider: GoogleOAuthProvider,
+  userId: string
+): Promise<boolean> {
+  const result = await client.query(
+    `SELECT 1 FROM external_data_providers
+      WHERE user_id = $1 AND provider_type = ANY($2::text[])
+        AND provider_type <> $3 AND encrypted_refresh_token IS NOT NULL
+      LIMIT 1`,
+    [userId, GOOGLE_GRANT_SHARING_TYPES, provider.providerType]
+  );
+  return result.rows.length > 0;
+}
+
 /** Revokes the access token with Google (best effort) and clears the stored tokens. */
 export async function disconnect(
   provider: GoogleOAuthProvider,
@@ -354,7 +409,12 @@ export async function disconnect(
         [userId, provider.providerType]
       );
       const tokenRow = tokenResult.rows[0];
-      if (tokenRow?.encrypted_access_token) {
+      if (await sharesGoogleGrant(client, provider, userId)) {
+        log(
+          'info',
+          `Skipped revoking ${provider.label} token for user ${userId}: another Google integration is still linked.`
+        );
+      } else if (tokenRow?.encrypted_access_token) {
         const accessToken = await decryptField(
           tokenRow.encrypted_access_token,
           tokenRow.access_token_iv,

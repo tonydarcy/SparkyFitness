@@ -20,6 +20,7 @@ import {
   useConnectCorosMutation,
   useConnectStravaMutation,
   useConnectWithingsMutation,
+  useConnectGoogleSheetsMutation,
   useLoginGarminMutation,
   useSyncHevyMutation,
   useSyncLiftosaurMutation,
@@ -88,6 +89,10 @@ const AddExternalProviderForm = ({
     mutateAsync: handleConnectWithings,
     isPending: isConnectingWithings,
   } = useConnectWithingsMutation();
+  const {
+    mutateAsync: handleConnectGoogleSheets,
+    isPending: isConnectingGoogleSheets,
+  } = useConnectGoogleSheetsMutation();
 
   const isAnyIntegrationPending =
     isSyncingHevy ||
@@ -101,7 +106,8 @@ const AddExternalProviderForm = ({
     isConnectingPolar ||
     isConnectingCoros ||
     isConnectingStrava ||
-    isConnectingWithings;
+    isConnectingWithings ||
+    isConnectingGoogleSheets;
 
   const [newProvider, setNewProvider] = useState<Partial<ExternalDataProvider>>(
     {
@@ -120,6 +126,8 @@ const AddExternalProviderForm = ({
   );
 
   const [fullSyncOnConnect, setFullSyncOnConnect] = useState(false);
+  // True while the name is the one filled in for Sheets and not yet edited.
+  const [nameAutoFilled, setNameAutoFilled] = useState(false);
 
   const connectionHandlers: Record<string, (id: string) => Promise<void>> = {
     withings: () => handleConnectWithings(),
@@ -128,6 +136,7 @@ const AddExternalProviderForm = ({
     polar: (id) => handleConnectPolar(id),
     coros_mcp: (id) => handleConnectCoros(id),
     strava: () => handleConnectStrava(),
+    googlesheets: () => handleConnectGoogleSheets(),
   };
   const handleAddProvider = async () => {
     if (!user) {
@@ -272,6 +281,7 @@ const AddExternalProviderForm = ({
         ),
       });
 
+      setNameAutoFilled(false);
       setNewProvider({
         provider_name: '',
         provider_type: 'openfoodfacts',
@@ -287,11 +297,17 @@ const AddExternalProviderForm = ({
 
       onAddSuccess();
 
+      // Google Sheets has nothing to do until it is linked, so it goes
+      // straight on to Google whether or not "Activate" was switched on.
       if (
-        createdProvider?.is_active &&
+        (createdProvider?.is_active ||
+          createdProvider?.provider_type === 'googlesheets') &&
         connectionHandlers[createdProvider.provider_type]
       ) {
-        connectionHandlers[createdProvider.provider_type]?.(createdProvider.id);
+        // The mutation's own error toast reports a failure.
+        connectionHandlers[createdProvider.provider_type]?.(
+          createdProvider.id
+        )?.catch(() => undefined);
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -347,12 +363,13 @@ const AddExternalProviderForm = ({
               <Input
                 id="new_provider_name"
                 value={newProvider.provider_name}
-                onChange={(e) =>
+                onChange={(e) => {
+                  setNameAutoFilled(false);
                   setNewProvider((prev) => ({
                     ...prev,
                     provider_name: e.target.value,
-                  }))
-                }
+                  }));
+                }}
                 placeholder={t(
                   'settings.addExternalProviderForm.myProviderName',
                   'My Provider name'
@@ -368,26 +385,43 @@ const AddExternalProviderForm = ({
               </Label>
               <Select
                 value={newProvider.provider_type}
-                onValueChange={(value) =>
-                  setNewProvider((prev) => ({
-                    ...prev,
-                    provider_type:
-                      value as ExternalDataProvider['provider_type'],
-                    app_id: '',
-                    app_key: '',
-                    base_url:
-                      value === 'coros_mcp'
-                        ? 'https://mcpus.coros.com/mcp'
-                        : '',
-                    garmin_connect_status: 'disconnected',
-                    garmin_last_status_check: '',
-                    garmin_token_expires: '',
-                    provider_options:
-                      value === MCP_SERVER_PROVIDER_TYPE
-                        ? { allowed_tools: [], send_user_id: false }
-                        : undefined,
-                  }))
-                }
+                onValueChange={(value) => {
+                  const sheetsName = t(
+                    'settings.googleSheetsSetup.defaultName',
+                    'Google Sheets export'
+                  );
+                  // Only a name filled in for Sheets is swapped; one the
+                  // person typed stays.
+                  const ownName = nameAutoFilled
+                    ? ''
+                    : (newProvider.provider_name ?? '');
+                  const fill = !ownName && value === 'googlesheets';
+                  setNameAutoFilled(fill);
+                  setNewProvider((prev) => {
+                    return {
+                      ...prev,
+                      provider_type:
+                        value as ExternalDataProvider['provider_type'],
+                      provider_name:
+                        !ownName && value === 'googlesheets'
+                          ? sheetsName
+                          : ownName,
+                      app_id: '',
+                      app_key: '',
+                      base_url:
+                        value === 'coros_mcp'
+                          ? 'https://mcpus.coros.com/mcp'
+                          : '',
+                      garmin_connect_status: 'disconnected',
+                      garmin_last_status_check: '',
+                      garmin_token_expires: '',
+                      provider_options:
+                        value === MCP_SERVER_PROVIDER_TYPE
+                          ? { allowed_tools: [], send_user_id: false }
+                          : undefined,
+                    };
+                  });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -413,15 +447,29 @@ const AddExternalProviderForm = ({
             setProvider={setNewProvider}
             fullSyncOnConnect={fullSyncOnConnect}
             setFullSyncOnConnect={setFullSyncOnConnect}
-            onCopy={(text) => {
-              navigator.clipboard.writeText(text);
-              toast({
-                title: t('common.copied', 'Copied!'),
-                description: t(
-                  'settings.addExternalProviderForm.urlCopiedToClipboard',
-                  'URL copied to clipboard.'
-                ),
-              });
+            onCopy={async (text) => {
+              try {
+                await navigator.clipboard.writeText(text);
+                toast({
+                  title: t('common.copied', 'Copied!'),
+                  description: t(
+                    'settings.addExternalProviderForm.urlCopiedToClipboard',
+                    'URL copied to clipboard.'
+                  ),
+                });
+              } catch {
+                toast({
+                  title: t(
+                    'settings.editProviderForm.copyFailed',
+                    'Copy Failed'
+                  ),
+                  description: t(
+                    'settings.googleSheetsSetup.copyManually',
+                    'Select the text and copy it by hand.'
+                  ),
+                  variant: 'destructive',
+                });
+              }
             }}
           />
           {!isAdminMode && newProvider.provider_type === 'hevy' && (

@@ -148,6 +148,12 @@ export async function persistOAuthState(
     providerType: OAuthStateProviderType;
     providerId?: string | null;
     now?: number;
+    /**
+     * False when the provider may borrow another provider's client (Google
+     * Sheets uses the Google Health one), so a row without its own client ID
+     * still gets a state.
+     */
+    requireClient?: boolean;
   }
 ): Promise<IssuedOAuthState> {
   const state = issueOAuthState(params.now);
@@ -172,7 +178,10 @@ export async function persistOAuthState(
       `${params.providerType} client credentials not found for user.`
     );
   }
-  if (!row.encrypted_app_id || !row.app_id_iv || !row.app_id_tag) {
+  if (
+    params.requireClient !== false &&
+    (!row.encrypted_app_id || !row.app_id_iv || !row.app_id_tag)
+  ) {
     throw new Error(
       `${params.providerType} client credentials are not configured for user.`
     );

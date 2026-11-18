@@ -17,7 +17,10 @@ vi.mock('../security/encryption.js', () => ({
 function mockClient() {
   const client = {
     // Values are irrelevant because decrypt is stubbed; only the row matters.
-    query: vi.fn().mockResolvedValue({ rows: [{}], rowCount: 1 }),
+    query: vi.fn().mockResolvedValue({
+      rows: [{ provider_type: 'googlehealth' }],
+      rowCount: 1,
+    }),
     release: vi.fn(),
   };
   vi.mocked(getSystemClient).mockResolvedValue(
@@ -26,7 +29,7 @@ function mockClient() {
   return client;
 }
 
-// First keyword of each statement the refresh sent, e.g. ['BEGIN', 'SELECT', 'COMMIT'].
+// First keyword of each statement the refresh sent, e.g. ['BEGIN', 'SELECT', 'SELECT', 'COMMIT'].
 function statements(client: ReturnType<typeof mockClient>) {
   return client.query.mock.calls.map(([sql]) => sql.trim().split(/\s+/)[0]);
 }
@@ -55,7 +58,13 @@ describe('Google Health token refresh', () => {
 
     await expect(refreshAccessToken('user-1')).resolves.toBe('new-access');
 
-    expect(statements(client)).toEqual(['BEGIN', 'SELECT', 'UPDATE', 'COMMIT']);
+    expect(statements(client)).toEqual([
+      'BEGIN',
+      'SELECT',
+      'SELECT',
+      'UPDATE',
+      'COMMIT',
+    ]);
     expect(client.query.mock.calls[1][0]).toMatch(/FOR UPDATE/);
     expect(client.release).toHaveBeenCalled();
   });
@@ -68,7 +77,13 @@ describe('Google Health token refresh', () => {
 
     await expect(refreshAccessToken('user-1')).resolves.toBe('new-access');
 
-    expect(statements(client)).toEqual(['BEGIN', 'SELECT', 'UPDATE', 'COMMIT']);
+    expect(statements(client)).toEqual([
+      'BEGIN',
+      'SELECT',
+      'SELECT',
+      'UPDATE',
+      'COMMIT',
+    ]);
     expect(client.query.mock.calls[1][0]).toMatch(/FOR UPDATE/);
   });
 
@@ -78,7 +93,7 @@ describe('Google Health token refresh', () => {
 
     await expect(refreshAccessToken('user-1')).rejects.toThrow('invalid_grant');
 
-    expect(statements(client)).toEqual(['BEGIN', 'SELECT', 'COMMIT']);
+    expect(statements(client)).toEqual(['BEGIN', 'SELECT', 'SELECT', 'COMMIT']);
     expect(client.release).toHaveBeenCalled();
   });
 });
