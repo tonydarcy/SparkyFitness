@@ -25,7 +25,6 @@ import {
   useWorkoutPlans,
 } from '../hooks';
 import { useScreenHeader } from '../hooks/useScreenHeader';
-import { useNativeIOSHeadersActive } from '../services/nativeTabBarPreference';
 import type { RootStackScreenProps } from '../types/navigation';
 import type {
   WorkoutPlanAssignment,
@@ -246,7 +245,6 @@ const WorkoutPlansScreen: React.FC<WorkoutPlansScreenProps> = ({
 }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const usesNativeHeader = useNativeIOSHeadersActive();
   const [accentColor] = useCSSVariable(['--color-accent-primary']) as [string];
   const [refreshing, setRefreshing] = useState(false);
   const { isConnected } = useServerConnection();
@@ -413,10 +411,7 @@ const WorkoutPlansScreen: React.FC<WorkoutPlansScreenProps> = ({
   };
 
   return (
-    <View
-      className="flex-1 bg-background"
-      style={usesNativeHeader ? undefined : { paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-background">
       {header}
       <ServerGate>{content()}</ServerGate>
       {workoutPlans.length > 0 && !isLoading && !isError ? (
