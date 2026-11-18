@@ -153,7 +153,12 @@ export const OnboardingSteps = ({
           <div
             className="flex items-center justify-center"
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && formData.currentWeight) nextStep();
+              if (
+                e.key === 'Enter' &&
+                !e.nativeEvent.isComposing &&
+                formData.currentWeight
+              )
+                nextStep();
             }}
           >
             <UnitInput
@@ -216,7 +221,12 @@ export const OnboardingSteps = ({
           <div
             className="flex items-center justify-center"
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && formData.height) nextStep();
+              if (
+                e.key === 'Enter' &&
+                !e.nativeEvent.isComposing &&
+                formData.height
+              )
+                nextStep();
             }}
           >
             <UnitInput
@@ -391,7 +401,12 @@ export const OnboardingSteps = ({
           <div
             className="flex items-center justify-center"
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && formData.targetWeight) nextStep();
+              if (
+                e.key === 'Enter' &&
+                !e.nativeEvent.isComposing &&
+                formData.targetWeight
+              )
+                nextStep();
             }}
           >
             <UnitInput

@@ -8488,6 +8488,8 @@
     "entryNotes": "Note for this entry (optional)"
   },
   "release": {
+    "checkFailed": "GitHub could not be reached. Try again later.",
+    "checkFailedTitle": "Couldn't check for updates",
     "whatsNew": "What's New"
   },
   "foodUnitSelector": {

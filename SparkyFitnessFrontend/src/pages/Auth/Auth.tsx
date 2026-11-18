@@ -66,6 +66,9 @@ const Auth = () => {
     useState(false);
   const [isDemoDisclaimerOpen, setIsDemoDisclaimerOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Controlled so the chosen tab survives the loading screen unmounting it:
+  // a failed sign-up returns to the Sign Up form, not Sign In.
+  const [activeTab, setActiveTab] = useState('signin');
   const oauthContinuationStartedRef = useRef(false);
 
   const queryClient = useQueryClient();
@@ -529,7 +532,11 @@ const Auth = () => {
                 </Alert>
               )}
               {(loginSettings?.email?.enabled ?? true) ? (
-                <Tabs defaultValue="signin" className="w-full">
+                <Tabs
+                  value={activeTab}
+                  onValueChange={setActiveTab}
+                  className="w-full"
+                >
                   {!loginSettings?.signup_disabled && (
                     <TabsList className="h-10 grid w-full grid-cols-2">
                       <TabsTrigger
