@@ -125,6 +125,8 @@ interface FoodUnitSelectorProps {
    * but store no cooked weight.
    */
   showCookedWeight?: boolean;
+  /** The meal being added to, named in the title when the meal is fixed. */
+  mealName?: string;
 }
 
 const FoodUnitSelector = ({
@@ -143,6 +145,7 @@ const FoodUnitSelector = ({
   showMealTypeSelect,
   availableMealTypes,
   showCookedWeight = false,
+  mealName,
 }: FoodUnitSelectorProps) => {
   const { t } = useTranslation();
   const {
@@ -780,10 +783,16 @@ const FoodUnitSelector = ({
                     name: food?.name,
                     defaultValue: `Edit ${food?.name}`,
                   })
-                : t('foodUnitSelector.addTitle', {
-                    name: food?.name,
-                    defaultValue: `Add ${food?.name} to Meal`,
-                  })}
+                : mealName && !showMealTypeSelect
+                  ? t('foodUnitSelector.addToMealTitle', {
+                      name: food?.name,
+                      mealName,
+                      defaultValue: `Add ${food?.name} to ${mealName}`,
+                    })
+                  : t('foodUnitSelector.addTitle', {
+                      name: food?.name,
+                      defaultValue: `Add ${food?.name} to Meal`,
+                    })}
             </span>
             {/* Only persisted local/saved foods can be favorited (external
                 provider search results are not saved yet, so they have no

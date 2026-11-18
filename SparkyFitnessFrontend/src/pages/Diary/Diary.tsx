@@ -793,6 +793,11 @@ const Diary = () => {
           showMealTypeSelect={viewMode === 'timeline'}
           availableMealTypes={visibleMealTypes}
           showCookedWeight={true}
+          mealName={
+            selectedMealType
+              ? t(`common.${selectedMealType}`, selectedMealType)
+              : undefined
+          }
           defaultMealTime={
             availableMealTypes?.find(
               (t) => t.name.toLowerCase() === selectedMealType.toLowerCase()

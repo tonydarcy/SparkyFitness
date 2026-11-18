@@ -34,8 +34,11 @@ export interface LatestReleaseResponse {
   isNewVersionAvailable: boolean;
 }
 export const getLatestGithubRelease = async (): Promise<ReleaseInfo> => {
+  // A background check: when GitHub can't be reached (offline or firewalled
+  // self-hosting) the page simply shows no update notice, never an error toast.
   return apiCall('/version/latest-github', {
     method: 'GET',
+    suppressErrorToast: true,
   });
 };
 

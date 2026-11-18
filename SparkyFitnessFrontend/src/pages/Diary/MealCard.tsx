@@ -20,7 +20,14 @@ import {
   Copy,
   PlusCircle,
   Users,
+  MoreHorizontal,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useState } from 'react';
 import EnhancedFoodSearch from '../../components/FoodSearch/FoodSearch';
 import { FOOD_SEARCH_DIALOG_CONTENT_CLASS } from '../../components/FoodSearch/foodSearchDialogLayout';
@@ -234,6 +241,12 @@ const MealCard = ({
     summableNutrients.includes(nutrient)
   );
 
+  const mealDisplayName = t(`common.${meal.type}`, meal.name);
+  const mealAddFoodLabel = t('mealCard.addFoodToMeal', {
+    mealName: mealDisplayName,
+    defaultValue: `Add Food to ${mealDisplayName}`,
+  });
+
   const handleCopyFromYesterday = () => {
     copyFoodEntriesFromYesterday({
       mealType: meal.type,
@@ -274,9 +287,11 @@ const MealCard = ({
                         `MealCard: Add Food button clicked for ${meal.name}.`
                       )
                     }
-                    title={t('mealCard.addFoodTo', 'Add Food to')}
+                    aria-label={mealAddFoodLabel}
+                    title={mealAddFoodLabel}
                   >
                     <Utensils className="w-4 h-4" />
+                    {t('mealCard.addFood', 'Add food')}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className={FOOD_SEARCH_DIALOG_CONTENT_CLASS}>
@@ -339,41 +354,43 @@ const MealCard = ({
                   />
                 </DialogContent>
               </Dialog>
-              {/* Existing clock icon would go here if it were part of this component */}
-              <Button
-                size="default"
-                onClick={() => onCopyClick(meal.type)}
-                title={t('diary.copyAllToDate', 'Copy entire day to date')}
-              >
-                <ClipboardCopy className="w-4 h-4" />
-              </Button>
-              <Button
-                size="default"
-                onClick={() => onCopyFamilyClick(meal.type)}
-                title={t('diary.copyFamilyTitle', 'Copy Food with Family')}
-              >
-                <Users className="w-4 h-4" />
-              </Button>
-              <Button
-                size="default"
-                onClick={handleCopyFromYesterday}
-                title={t(
-                  'diary.copyAllFromYesterday',
-                  'Copy all from yesterday'
-                )}
-              >
-                <History className="w-4 h-4" />
-              </Button>
-              <Button
-                size="default"
-                onClick={() => onConvertToMealClick(meal.type)}
-                title={t(
-                  'mealCreation.convertToMeal',
-                  'Create Meal from Diary'
-                )}
-              >
-                <PlusCircle className="w-4 h-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label={t('mealCard.moreActionsFor', {
+                      mealName: mealDisplayName,
+                      defaultValue: `More actions for ${mealDisplayName}`,
+                    })}
+                    title={t('mealCard.moreActions', 'More actions')}
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleCopyFromYesterday}>
+                    <History className="w-4 h-4 mr-2" />
+                    {t('diary.copyAllFromYesterday', 'Copy all from yesterday')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onCopyClick(meal.type)}>
+                    <ClipboardCopy className="w-4 h-4 mr-2" />
+                    {t('diary.copyAllToDate', 'Copy entire day to date')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onCopyFamilyClick(meal.type)}
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    {t('diary.copyFamilyTitle', 'Copy Food with Family')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onConvertToMealClick(meal.type)}
+                  >
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    {t('mealCreation.convertToMeal', 'Create Meal from Diary')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardHeader>
@@ -609,6 +626,7 @@ const MealCard = ({
                             onEditEntry(item);
                           }}
                           title={t('common.edit', 'Edit')}
+                          aria-label={t('common.edit', 'Edit')}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -640,6 +658,7 @@ const MealCard = ({
                             );
                           }}
                           title={t('common.delete', 'Delete')}
+                          aria-label={t('common.delete', 'Delete')}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -756,6 +775,7 @@ const MealCard = ({
                           onEditEntry(item); // Pass the item directly
                         }}
                         title={t('common.edit', 'Edit')}
+                        aria-label={t('common.edit', 'Edit')}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -784,6 +804,8 @@ const MealCard = ({
                             isFoodEntryMeal ? 'foodEntryMeal' : 'foodEntry'
                           );
                         }}
+                        title={t('common.delete', 'Delete')}
+                        aria-label={t('common.delete', 'Delete')}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

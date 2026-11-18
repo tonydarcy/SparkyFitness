@@ -350,23 +350,29 @@ const Auth = () => {
 
     setLoading(true);
 
-    const data: AuthResponse = await registerUser({
-      email,
-      password,
-      fullName,
-    });
-    info(loggingLevel, 'Auth: Sign up successful.');
-    signIn(
-      data.userId,
-      data.userId,
-      email,
-      data.role || 'user',
-      true,
-      fullName
-    );
-
-    setLoading(false);
-    debug(loggingLevel, 'Auth: Sign up loading state set to false.');
+    try {
+      const data: AuthResponse = await registerUser({
+        email,
+        password,
+        fullName,
+      });
+      info(loggingLevel, 'Auth: Sign up successful.');
+      signIn(
+        data.userId,
+        data.userId,
+        email,
+        data.role || 'user',
+        true,
+        fullName
+      );
+    } catch {
+      // The mutation's meta already shows the error toast; returning to the
+      // form (fields kept) is all that is left to do.
+      info(loggingLevel, 'Auth: Sign up failed.');
+    } finally {
+      setLoading(false);
+      debug(loggingLevel, 'Auth: Sign up loading state set to false.');
+    }
   };
 
   const handleRequestMagicLink = async (dialogEmail: string) => {
