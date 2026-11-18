@@ -109,6 +109,7 @@ export const globalSettingsSchema = z.object({
   mcp_oauth_enabled: z.boolean(),
   mcp_oauth_allowed_redirect_uris: z.array(mcpOAuthAllowedRedirectUriSchema),
   enable_version_check: z.boolean(),
+  enable_challenges: z.boolean(),
 });
 
 export const globalSettingsInitializerSchema = z.object({
@@ -132,6 +133,7 @@ export const globalSettingsInitializerSchema = z.object({
     .array(mcpOAuthAllowedRedirectUriSchema)
     .optional(),
   enable_version_check: z.boolean().optional(),
+  enable_challenges: z.boolean().optional(),
 });
 
 export const globalSettingsMutatorSchema = z.object({
@@ -155,6 +157,7 @@ export const globalSettingsMutatorSchema = z.object({
     .array(mcpOAuthAllowedRedirectUriSchema)
     .optional(),
   enable_version_check: z.boolean().optional(),
+  enable_challenges: z.boolean().optional(),
 });
 
 export type GlobalSettings = z.infer<typeof globalSettingsSchema>;
