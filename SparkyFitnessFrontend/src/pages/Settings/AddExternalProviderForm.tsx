@@ -433,15 +433,29 @@ const AddExternalProviderForm = ({
             setProvider={setNewProvider}
             fullSyncOnConnect={fullSyncOnConnect}
             setFullSyncOnConnect={setFullSyncOnConnect}
-            onCopy={(text) => {
-              navigator.clipboard.writeText(text);
-              toast({
-                title: t('common.copied', 'Copied!'),
-                description: t(
-                  'settings.addExternalProviderForm.urlCopiedToClipboard',
-                  'URL copied to clipboard.'
-                ),
-              });
+            onCopy={async (text) => {
+              try {
+                await navigator.clipboard.writeText(text);
+                toast({
+                  title: t('common.copied', 'Copied!'),
+                  description: t(
+                    'settings.addExternalProviderForm.urlCopiedToClipboard',
+                    'URL copied to clipboard.'
+                  ),
+                });
+              } catch {
+                toast({
+                  title: t(
+                    'settings.editProviderForm.copyFailed',
+                    'Copy Failed'
+                  ),
+                  description: t(
+                    'settings.googleSheetsSetup.copyManually',
+                    'Select the redirect URI and copy it by hand.'
+                  ),
+                  variant: 'destructive',
+                });
+              }
             }}
           />
           {!isAdminMode && newProvider.provider_type === 'hevy' && (

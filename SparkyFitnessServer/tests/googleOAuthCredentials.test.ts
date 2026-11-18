@@ -1,7 +1,9 @@
 import { vi, beforeEach, describe, expect, it } from 'vitest';
 import { getSystemClient } from '../db/poolManager.js';
 import { decrypt } from '../security/encryption.js';
+import axios from 'axios';
 import {
+  disconnect,
   getAuthorizationUrl,
   GoogleClientMissingError,
 } from '../integrations/google/googleOAuth.js';
@@ -77,5 +79,33 @@ describe('Google client credentials', () => {
     await expect(
       getAuthorizationUrl(SHEETS, 'u1', 'https://x/cb', 's')
     ).rejects.toBeInstanceOf(GoogleClientMissingError);
+  });
+});
+
+describe('disconnect', () => {
+  it('does not revoke a grant made with a borrowed client', async () => {
+    const client = mockRows([
+      {
+        encrypted_access_token: 'tok',
+        access_token_iv: 'iv',
+        access_token_tag: 'tag',
+      },
+    ]);
+    await disconnect(SHEETS, 'u1');
+    expect(axios.post).not.toHaveBeenCalled();
+    expect(client.query).toHaveBeenCalledTimes(2);
+  });
+
+  it("revokes a grant made with the provider's own client", async () => {
+    mockRows([
+      {
+        encrypted_access_token: 'tok',
+        access_token_iv: 'iv',
+        access_token_tag: 'tag',
+        encrypted_app_id: 'id',
+      },
+    ]);
+    await disconnect(SHEETS, 'u1');
+    expect(axios.post).toHaveBeenCalledTimes(1);
   });
 });

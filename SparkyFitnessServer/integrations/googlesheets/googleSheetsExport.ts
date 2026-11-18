@@ -70,6 +70,7 @@ const WORDS: Record<string, string> = {
 
 // A unit at the end of a column name becomes "(unit)" in the header.
 const UNIT_SUFFIXES: Record<string, string> = {
+  g: 'g',
   ml: 'ml',
   kg: 'kg',
   km: 'km',
@@ -236,7 +237,21 @@ export function buildFoodLogTab(
 ): SheetTab {
   if (entries.length === 0) return emptyTab('Food log');
   const builtInHeaders = new Set(
-    FOOD_VARIANT_NUTRIENT_FIELDS.map((f) => nutrientHeader(f).toLowerCase())
+    [
+      'Date',
+      'Time',
+      'Meal',
+      'Saved meal',
+      'Food',
+      'Brand',
+      'Quantity',
+      'Unit',
+      ...FOOD_VARIANT_NUTRIENT_FIELDS.map(nutrientHeader),
+      'Water (ml)',
+      'Glycemic index',
+      'Notes',
+      'Logged at',
+    ].map((h) => h.toLowerCase())
   );
   const header: CellValue[] = [
     'Date',
@@ -252,11 +267,16 @@ export function buildFoodLogTab(
     'Glycemic index',
     ...customNutrients.map((cn) => {
       const label = cn.unit ? `${cn.name} (${cn.unit})` : cn.name;
-      // A custom nutrient named like a built-in one ("Fiber") gets its own
-      // header, so a lookup by header never finds the wrong column.
-      return builtInHeaders.has(label.toLowerCase())
+      // A custom nutrient named like another column ("Fiber", "Notes") gets
+      // its own header, so a lookup by header never finds the wrong column.
+      let unique = builtInHeaders.has(label.toLowerCase())
         ? `${label} (custom)`
         : label;
+      for (let n = 2; builtInHeaders.has(unique.toLowerCase()); n += 1) {
+        unique = `${label} (custom ${n})`;
+      }
+      builtInHeaders.add(unique.toLowerCase());
+      return unique;
     }),
     'Notes',
     'Logged at',

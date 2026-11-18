@@ -124,8 +124,31 @@ describe('Google Sheets export tabs', () => {
     expect(food.rows[0]).toContain('Fiber (g) (custom)');
   });
 
+  it('keeps custom headers apart from fixed columns and each other', () => {
+    const food = buildFoodLogTab(
+      [
+        {
+          entry_date: '2026-11-02',
+          quantity: 1,
+          notes: 'n',
+          custom_nutrients: { Notes: 1, 'Notes (custom)': 2 },
+        },
+      ],
+      [
+        { name: 'Notes', unit: null },
+        { name: 'Notes (custom)', unit: null },
+      ],
+      TZ
+    );
+    const header = food.rows[0];
+    expect(header).toContain('Notes (custom)');
+    expect(header).toContain('Notes (custom) (custom)');
+    expect(new Set(header).size).toBe(header.length);
+  });
+
   it('turns column names into readable headers', () => {
     expect(columnLabel('water_ml')).toBe('Water (ml)');
+    expect(columnLabel('alcohol_g')).toBe('Alcohol (g)');
     expect(columnLabel('resting_heart_rate')).toBe('Resting heart rate');
     expect(columnLabel('avg_hrv')).toBe('Avg HRV');
     expect(columnLabel('duration_minutes')).toBe('Duration (min)');

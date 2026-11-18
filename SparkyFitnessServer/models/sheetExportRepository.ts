@@ -146,7 +146,7 @@ async function getStrengthSets(userId: string): Promise<SheetExportRow[]> {
        JOIN exercise_entries ee ON ee.id = ees.exercise_entry_id
       WHERE ee.user_id = $1
       ORDER BY ee.entry_date DESC, ee.entry_time DESC NULLS LAST,
-               ee.created_at DESC, ees.set_number`
+               ee.created_at DESC, ee.id, ees.set_number`
   );
 }
 

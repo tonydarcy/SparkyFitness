@@ -377,13 +377,24 @@ export async function disconnect(
     // Revocation failure is non-fatal — tokens are cleared regardless.
     try {
       const tokenResult = await client.query(
-        `SELECT encrypted_access_token, access_token_iv, access_token_tag
+        `SELECT encrypted_access_token, access_token_iv, access_token_tag,
+                encrypted_app_id
          FROM external_data_providers
          WHERE user_id = $1 AND provider_type = $2`,
         [userId, provider.providerType]
       );
       const tokenRow = tokenResult.rows[0];
-      if (tokenRow?.encrypted_access_token) {
+      // A provider that borrowed another provider's client shares its Google
+      // grant, and revoking would cut that provider off too. Clear locally only.
+      const borrowsClient =
+        (provider.credentialFallbackTypes?.length ?? 0) > 0 &&
+        !tokenRow?.encrypted_app_id;
+      if (borrowsClient) {
+        log(
+          'info',
+          `Skipped revoking ${provider.label} token for user ${userId}: it shares another provider's Google client.`
+        );
+      } else if (tokenRow?.encrypted_access_token) {
         const accessToken = await decryptField(
           tokenRow.encrypted_access_token,
           tokenRow.access_token_iv,

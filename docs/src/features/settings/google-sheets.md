@@ -4,7 +4,7 @@ The Google Sheets export copies your whole food log and health history into a sp
 
 Each sync replaces the SparkyFitness tabs completely. Edits you make inside those tabs are overwritten; tabs you add yourself are left alone.
 
-Every tab has a bold header row with readable column names (units in brackets), lists the newest rows first and fits its columns to their contents. Food log and Daily summary are always there; the other tabs appear once you log something they hold, and columns you never fill in are left out. Because of that, a column can move when you first log something new (a brand, a goal), so in charts and formulas look columns up by their header (for example with `MATCH("Calories (kcal)", 'Food log'!1:1, 0)`) rather than by letter.
+Every tab has a bold header row with readable column names (units in brackets), lists the newest rows first and fits its columns to their contents. Food log and Daily summary are always there; the other tabs appear once you log something they hold, and columns you never fill in are left out. Because of that, a column can move when you first log something new (a brand, a goal), so in charts and formulas look columns up by their header (for example with `MATCH("Calories (kcal)", 'Food log'!1:1, 0)`, using your tab's name if you renamed it) rather than by letter.
 
 ## What the spreadsheet holds
 
