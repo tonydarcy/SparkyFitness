@@ -26,7 +26,7 @@ const external = (href: string) => (
 interface GoogleSheetsSetupGuideProps {
   /** `add`: the add form, which connects straight after saving. */
   mode: 'add' | 'edit';
-  onCopy: (text: string) => void;
+  onCopy: (text: string) => void | Promise<void>;
 }
 
 export const GoogleSheetsSetupGuide = ({
@@ -48,12 +48,12 @@ export const GoogleSheetsSetupGuide = ({
           'Set up the export (about 5 minutes, once)'
         )}
       </p>
-      {hasGoogleHealth && (
+      {mode === 'add' && hasGoogleHealth && (
         <p className="text-muted-foreground">
           <Trans
             i18nKey="settings.googleSheetsSetup.reuseGoogleHealth"
-            defaults="You already use Google Health, so you can skip making a new client: leave the Client ID and Client Secret blank to use the Google Health one. Do step 1, then open <link>your Google Health client</link> and add the redirect URI from step 3 to it."
-            components={{ link: external(CLIENTS_URL) }}
+            defaults="You already use Google Health, so you can skip making a new client: leave the Client ID and Client Secret blank to use the Google Health one. Do step 1 in the project that holds that client, then open <cloud>your Google Health client</cloud> and add the redirect URI from step 3 to it."
+            components={{ cloud: external(CLIENTS_URL) }}
           />
         </p>
       )}
@@ -61,16 +61,16 @@ export const GoogleSheetsSetupGuide = ({
         <li>
           <Trans
             i18nKey="settings.googleSheetsSetup.step1"
-            defaults="Turn on the <link>Google Sheets API</link>. If Google asks, create a project first (any name)."
-            components={{ link: external(SHEETS_API_URL) }}
+            defaults="Turn on the <cloud>Google Sheets API</cloud>. If Google asks, create a project first (any name)."
+            components={{ cloud: external(SHEETS_API_URL) }}
           />
         </li>
         <li>
           <Trans
             i18nKey="settings.googleSheetsSetup.step2"
-            defaults="If you have not before, set up the <link>Google Auth Platform</link> (app name, your email, audience External). Then on <audience>Audience</audience>, click <strong>Publish app</strong>, so the connection does not expire after 7 days. No Google review is needed."
+            defaults="If you have not before, set up the <cloud>Google Auth Platform</cloud> (app name, your email, audience External). Then on <audience>Audience</audience>, click <strong>Publish app</strong>, so the connection does not expire after 7 days. No Google review is needed."
             components={{
-              link: external(AUTH_PLATFORM_URL),
+              cloud: external(AUTH_PLATFORM_URL),
               audience: external(AUDIENCE_URL),
               strong: <strong />,
             }}
@@ -79,9 +79,9 @@ export const GoogleSheetsSetupGuide = ({
         <li>
           <Trans
             i18nKey="settings.googleSheetsSetup.step3"
-            defaults="<link>Create an OAuth client</link> of type <strong>Web application</strong>, with this <strong>Authorized redirect URI</strong>:"
+            defaults="<cloud>Create an OAuth client</cloud> of type <strong>Web application</strong>, with this <strong>Authorized redirect URI</strong>:"
             components={{
-              link: external(CREATE_CLIENT_URL),
+              cloud: external(CREATE_CLIENT_URL),
               strong: <strong />,
             }}
           />
@@ -94,7 +94,7 @@ export const GoogleSheetsSetupGuide = ({
               aria-label={t('settings.googleSheetsSetup.copy', 'Copy')}
               onClick={(e) => {
                 e.preventDefault();
-                onCopy(callbackUrl);
+                void onCopy(callbackUrl);
               }}
             >
               <Clipboard className="h-4 w-4" />
@@ -109,7 +109,7 @@ export const GoogleSheetsSetupGuide = ({
               )
             : t(
                 'settings.googleSheetsSetup.step4Edit',
-                'Paste the Client ID and Client Secret here, save, then click Connect on the provider card.'
+                'Paste the Client ID and Client Secret here and save. Then on the provider card click Connect, or Disconnect and then Connect if it is already linked.'
               )}
         </li>
       </ol>

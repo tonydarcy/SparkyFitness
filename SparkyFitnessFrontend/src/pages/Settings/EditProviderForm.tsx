@@ -1148,15 +1148,27 @@ export const EditProviderForm = ({
           {editData.provider_type === 'googlesheets' ? (
             <GoogleSheetsSetupGuide
               mode="edit"
-              onCopy={(text) => {
-                if (navigator.clipboard) {
-                  navigator.clipboard.writeText(text);
+              onCopy={async (text) => {
+                try {
+                  await navigator.clipboard.writeText(text);
                   toast({
                     title: t('common.copied', 'Copied!'),
                     description: t(
                       'settings.editProviderForm.callbackURLCopiedToClipboard',
                       'Callback URL copied to clipboard.'
                     ),
+                  });
+                } catch {
+                  toast({
+                    title: t(
+                      'settings.editProviderForm.copyFailed',
+                      'Copy Failed'
+                    ),
+                    description: t(
+                      'settings.googleSheetsSetup.copyManually',
+                      'Select the redirect URI and copy it by hand.'
+                    ),
+                    variant: 'destructive',
                   });
                 }
               }}

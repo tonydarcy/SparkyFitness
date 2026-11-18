@@ -195,7 +195,8 @@ export function dropEmptyColumns(rows: CellValue[][]): CellValue[][] {
 export function buildTableTab(
   title: string,
   rows: SheetExportRow[],
-  timezone: string
+  timezone: string,
+  { alreadyNewestFirst = false }: { alreadyNewestFirst?: boolean } = {}
 ): SheetTab {
   if (rows.length === 0) return emptyTab(title);
   const columns: string[] = [];
@@ -203,18 +204,22 @@ export function buildTableTab(
   for (const row of rows) {
     for (const [key, value] of Object.entries(row)) {
       if (seen.has(key) || isHiddenColumn(key)) continue;
-      if (value === null || value === undefined) continue;
+      if (value === null || value === undefined || isStructured(value)) {
+        continue;
+      }
       seen.add(key);
-      if (!isStructured(value)) columns.push(key);
+      columns.push(key);
     }
   }
+  // Nested values are machine data, blank even in a column of plain values.
+  const cell = (value: unknown): CellValue =>
+    isStructured(value) ? '' : toCell(value, timezone);
+  const ordered = alreadyNewestFirst ? rows : [...rows].reverse();
   return {
     title,
     rows: dropEmptyColumns([
       columns.map((col) => columnLabel(col)),
-      ...[...rows]
-        .reverse()
-        .map((row) => columns.map((col) => toCell(row[col], timezone))),
+      ...ordered.map((row) => columns.map((col) => cell(row[col]))),
     ]),
   };
 }
@@ -230,6 +235,9 @@ export function buildFoodLogTab(
   timezone: string
 ): SheetTab {
   if (entries.length === 0) return emptyTab('Food log');
+  const builtInHeaders = new Set(
+    FOOD_VARIANT_NUTRIENT_FIELDS.map((f) => nutrientHeader(f).toLowerCase())
+  );
   const header: CellValue[] = [
     'Date',
     'Time',
@@ -242,9 +250,14 @@ export function buildFoodLogTab(
     ...FOOD_VARIANT_NUTRIENT_FIELDS.map(nutrientHeader),
     'Water (ml)',
     'Glycemic index',
-    ...customNutrients.map((cn) =>
-      cn.unit ? `${cn.name} (${cn.unit})` : cn.name
-    ),
+    ...customNutrients.map((cn) => {
+      const label = cn.unit ? `${cn.name} (${cn.unit})` : cn.name;
+      // A custom nutrient named like a built-in one ("Fiber") gets its own
+      // header, so a lookup by header never finds the wrong column.
+      return builtInHeaders.has(label.toLowerCase())
+        ? `${label} (custom)`
+        : label;
+    }),
     'Notes',
     'Logged at',
   ];
@@ -348,7 +361,7 @@ export function buildDailySummaryTab(
       round(toNumber(goal.water_goal_ml)),
     ];
   });
-  return { title: 'Daily summary', rows: [header, ...rows] };
+  return { title: 'Daily summary', rows: dropEmptyColumns([header, ...rows]) };
 }
 
 /** Every calendar day from `start` to `end`, inclusive. */
@@ -411,7 +424,12 @@ export async function buildExportTabs(userId: string): Promise<SheetTab[]> {
     tabs.push(buildTableTab('Workouts', exerciseEntries, timezone));
   }
   if (strengthSets.length > 0) {
-    tabs.push(buildTableTab('Strength sets', strengthSets, timezone));
+    // Read newest workout first with each workout's sets in order.
+    tabs.push(
+      buildTableTab('Strength sets', strengthSets, timezone, {
+        alreadyNewestFirst: true,
+      })
+    );
   }
   for (const tab of TABLE_TABS) {
     const rows =

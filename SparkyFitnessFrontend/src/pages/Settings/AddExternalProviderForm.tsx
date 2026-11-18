@@ -301,7 +301,10 @@ const AddExternalProviderForm = ({
           createdProvider?.provider_type === 'googlesheets') &&
         connectionHandlers[createdProvider.provider_type]
       ) {
-        connectionHandlers[createdProvider.provider_type]?.(createdProvider.id);
+        // The mutation's own error toast reports a failure.
+        connectionHandlers[createdProvider.provider_type]?.(
+          createdProvider.id
+        )?.catch(() => undefined);
       }
     } catch (error: unknown) {
       if (error instanceof Error) {

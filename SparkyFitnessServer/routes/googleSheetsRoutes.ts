@@ -39,6 +39,8 @@ const redirectUri = () =>
  *     responses:
  *       200:
  *         description: Authorization URL.
+ *       400:
+ *         description: No Google client ID and secret on the Google Sheets provider, and no Google Health client to borrow.
  */
 router.get(
   '/authorize',
@@ -87,7 +89,11 @@ router.get(
  *       200:
  *         description: Linked.
  *       400:
- *         description: Missing code, or an invalid or expired state.
+ *         description: >
+ *           Missing code, an invalid or expired state, no Google client, or
+ *           `code: SHEETS_API_DISABLED`: the account is linked (tokens saved)
+ *           but the Google Sheets API is off in the Google Cloud project;
+ *           `activationUrl` links to its switch.
  */
 router.post(
   '/callback',

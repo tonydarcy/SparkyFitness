@@ -93,6 +93,37 @@ describe('Google Sheets export tabs', () => {
     ]);
   });
 
+  it('keeps rows already in order, blanks nested values and marks clashing custom nutrients', () => {
+    const sets = buildTableTab(
+      'Strength sets',
+      [
+        { entry_date: '2026-11-02', set_number: 1, notes: ['ok'] },
+        { entry_date: '2026-11-02', set_number: 2, notes: [{ x: 1 }] },
+      ],
+      TZ,
+      { alreadyNewestFirst: true }
+    );
+    expect(sets.rows).toEqual([
+      ['Date', 'Set number', 'Notes'],
+      ['2026-11-02', 1, 'ok'],
+      ['2026-11-02', 2, ''],
+    ]);
+    const food = buildFoodLogTab(
+      [
+        {
+          entry_date: '2026-11-02',
+          quantity: 1,
+          dietary_fiber: 2,
+          custom_nutrients: { Fiber: 3 },
+        },
+      ],
+      [{ name: 'Fiber', unit: 'g' }],
+      TZ
+    );
+    expect(food.rows[0]).toContain('Fiber (g)');
+    expect(food.rows[0]).toContain('Fiber (g) (custom)');
+  });
+
   it('turns column names into readable headers', () => {
     expect(columnLabel('water_ml')).toBe('Water (ml)');
     expect(columnLabel('resting_heart_rate')).toBe('Resting heart rate');

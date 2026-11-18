@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { getSystemClient } from '../../db/poolManager.js';
 import { log } from '../../config/logging.js';
+import { describeError } from '../../utils/errors.js';
 import {
   noteWorkActivity,
   throwIfWorkAborted,
@@ -96,6 +97,8 @@ async function getAuthorizationUrl(userId: string, redirectUri: string) {
     ({ state } = await persistOAuthState(client, {
       userId,
       providerType: 'googlesheets',
+      // The client may be the Google Health one; googleOAuth checks for it.
+      requireClient: false,
     }));
   } finally {
     client.release();
@@ -394,18 +397,27 @@ export async function writeTabs(
     }
   }
 
-  // Fit each column to its contents once the values are in.
-  await sheetsPost(
-    `${SHEETS_API}/${spreadsheetId}:batchUpdate`,
-    {
-      requests: sheetIds.map((sheetId) => ({
-        autoResizeDimensions: {
-          dimensions: { sheetId, dimension: 'COLUMNS' },
-        },
-      })),
-    },
-    accessToken
-  );
+  // Fit each column to its contents once the values are in. Cosmetic only:
+  // the data is written, so a failure here is logged and retried next sync.
+  try {
+    await sheetsPost(
+      `${SHEETS_API}/${spreadsheetId}:batchUpdate`,
+      {
+        requests: sheetIds.map((sheetId) => ({
+          autoResizeDimensions: {
+            dimensions: { sheetId, dimension: 'COLUMNS' },
+          },
+        })),
+      },
+      accessToken
+    );
+  } catch (error) {
+    throwIfWorkAborted();
+    log(
+      'warn',
+      `Could not fit Google Sheets export columns: ${describeError(error)}`
+    );
+  }
 }
 
 async function getAccessToken(userId: string): Promise<string> {

@@ -3658,14 +3658,15 @@
     },
     "googleSheetsSetup": {
       "title": "Set up the export (about 5 minutes, once)",
-      "reuseGoogleHealth": "You already use Google Health, so you can skip making a new client: leave the Client ID and Client Secret blank to use the Google Health one. Do step 1, then open <link>your Google Health client</link> and add the redirect URI from step 3 to it.",
-      "step1": "Turn on the <link>Google Sheets API</link>. If Google asks, create a project first (any name).",
-      "step2": "If you have not before, set up the <link>Google Auth Platform</link> (app name, your email, audience External). Then on <audience>Audience</audience>, click <strong>Publish app</strong>, so the connection does not expire after 7 days. No Google review is needed.",
-      "step3": "<link>Create an OAuth client</link> of type <strong>Web application</strong>, with this <strong>Authorized redirect URI</strong>:",
+      "reuseGoogleHealth": "You already use Google Health, so you can skip making a new client: leave the Client ID and Client Secret blank to use the Google Health one. Do step 1 in the project that holds that client, then open <cloud>your Google Health client</cloud> and add the redirect URI from step 3 to it.",
+      "step1": "Turn on the <cloud>Google Sheets API</cloud>. If Google asks, create a project first (any name).",
+      "step2": "If you have not before, set up the <cloud>Google Auth Platform</cloud> (app name, your email, audience External). Then on <audience>Audience</audience>, click <strong>Publish app</strong>, so the connection does not expire after 7 days. No Google review is needed.",
+      "step3": "<cloud>Create an OAuth client</cloud> of type <strong>Web application</strong>, with this <strong>Authorized redirect URI</strong>:",
       "step4Add": "Paste the Client ID and Client Secret here and click Add Provider. Google opens so you can allow access, and your spreadsheet fills in about a minute.",
-      "step4Edit": "Paste the Client ID and Client Secret here, save, then click Connect on the provider card.",
+      "step4Edit": "Paste the Client ID and Client Secret here and save. Then on the provider card click Connect, or Disconnect and then Connect if it is already linked.",
       "copy": "Copy",
-      "defaultName": "Google Sheets export"
+      "defaultName": "Google Sheets export",
+      "copyManually": "Select the redirect URI and copy it by hand."
     }
   },
   "admin": {
