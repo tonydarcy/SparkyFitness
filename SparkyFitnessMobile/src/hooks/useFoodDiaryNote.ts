@@ -42,11 +42,13 @@ export function useSaveFoodDiaryNote(date: string) {
     // the refetch replaces any read started before the save, and it belongs
     // to whichever account is active now, so a save that finishes after a
     // server switch never shows in the other account.
-    onSuccess: () =>
-      queryClient.invalidateQueries({
+    // Not awaited, so a slow read never holds back the next queued save.
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
         queryKey: foodDiaryNoteQueryKey(date),
         exact: true,
-      }),
+      });
+    },
     onError: () => {
       Toast.show({
         type: 'error',

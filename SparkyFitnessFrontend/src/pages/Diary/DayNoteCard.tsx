@@ -40,6 +40,10 @@ const DayNoteCard = ({ date, userId, readOnly = false }: DayNoteCardProps) => {
   const pending = useRef<string | null>(null);
 
   useEffect(() => {
+    // An earlier save answering while a newer one is queued must not replace
+    // the newer text, or a failure of the newer save would lose it.
+    const waiting = pending.current;
+    if (waiting !== null && waiting.trim() !== savedNote) return;
     setDraft((current) => (current === seeded.current ? savedNote : current));
     seeded.current = savedNote;
   }, [savedNote]);

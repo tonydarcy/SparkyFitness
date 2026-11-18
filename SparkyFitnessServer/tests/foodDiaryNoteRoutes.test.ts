@@ -117,6 +117,26 @@ describe('food diary note routes', () => {
     expect(saveFoodDiaryNote).not.toHaveBeenCalled();
   });
 
+  it('rejects a note with an unpaired surrogate', async () => {
+    const res = await request(app)
+      .put('/api/v2/food-diary-notes')
+      .send({ date: '2026-11-18', note: 'a\uD800b' });
+    expect(res.status).toBe(400);
+    expect(saveFoodDiaryNote).not.toHaveBeenCalled();
+  });
+
+  it('accepts emoji', async () => {
+    vi.mocked(saveFoodDiaryNote).mockResolvedValueOnce({
+      date: '2026-11-18',
+      note: 'pizza \uD83C\uDF55',
+      updated_at: '2026-11-18T10:00:00.000Z',
+    });
+    const res = await request(app)
+      .put('/api/v2/food-diary-notes')
+      .send({ date: '2026-11-18', note: 'pizza \uD83C\uDF55' });
+    expect(res.status).toBe(200);
+  });
+
   it('rejects a note over the length limit', async () => {
     const res = await request(app)
       .put('/api/v2/food-diary-notes')

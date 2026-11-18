@@ -24,7 +24,15 @@ export const upsertFoodDiaryNoteBodySchema = z.object({
     // PostgreSQL text cannot hold U+0000.
     .refine((text) => !text.includes('\u0000'), {
       message: 'The note contains a character that cannot be saved.',
-    }),
+    })
+    // UTF-8 encoding would silently replace an unpaired surrogate.
+    .refine(
+      (text) =>
+        !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(
+          text
+        ),
+      { message: 'The note contains an invalid Unicode character.' }
+    ),
 });
 export type UpsertFoodDiaryNoteBody = z.infer<
   typeof upsertFoodDiaryNoteBodySchema
