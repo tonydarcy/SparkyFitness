@@ -232,10 +232,15 @@ interface CustomNutrientDefinition {
 
 export function buildFoodLogTab(
   entries: SheetExportRow[],
-  customNutrients: CustomNutrientDefinition[],
+  customNutrientList: CustomNutrientDefinition[],
   timezone: string
 ): SheetTab {
   if (entries.length === 0) return emptyTab('Food log');
+  // A stable order, so a clashing name keeps the same header every sync.
+  const customNutrients = [...customNutrientList].sort(
+    (a, b) =>
+      a.name.localeCompare(b.name) || (a.unit ?? '').localeCompare(b.unit ?? '')
+  );
   const builtInHeaders = new Set(
     [
       'Date',

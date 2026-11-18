@@ -23,6 +23,10 @@ export interface GoogleOAuthProvider {
 }
 
 /** No Google client ID and secret to use for this provider. */
+// Integrations that can run on one shared Google client (Sheets may borrow
+// Google Health's), and so on one Google grant.
+const GOOGLE_GRANT_SHARING_TYPES = ['googlehealth', 'googlesheets'];
+
 export class GoogleClientMissingError extends Error {
   constructor(provider: GoogleOAuthProvider) {
     super(
@@ -367,6 +371,30 @@ export async function getStatus(provider: GoogleOAuthProvider, userId: string) {
   }
 }
 
+/**
+ * True when another linked Google integration of this user may hold the same
+ * grant, because one of the two has no client of its own and borrows the
+ * other's. Revoking would then cut that integration off too.
+ */
+async function sharesGoogleGrant(
+  client: Queryable,
+  provider: GoogleOAuthProvider,
+  userId: string
+): Promise<boolean> {
+  const result = await client.query(
+    `SELECT provider_type,
+            (encrypted_app_id IS NOT NULL AND encrypted_app_key IS NOT NULL) AS own_client
+       FROM external_data_providers
+      WHERE user_id = $1 AND provider_type = ANY($2::text[])
+        AND (provider_type = $3 OR encrypted_refresh_token IS NOT NULL)`,
+    [userId, GOOGLE_GRANT_SHARING_TYPES, provider.providerType]
+  );
+  const rows = result.rows as { provider_type: string; own_client: boolean }[];
+  const self = rows.find((r) => r.provider_type === provider.providerType);
+  const others = rows.filter((r) => r.provider_type !== provider.providerType);
+  return others.some((other) => !self?.own_client || !other.own_client);
+}
+
 /** Revokes the access token with Google (best effort) and clears the stored tokens. */
 export async function disconnect(
   provider: GoogleOAuthProvider,
@@ -377,22 +405,16 @@ export async function disconnect(
     // Revocation failure is non-fatal — tokens are cleared regardless.
     try {
       const tokenResult = await client.query(
-        `SELECT encrypted_access_token, access_token_iv, access_token_tag,
-                encrypted_app_id
+        `SELECT encrypted_access_token, access_token_iv, access_token_tag
          FROM external_data_providers
          WHERE user_id = $1 AND provider_type = $2`,
         [userId, provider.providerType]
       );
       const tokenRow = tokenResult.rows[0];
-      // A provider that borrowed another provider's client shares its Google
-      // grant, and revoking would cut that provider off too. Clear locally only.
-      const borrowsClient =
-        (provider.credentialFallbackTypes?.length ?? 0) > 0 &&
-        !tokenRow?.encrypted_app_id;
-      if (borrowsClient) {
+      if (await sharesGoogleGrant(client, provider, userId)) {
         log(
           'info',
-          `Skipped revoking ${provider.label} token for user ${userId}: it shares another provider's Google client.`
+          `Skipped revoking ${provider.label} token for user ${userId}: another linked Google integration shares its client.`
         );
       } else if (tokenRow?.encrypted_access_token) {
         const accessToken = await decryptField(

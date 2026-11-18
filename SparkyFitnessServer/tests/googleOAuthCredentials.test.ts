@@ -83,27 +83,54 @@ describe('Google client credentials', () => {
 });
 
 describe('disconnect', () => {
-  it('does not revoke a grant made with a borrowed client', async () => {
-    const client = mockRows([
-      {
-        encrypted_access_token: 'tok',
-        access_token_iv: 'iv',
-        access_token_tag: 'tag',
-      },
+  const TOKEN = {
+    encrypted_access_token: 'tok',
+    access_token_iv: 'iv',
+    access_token_tag: 'tag',
+  };
+  function mockDisconnect(
+    shared: { provider_type: string; own_client: boolean }[]
+  ) {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [TOKEN] })
+        .mockResolvedValueOnce({ rows: shared })
+        .mockResolvedValue({ rows: [] }),
+      release: vi.fn(),
+    };
+    vi.mocked(getSystemClient).mockResolvedValue(
+      client as unknown as Awaited<ReturnType<typeof getSystemClient>>
+    );
+    return client;
+  }
+
+  it('does not revoke a grant borrowed from linked Google Health', async () => {
+    const client = mockDisconnect([
+      { provider_type: 'googlesheets', own_client: false },
+      { provider_type: 'googlehealth', own_client: true },
     ]);
     await disconnect(SHEETS, 'u1');
     expect(axios.post).not.toHaveBeenCalled();
-    expect(client.query).toHaveBeenCalledTimes(2);
+    expect(client.query).toHaveBeenCalledTimes(3);
   });
 
-  it("revokes a grant made with the provider's own client", async () => {
-    mockRows([
-      {
-        encrypted_access_token: 'tok',
-        access_token_iv: 'iv',
-        access_token_tag: 'tag',
-        encrypted_app_id: 'id',
-      },
+  it('does not revoke Google Health while Sheets borrows its client', async () => {
+    mockDisconnect([
+      { provider_type: 'googlehealth', own_client: true },
+      { provider_type: 'googlesheets', own_client: false },
+    ]);
+    await disconnect(
+      { providerType: 'googlehealth', label: 'Google Health' },
+      'u1'
+    );
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it('revokes a grant no other integration shares', async () => {
+    mockDisconnect([
+      { provider_type: 'googlesheets', own_client: true },
+      { provider_type: 'googlehealth', own_client: true },
     ]);
     await disconnect(SHEETS, 'u1');
     expect(axios.post).toHaveBeenCalledTimes(1);

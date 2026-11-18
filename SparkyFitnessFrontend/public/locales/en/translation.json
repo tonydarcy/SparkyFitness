@@ -3666,7 +3666,7 @@
       "step4Edit": "Paste the Client ID and Client Secret here and save. Then on the provider card click Connect, or Disconnect and then Connect if it is already linked.",
       "copy": "Copy",
       "defaultName": "Google Sheets export",
-      "copyManually": "Select the redirect URI and copy it by hand."
+      "copyManually": "Select the text and copy it by hand."
     }
   },
   "admin": {

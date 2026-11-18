@@ -382,31 +382,40 @@ const AddExternalProviderForm = ({
               <Select
                 value={newProvider.provider_type}
                 onValueChange={(value) =>
-                  setNewProvider((prev) => ({
-                    ...prev,
-                    provider_type:
-                      value as ExternalDataProvider['provider_type'],
-                    provider_name:
-                      !prev.provider_name && value === 'googlesheets'
-                        ? t(
-                            'settings.googleSheetsSetup.defaultName',
-                            'Google Sheets export'
-                          )
-                        : prev.provider_name,
-                    app_id: '',
-                    app_key: '',
-                    base_url:
-                      value === 'coros_mcp'
-                        ? 'https://mcpus.coros.com/mcp'
-                        : '',
-                    garmin_connect_status: 'disconnected',
-                    garmin_last_status_check: '',
-                    garmin_token_expires: '',
-                    provider_options:
-                      value === MCP_SERVER_PROVIDER_TYPE
-                        ? { allowed_tools: [], send_user_id: false }
-                        : undefined,
-                  }))
+                  setNewProvider((prev) => {
+                    const sheetsName = t(
+                      'settings.googleSheetsSetup.defaultName',
+                      'Google Sheets export'
+                    );
+                    // Only the name filled in for Sheets is swapped; one the
+                    // person typed stays.
+                    const ownName =
+                      prev.provider_name === sheetsName
+                        ? ''
+                        : prev.provider_name;
+                    return {
+                      ...prev,
+                      provider_type:
+                        value as ExternalDataProvider['provider_type'],
+                      provider_name:
+                        !ownName && value === 'googlesheets'
+                          ? sheetsName
+                          : ownName,
+                      app_id: '',
+                      app_key: '',
+                      base_url:
+                        value === 'coros_mcp'
+                          ? 'https://mcpus.coros.com/mcp'
+                          : '',
+                      garmin_connect_status: 'disconnected',
+                      garmin_last_status_check: '',
+                      garmin_token_expires: '',
+                      provider_options:
+                        value === MCP_SERVER_PROVIDER_TYPE
+                          ? { allowed_tools: [], send_user_id: false }
+                          : undefined,
+                    };
+                  })
                 }
               >
                 <SelectTrigger>
@@ -451,7 +460,7 @@ const AddExternalProviderForm = ({
                   ),
                   description: t(
                     'settings.googleSheetsSetup.copyManually',
-                    'Select the redirect URI and copy it by hand.'
+                    'Select the text and copy it by hand.'
                   ),
                   variant: 'destructive',
                 });

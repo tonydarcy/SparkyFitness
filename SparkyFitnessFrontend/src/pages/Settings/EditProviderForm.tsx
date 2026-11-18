@@ -1166,7 +1166,7 @@ export const EditProviderForm = ({
                     ),
                     description: t(
                       'settings.googleSheetsSetup.copyManually',
-                      'Select the redirect URI and copy it by hand.'
+                      'Select the text and copy it by hand.'
                     ),
                     variant: 'destructive',
                   });
