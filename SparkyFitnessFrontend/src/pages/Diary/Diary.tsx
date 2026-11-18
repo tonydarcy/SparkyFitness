@@ -415,7 +415,8 @@ const Diary = () => {
     selectedVariant: FoodVariant,
     entryTime?: string | null,
     mealTypeName?: string | null,
-    notes?: string | null
+    notes?: string | null,
+    cookedQuantity?: number | null
   ) => {
     if (!currentUserId) {
       return;
@@ -445,6 +446,7 @@ const Diary = () => {
         entry_date: selectedDate,
         entry_time: entryTime || null,
         notes: notes || null,
+        cooked_quantity: cookedQuantity ?? null,
       });
       info(loggingLevel, 'Food entry added successfully.');
     } catch (err) {
@@ -771,6 +773,7 @@ const Diary = () => {
           showTimeInput={true}
           showMealTypeSelect={viewMode === 'timeline'}
           availableMealTypes={visibleMealTypes}
+          showCookedWeight={true}
           defaultMealTime={
             availableMealTypes?.find(
               (t) => t.name.toLowerCase() === selectedMealType.toLowerCase()

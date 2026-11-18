@@ -3,6 +3,7 @@ import type {
   ExerciseDashboardSummary,
   RunningEstimatesResponse,
   FitnessFatigueResponse,
+  TrainingCalendarResponse,
   TrainingConsistency,
   TrainingLoad,
 } from '@workspace/shared';
@@ -95,4 +96,16 @@ export const fetchAdaptiveTdee = (date: string): Promise<AdaptiveTdeeResult> =>
     endpoint: `/api/adaptive-tdee?date=${encodeURIComponent(date)}`,
     serviceName: 'Reports API',
     operation: 'fetch adaptive TDEE',
+  });
+
+export const fetchTrainingCalendar = (
+  start: string,
+  end: string
+): Promise<TrainingCalendarResponse> =>
+  apiFetch<TrainingCalendarResponse>({
+    endpoint: `/api/reports/training-calendar?start=${encodeURIComponent(
+      start
+    )}&end=${encodeURIComponent(end)}`,
+    serviceName: 'Reports API',
+    operation: 'fetch training calendar',
   });

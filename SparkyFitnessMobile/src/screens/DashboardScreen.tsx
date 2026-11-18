@@ -906,6 +906,16 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                     isLoading={isCaffeineLoading}
                   />
                 ) : null;
+              case 'bloodAlcohol':
+                return bloodAlcoholCardVisible ? (
+                  <BloodAlcoholCard
+                    key="bloodAlcohol"
+                    date={selectedDate}
+                    estimate={bloodAlcoholEstimate}
+                    nowMs={bloodAlcoholNowMs}
+                    isLoading={isBloodAlcoholLoading}
+                  />
+                ) : null;
               case 'fasting':
                 return fastingCardVisible ? (
                   <FastingCard key="fasting" navigation={navigation} />
@@ -950,125 +960,6 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                         defaultValue: 'Health Trends',
                       })}
                     </Text>
-                  </Pressable>
-                );
-              }
-              return null;
-            case 'exercise':
-              return exerciseCardVisible &&
-                (summary.foodEntries.length > 0 ||
-                  summary.exerciseEntries.length > 0) &&
-                (summary.exerciseMinutesGoal > 0 ||
-                  summary.exerciseCaloriesGoal > 0 ||
-                  summary.exerciseMinutes > 0 ||
-                  summary.otherExerciseCalories > 0) ? (
-                <ExerciseProgressCard
-                  key="exercise"
-                  exerciseMinutes={summary.exerciseMinutes}
-                  exerciseMinutesGoal={summary.exerciseMinutesGoal}
-                  exerciseCalories={summary.otherExerciseCalories}
-                  exerciseCaloriesGoal={summary.exerciseCaloriesGoal}
-                  onPressDetails={() =>
-                    navigation.navigate('ExerciseStatistics')
-                  }
-                />
-              ) : null;
-            case 'hydration':
-              return hydrationCardVisible ? (
-                <HydrationGauge
-                  key="hydration"
-                  consumed={summary.waterConsumed}
-                  goal={summary.waterGoal}
-                  fromFoodMl={summary.waterFromFood}
-                  unit={waterDisplayUnit}
-                  containerVolume={servingVolume}
-                  linkedPressLabel={linkedPressLabel}
-                  onConfigure={
-                    isContainersLoaded && !activeWaterContainer
-                      ? () => navigation.navigate('WaterContainers')
-                      : undefined
-                  }
-                  onPressHistory={() =>
-                    navigation.navigate('WaterLog', { date: selectedDate })
-                  }
-                  onIncrement={isContainersLoaded ? incrementWater : undefined}
-                  onDecrement={isContainersLoaded ? decrementWater : undefined}
-                  disableDecrement={summary.waterConsumed <= 0}
-                  containers={waterContainers}
-                  activeContainerId={activeWaterContainer?.id}
-                  onSelectContainer={selectWaterContainer}
-                  quickAddPresets={quickAddOptions}
-                  onQuickAdd={
-                    isContainersLoaded
-                      ? (id: number) => logWaterPreset(id)
-                      : undefined
-                  }
-                />
-              ) : null;
-            case 'caffeine':
-              return caffeineCardVisible ? (
-                <CaffeineCard
-                  key="caffeine"
-                  kinetics={caffeineKinetics}
-                  nowMs={caffeineNowMs}
-                  isLoading={isCaffeineLoading}
-                />
-              ) : null;
-            case 'bloodAlcohol':
-              return bloodAlcoholCardVisible ? (
-                <BloodAlcoholCard
-                  key="bloodAlcohol"
-                  date={selectedDate}
-                  estimate={bloodAlcoholEstimate}
-                  nowMs={bloodAlcoholNowMs}
-                  isLoading={isBloodAlcoholLoading}
-                />
-              ) : null;
-            case 'fasting':
-              return fastingCardVisible ? (
-                <FastingCard key="fasting" navigation={navigation} />
-              ) : null;
-            case 'cycle':
-              return cycleCardVisible ? (
-                <CycleCard key="cycle" navigation={navigation} />
-              ) : null;
-            case 'medications':
-              return medicationsCardVisible ? (
-                <MedicationsCard key="medications" navigation={navigation} />
-              ) : null;
-            case 'symptoms':
-              return symptomsCardVisible ? (
-                <SymptomsCard
-                  key="symptoms"
-                  navigation={navigation}
-                  date={selectedDate}
-                />
-              ) : null;
-            case 'mood':
-              return moodCardVisible ? (
-                <MoodCard
-                  key="mood"
-                  navigation={navigation}
-                  date={selectedDate}
-                />
-              ) : null;
-            case 'progressPhotos':
-              return progressPhotosCardVisible ? (
-                <ProgressPhotosCard
-                  key="progressPhotos"
-                  navigation={navigation}
-                  date={selectedDate}
-                />
-              ) : null;
-            case 'healthTrends':
-              return healthTrendsCardVisible ? (
-                <View key="healthTrends" className="mb-3">
-                  <Text className="text-text-primary text-xl font-bold mb-2">
-                    {t('dashboard.healthTrends', {
-                      defaultValue: 'Health Trends',
-                    })}
-                  </Text>
-                  {/* Beside the heading, not around it: the heading stays a direct
                     {/* Beside the heading, not around it: the heading stays a direct
                       child of the card's wrapper, which carries the card margin. */}
                     <Pressable

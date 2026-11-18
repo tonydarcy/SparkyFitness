@@ -61,8 +61,10 @@ describe('food database sorting', () => {
     const [queryStr, params] = mockClient.query.mock.calls[0];
     expect(queryStr).toContain('FROM food_entries fe');
     expect(queryStr).toContain('food_usage ON food_usage.food_id = f.id');
-    expect(queryStr).toContain(
-      'food_usage.usage_score DESC NULLS LAST, food_usage.last_logged DESC NULLS LAST, f.name ASC, f.id ASC'
+    // Usage leads; name relevance only orders foods with the same usage
+    // (in practice, the ones never logged) ahead of the plain name order.
+    expect(queryStr).toMatch(
+      /ORDER BY food_usage\.usage_score DESC NULLS LAST, food_usage\.last_logged DESC NULLS LAST, \(CASE WHEN LOWER\(f\.name\) = .* END\), f\.name ASC, f\.id ASC/
     );
     // Every placeholder in the SQL has a matching bind value, and the usage
     // join is scoped to the requesting user.
