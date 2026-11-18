@@ -94,7 +94,8 @@ import { getCalorieBudget } from '@/utils/calorieBudget';
 
 const Diary = () => {
   const { t } = useTranslation();
-  const { activeUserId, isActingOnBehalf } = useActiveUser();
+  const { activeUserId, isActingOnBehalf, hasWritePermission } =
+    useActiveUser();
   const location = useLocation();
   const navigate = useNavigate();
   const { timezone, loggingLevel, energyUnit, convertEnergy, showNetCarbs } =
@@ -669,7 +670,12 @@ const Diary = () => {
       title: t('diary.dayNote.title', 'Day Note'),
       icon: NotebookPen,
       render: () => (
-        <DayNoteCard date={selectedDate} userId={activeUserId ?? undefined} />
+        <DayNoteCard
+          key={`${activeUserId ?? 'current'}:${selectedDate}`}
+          date={selectedDate}
+          userId={activeUserId ?? undefined}
+          readOnly={!hasWritePermission('diary')}
+        />
       ),
     });
 
@@ -726,6 +732,7 @@ const Diary = () => {
     loadingHealthMetrics,
     isActingOnBehalf,
     activeUserId,
+    hasWritePermission,
     viewMode,
     macroGoals,
     dayIsOver,

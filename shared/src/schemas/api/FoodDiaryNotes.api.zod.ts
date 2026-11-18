@@ -18,7 +18,13 @@ export type FoodDiaryNoteQuery = z.infer<typeof foodDiaryNoteQuerySchema>;
 export const upsertFoodDiaryNoteBodySchema = z.object({
   date: diaryDaySchema,
   /** The note text. Blank (or only whitespace) clears the day's note. */
-  note: z.string().max(FOOD_DIARY_NOTE_MAX_LENGTH),
+  note: z
+    .string()
+    .max(FOOD_DIARY_NOTE_MAX_LENGTH)
+    // PostgreSQL text cannot hold U+0000.
+    .refine((text) => !text.includes('\u0000'), {
+      message: 'The note contains a character that cannot be saved.',
+    }),
 });
 export type UpsertFoodDiaryNoteBody = z.infer<
   typeof upsertFoodDiaryNoteBodySchema

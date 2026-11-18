@@ -25,8 +25,9 @@ const setup = (state: {
   jest.mocked(useFoodDiaryNote).mockReturnValue({
     supported: true,
     isLoaded: true,
+    refetch: jest.fn(),
     ...state,
-  });
+  } as unknown as ReturnType<typeof useFoodDiaryNote>);
   jest
     .mocked(useSaveFoodDiaryNote)
     .mockReturnValue({ mutate } as unknown as ReturnType<
@@ -51,12 +52,41 @@ describe('DayNoteCard', () => {
     expect(box.props.value).toBe('Dinner out');
     fireEvent.changeText(box, 'Dinner out, guessed portions');
     fireEvent(box, 'blur');
-    expect(mutate).toHaveBeenCalledWith('Dinner out, guessed portions');
+    expect(mutate).toHaveBeenCalledWith(
+      'Dinner out, guessed portions',
+      expect.anything()
+    );
   });
 
   test('does not save an unchanged note', () => {
     const { getByLabelText } = setup({ note: 'Same' });
     fireEvent(getByLabelText('Day Note'), 'blur');
     expect(mutate).not.toHaveBeenCalled();
+  });
+
+  test('saves a change back to the saved text while another save is pending', () => {
+    const { getByLabelText } = setup({ note: 'A' });
+    const box = getByLabelText('Day Note');
+    fireEvent.changeText(box, 'B');
+    fireEvent(box, 'blur');
+    fireEvent.changeText(box, 'A');
+    fireEvent(box, 'blur');
+    expect(mutate.mock.calls.map((call) => call[0])).toEqual(['B', 'A']);
+  });
+
+  test('keeps newer typing when an earlier save comes back', () => {
+    const { getByLabelText, rerender } = setup({ note: 'A' });
+    const box = getByLabelText('Day Note');
+    fireEvent.changeText(box, 'B');
+    fireEvent(box, 'blur');
+    fireEvent.changeText(box, 'C');
+    jest.mocked(useFoodDiaryNote).mockReturnValue({
+      note: 'B',
+      supported: true,
+      isLoaded: true,
+      refetch: jest.fn(),
+    } as unknown as ReturnType<typeof useFoodDiaryNote>);
+    rerender(<DayNoteCard date="2026-11-18" />);
+    expect(getByLabelText('Day Note').props.value).toBe('C');
   });
 });

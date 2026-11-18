@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import { useCSSVariable } from 'uniwind';
+import { FOOD_DIARY_NOTE_MAX_LENGTH } from '@workspace/shared';
 import Icon from './Icon';
 import WorkoutNotesField from './WorkoutNotesField';
 import {
@@ -23,8 +25,20 @@ interface DayNoteCardProps {
 function DayNoteCard({ date }: DayNoteCardProps) {
   const { t } = useTranslation();
   const { note, supported, isLoaded } = useFoodDiaryNote(date);
-  const { mutate } = useSaveFoodDiaryNote(date);
+  const { mutate, isPending } = useSaveFoodDiaryNote(date);
   const accentPrimary = useCSSVariable('--color-accent-primary') as string;
+
+  // The text the field shows as committed: the last text sent, or the server
+  // note once no save is pending. Feeding the field this rather than the
+  // server note means a save answering late never replaces newer typing, and
+  // a later edit is compared with what was sent, not with an older note.
+  const [committed, setCommitted] = useState(note ?? '');
+  const [failed, setFailed] = useState(false);
+  const [lastNote, setLastNote] = useState(note);
+  if (note !== lastNote) {
+    setLastNote(note);
+    if (!isPending && !failed) setCommitted(note ?? '');
+  }
 
   if (!isLoaded || !supported) return null;
 
@@ -37,16 +51,20 @@ function DayNoteCard({ date }: DayNoteCardProps) {
         <Text className="text-base font-bold text-text-secondary">{title}</Text>
       </View>
       <WorkoutNotesField
-        value={note}
+        value={committed}
         label=""
         accessibilityLabel={title}
+        maxLength={FOOD_DIARY_NOTE_MAX_LENGTH}
         placeholder={t('diary.dayNote.placeholder', {
           defaultValue:
             'How did today go? Anything worth remembering about what you ate.',
         })}
         onCommit={(text) => {
-          if (text.trim() === (note ?? '').trim()) return;
-          mutate(text);
+          // A failed save keeps the text in the box; the next blur retries.
+          if (!failed && text.trim() === committed.trim()) return;
+          setCommitted(text);
+          setFailed(false);
+          mutate(text, { onError: () => setFailed(true) });
         }}
       />
     </View>

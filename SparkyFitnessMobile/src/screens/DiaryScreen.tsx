@@ -77,6 +77,7 @@ import { useExerciseImageSource } from '../hooks/useExerciseImageSource';
 import { useDateColumnCollapsed } from '../hooks/useDateColumnCollapsed';
 import { crossfadeHeaderColumn } from '../../modules/side-bar-metrics';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
+import { useFoodDiaryNote } from '../hooks/useFoodDiaryNote';
 import { useMeasurements } from '../hooks/useMeasurements';
 import { usePreferences } from '../hooks/usePreferences';
 import { useSleepDay } from '../hooks/useSleepDay';
@@ -548,6 +549,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
       <FoodSelectionBar selection={foodSelection} />
     </View>
   ) : null;
+  const { refetch: refetchDayNote } = useFoodDiaryNote(selectedDate);
   const onRefresh = useCallback(async () => {
     if (!isConnected) return;
     setRefreshing(true);
@@ -562,6 +564,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         refetchCustomNutrients(),
         refetchNutrientPrefs(),
         refetchSleep(),
+        refetchDayNote(),
       ]);
     } finally {
       setRefreshing(false);
@@ -574,6 +577,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
     refetchCustomNutrients,
     refetchNutrientPrefs,
     refetchSleep,
+    refetchDayNote,
   ]);
 
   const isRefreshing = refreshing;
@@ -700,9 +704,6 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
             >
               {t('diary.addFood', { defaultValue: 'Add Food' })}
             </Button>
-            <View className="mt-4">
-              <DayNoteCard key={selectedDate} date={selectedDate} />
-            </View>
           </>
         ) : (
           <>
@@ -736,7 +737,6 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
               onPressMealType={openMealTypeDetail}
               selection={foodSelection}
             />
-            <DayNoteCard key={selectedDate} date={selectedDate} />
             <ExerciseSummary
               exerciseEntries={summary.exerciseEntries}
               entryDate={selectedDate}
@@ -844,6 +844,11 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
             />
           </>
         )}
+        {/* One slot for both branches, so the editor is not remounted (and
+            its draft sent early) when the day turns out to be empty. */}
+        <View className={isDayEmpty ? 'mt-4' : undefined}>
+          <DayNoteCard key={selectedDate} date={selectedDate} />
+        </View>
       </ScrollView>
     );
   };

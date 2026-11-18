@@ -24,7 +24,9 @@ export function useFoodDiaryNote(date: string) {
   return {
     note: query.data?.note ?? null,
     supported: query.data !== null,
-    isLoaded: query.isSuccess,
+    // Once anything has loaded, a failed background refetch keeps the editor.
+    isLoaded: query.data !== undefined,
+    refetch: query.refetch,
   };
 }
 
@@ -33,9 +35,18 @@ export function useSaveFoodDiaryNote(date: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (note: string) => saveFoodDiaryNote(date, note),
-    onSuccess: (saved) => {
-      queryClient.setQueryData(foodDiaryNoteQueryKey(date), saved);
-    },
+    // Saves of one day's note run in the order they were made, so the last
+    // edit is the one the server keeps.
+    scope: { id: `foodDiaryNote:${date}` },
+    // Read the note back rather than writing the response into the cache:
+    // the refetch replaces any read started before the save, and it belongs
+    // to whichever account is active now, so a save that finishes after a
+    // server switch never shows in the other account.
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: foodDiaryNoteQueryKey(date),
+        exact: true,
+      }),
     onError: () => {
       Toast.show({
         type: 'error',

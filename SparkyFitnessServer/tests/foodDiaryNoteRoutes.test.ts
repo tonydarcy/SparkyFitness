@@ -101,6 +101,20 @@ describe('food diary note routes', () => {
       .send({ date: '2026-11-18', note: '' });
     expect(res.status).toBe(200);
     expect(res.body.note).toBeNull();
+    expect(saveFoodDiaryNote).toHaveBeenCalledWith(
+      'owner-id',
+      '2026-11-18',
+      '',
+      'actor-id'
+    );
+  });
+
+  it('rejects a note the database cannot store', async () => {
+    const res = await request(app)
+      .put('/api/v2/food-diary-notes')
+      .send({ date: '2026-11-18', note: 'a\u0000b' });
+    expect(res.status).toBe(400);
+    expect(saveFoodDiaryNote).not.toHaveBeenCalled();
   });
 
   it('rejects a note over the length limit', async () => {

@@ -4152,7 +4152,9 @@
       "saving": "Saving...",
       "saved": "Saved",
       "failedToLoad": "Failed to load the day's note.",
-      "failedToSave": "Failed to save the day's note."
+      "failedToSave": "Failed to save the day's note.",
+      "retry": "Retry",
+      "empty": "No note for this day."
     },
     "energyBalance": {
       "title": "Expenditure & Balance",

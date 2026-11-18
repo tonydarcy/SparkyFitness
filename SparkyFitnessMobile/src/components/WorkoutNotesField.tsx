@@ -11,6 +11,7 @@ interface WorkoutNotesFieldProps {
   label?: string;
   placeholder?: string;
   accessibilityLabel?: string;
+  maxLength?: number;
 }
 
 /**
@@ -33,6 +34,7 @@ function WorkoutNotesField({
   label,
   placeholder,
   accessibilityLabel,
+  maxLength,
 }: WorkoutNotesFieldProps) {
   const { t } = useTranslation();
   const resolvedLabel = label ?? t('workout.notes', { defaultValue: 'Notes' });
@@ -86,6 +88,7 @@ function WorkoutNotesField({
         placeholder={resolvedPlaceholder}
         accessibilityLabel={accessibilityLabel ?? resolvedLabel}
         multiline
+        maxLength={maxLength}
         style={{ minHeight: 64, textAlignVertical: 'top' }}
       />
     </View>

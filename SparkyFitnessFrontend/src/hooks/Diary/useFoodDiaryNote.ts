@@ -26,8 +26,14 @@ export const useSaveFoodDiaryNoteMutation = (date: string, userId?: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (note: string) => saveFoodDiaryNote(date, note),
-    onSuccess: (saved) => {
-      queryClient.setQueryData(foodDiaryNoteKeys.byDate(date, userId), saved);
+    // Saves of one day's note run in the order they were made, so the last
+    // edit is the one the server keeps.
+    scope: { id: `foodDiaryNote:${userId ?? 'current'}:${date}` },
+    onSuccess: async (saved) => {
+      const key = foodDiaryNoteKeys.byDate(date, userId);
+      // A read started before the save must not put the old note back.
+      await queryClient.cancelQueries({ queryKey: key, exact: true });
+      queryClient.setQueryData(key, saved);
     },
     meta: {
       errorMessage: t(
