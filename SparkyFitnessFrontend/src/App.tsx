@@ -34,6 +34,7 @@ import {
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import OidcCallback from '@/components/OidcCallback';
+import { FeatureRoute } from '@/components/FeatureRoute';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import {
   useCurrentVersionQuery,
@@ -481,7 +482,11 @@ const router = createBrowserRouter([
           },
           {
             path: 'labs',
-            Component: Labs,
+            element: (
+              <FeatureRoute feature="labResults">
+                <Labs />
+              </FeatureRoute>
+            ),
             ErrorBoundary: RouteErrorBoundary,
           },
           {
