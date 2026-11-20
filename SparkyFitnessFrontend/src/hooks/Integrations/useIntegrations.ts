@@ -2,6 +2,7 @@ import {
   linkFitbitAccount,
   linkOuraAccount,
   linkGoogleHealthAccount,
+  linkGoogleSheetsAccount,
   linkPolarFlowAccount,
   linkCorosAccount,
   linkWithingsAccount,
@@ -42,6 +43,9 @@ import {
   handleConnectGoogleHealth,
   handleDisconnectGoogleHealth,
   handleManualSyncGoogleHealth,
+  handleConnectGoogleSheets,
+  handleDisconnectGoogleSheets,
+  handleExportGoogleSheets,
   handleConnectStrava,
   handleDisconnectStrava,
   handleManualSyncStrava,
@@ -737,6 +741,69 @@ export const useManualSyncGoogleHealthMutation = () => {
       errorMessage: t(
         'integrations.googleHealthSyncError',
         'Google Health sync did not finish.'
+      ),
+    },
+  });
+};
+
+export const useLinkGoogleSheetsMutation = () => {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: linkGoogleSheetsAccount,
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: externalProviderKeys.lists(),
+      }),
+    meta: {
+      errorMessage: t(
+        'integrations.googleSheetsLinkError',
+        'Failed to link Google Sheets.'
+      ),
+      successMessage: t(
+        'integrations.googleSheetsLinkSuccess',
+        'Google Sheets linked. Your export spreadsheet is ready.'
+      ),
+    },
+  });
+};
+
+export const useConnectGoogleSheetsMutation = () => {
+  return useMutation({
+    mutationFn: handleConnectGoogleSheets,
+  });
+};
+
+export const useDisconnectGoogleSheetsMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: handleDisconnectGoogleSheets,
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: externalProviderKeys.lists(),
+      }),
+  });
+};
+
+export const useExportGoogleSheetsMutation = () => {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: handleExportGoogleSheets,
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: externalProviderKeys.lists(),
+      }),
+    meta: {
+      errorMessage: t(
+        'integrations.googleSheetsExportError',
+        'Google Sheets export did not finish.'
+      ),
+      successMessage: t(
+        'integrations.googleSheetsExportSuccess',
+        'Google Sheets export updated.'
       ),
     },
   });

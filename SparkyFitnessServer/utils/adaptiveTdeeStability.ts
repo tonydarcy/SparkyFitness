@@ -62,6 +62,8 @@ export interface AdaptiveStabilityResult {
   daysSinceLastWeight?: number;
   daysSinceEstimate?: number;
   currentCalorieDays: number;
+  /** Mean qualifying intake in the current window, when any day qualifies. */
+  currentAvgIntake?: number;
   currentObservedWeightDays: number;
   currentWeightObservationSpanDays: number;
   confidence: AdaptiveConfidence;
@@ -281,6 +283,9 @@ export function stabilizeAdaptiveTdee(
   const lastWeightIndex = allWeights[allWeights.length - 1]?.index ?? -1;
   const currentWindow = calendar.slice(-ADAPTIVE_TDEE_ESTIMATE_WINDOW_DAYS);
   const currentWeights = observedWeights(currentWindow);
+  const currentCalories = currentWindow
+    .filter(qualifyingCalories)
+    .map((day) => day.calories);
   const currentSpan =
     currentWeights.length > 1
       ? currentWeights[currentWeights.length - 1]!.index -
@@ -386,7 +391,10 @@ export function stabilizeAdaptiveTdee(
         }
       : {}),
     ...(evidence ? { daysSinceEstimate } : {}),
-    currentCalorieDays: currentWindow.filter(qualifyingCalories).length,
+    currentCalorieDays: currentCalories.length,
+    ...(currentCalories.length > 0
+      ? { currentAvgIntake: mean(currentCalories) }
+      : {}),
     currentObservedWeightDays: currentWeights.length,
     currentWeightObservationSpanDays: currentSpan,
     confidence,

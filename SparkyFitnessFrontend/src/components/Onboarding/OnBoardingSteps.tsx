@@ -150,9 +150,20 @@ export const OnboardingSteps = ({
             </button>
           </div>
 
-          <div className="flex items-center justify-center">
+          <div
+            className="flex items-center justify-center"
+            onKeyDown={(e) => {
+              if (
+                e.key === 'Enter' &&
+                !e.nativeEvent.isComposing &&
+                formData.currentWeight
+              )
+                nextStep();
+            }}
+          >
             <UnitInput
               id="current-weight"
+              commitOnChange
               type="weight"
               unit={weightUnit}
               value={formData.currentWeight}
@@ -207,9 +218,20 @@ export const OnboardingSteps = ({
             </button>
           </div>
 
-          <div className="flex items-center justify-center">
+          <div
+            className="flex items-center justify-center"
+            onKeyDown={(e) => {
+              if (
+                e.key === 'Enter' &&
+                !e.nativeEvent.isComposing &&
+                formData.height
+              )
+                nextStep();
+            }}
+          >
             <UnitInput
               id="height"
+              commitOnChange
               type="height"
               unit={heightUnit}
               value={formData.height}
@@ -376,9 +398,20 @@ export const OnboardingSteps = ({
           <p className="text-muted-foreground mb-8">
             {t('onboarding.targetWeightDescription', 'Your ultimate goal.')}
           </p>
-          <div className="flex items-center justify-center">
+          <div
+            className="flex items-center justify-center"
+            onKeyDown={(e) => {
+              if (
+                e.key === 'Enter' &&
+                !e.nativeEvent.isComposing &&
+                formData.targetWeight
+              )
+                nextStep();
+            }}
+          >
             <UnitInput
               id="target-weight"
+              commitOnChange
               type="weight"
               unit={weightUnit}
               value={formData.targetWeight}

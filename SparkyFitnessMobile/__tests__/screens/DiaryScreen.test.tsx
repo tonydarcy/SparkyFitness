@@ -56,6 +56,8 @@ import { useOfflineDiaryDay } from '../../src/hooks/useOfflineDiaryDay';
 
 jest.mock('../../src/hooks/useOfflineDiaryDay', () => ({
   useOfflineDiaryDay: jest.fn(() => ({ saved: null, waiting: [] })),
+jest.mock('../../src/hooks/usePrefetchAdjacentDays', () => ({
+  usePrefetchAdjacentDays: jest.fn(),
 }));
 
 jest.mock('../../src/hooks', () => ({
@@ -166,6 +168,29 @@ jest.mock('../../src/hooks/useWorkoutPresets', () => ({
 
 jest.mock('../../src/components/ActiveWorkoutBar', () => ({
   useActiveWorkoutBarPadding: jest.fn(() => 0),
+  useTabScreenFloatingBottom: () => 0,
+}));
+
+// The day note has its own tests (DayNoteCard.test.tsx).
+jest.mock('../../src/components/DayNoteCard', () => () => null);
+jest.mock('../../src/hooks/useFoodDiaryNote', () => ({
+  useFoodDiaryNote: () => ({ refetch: jest.fn() }),
+}));
+
+// The copy selection is covered by FoodSummary's own tests.
+jest.mock('../../src/components/DiaryFoodSelection', () => ({
+  useDiaryFoodSelection: () => ({
+    selectionMode: false,
+    toggleSelect: jest.fn(),
+    toggleSelectAll: jest.fn(),
+    startSelection: jest.fn(),
+    selectedCount: 0,
+    isCopying: false,
+    endSelection: jest.fn(),
+    openCopySheet: jest.fn(),
+    copySheet: null,
+  }),
+  FoodSelectionBar: () => null,
 }));
 
 jest.mock('../../src/components/AddSheet', () => ({

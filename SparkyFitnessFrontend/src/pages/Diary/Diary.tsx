@@ -6,22 +6,38 @@ import { usePreferences } from '@/contexts/PreferencesContext';
 import DayNavigator from '@/components/DayNavigator';
 import NutritionSummaryCard, { DayTotals } from './NutritionSummaryCard';
 import DailyProgress from './DailyProgress';
+import type { DiaryMacroGoal } from './DiaryMacroGoalBars';
+import { getNetCarbsValue } from '@/utils/nutrientUtils';
+import { compareDays } from '@workspace/shared';
 import WaterIntake from './WaterIntake';
 import CaffeineCard from './CaffeineCard';
+import DayNoteCard from './DayNoteCard';
 import BloodAlcoholCard from './BloodAlcoholCard';
+import EnergyBalanceCard from './EnergyBalanceCard';
 import MealCard from './MealCard';
+import DiaryTimeline from './DiaryTimeline';
 import ExerciseCard from './ExerciseCard';
 import DiaryWidgetGrid, { type DiaryWidget } from './DiaryWidgetGrid';
-import { mealWidgetKey } from '@/utils/dashboardLayout';
+import { mealWidgetKey, TIMELINE_WIDGET_KEY } from '@/utils/dashboardLayout';
 import {
+  readDiaryViewMode,
+  writeDiaryViewMode,
+  type DiaryViewMode,
+} from '@/utils/diaryTimeline';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Clock,
   Flame,
+  LayoutList,
   Salad,
   Droplet,
   Coffee,
+  NotebookPen,
   Wine,
   UtensilsCrossed,
   Dumbbell,
   HeartPulse,
+  Scale,
 } from 'lucide-react';
 import { DailyHealthMetricsCard } from '@/components/Health/DailyHealthMetricsCard';
 import { useDailyHealthMetrics } from '@/hooks/useGenericHealth';
@@ -29,6 +45,7 @@ import { selectDisplayableHealthMetrics } from '@/utils/dailyHealthMetrics';
 import EditFoodEntryDialog from './EditFoodEntryDialog';
 import FoodUnitSelector from '@/components/FoodUnitSelector';
 import CopyFoodEntryDialog, {
+  KEEP_SOURCE_MEAL,
   type CopyQuickTarget,
 } from '@/pages/Diary/CopyFoodEntryDialog';
 import ConvertToMealDialog from '@/pages/Diary/ConvertToMealDialog';
@@ -53,6 +70,7 @@ import { useCustomNutrients } from '@/hooks/Foods/useCustomNutrients';
 import { useMealTypes } from '@/hooks/Diary/useMealTypes';
 import {
   useCopyFoodEntriesMutation,
+  useCopyFoodEntryListMutation,
   useCopySingleFoodEntryMutation,
   useCreateFoodEntryMutation,
   useDeleteFoodEntryMealMutation,
@@ -66,6 +84,9 @@ import {
   clockInZone,
   prefillEntryTime,
   todayInZone,
+  pickMealTypeForTime,
+  toHourMinute,
+  userHourMinute,
 } from '@workspace/shared';
 import { useDailySummary } from '@/hooks/Diary/useDailyProgress';
 import { useNutrientGoalPreferences } from '@/hooks/Settings/useNutrientGoalPreferences';
@@ -73,10 +94,11 @@ import { getCalorieBudget } from '@/utils/calorieBudget';
 
 const Diary = () => {
   const { t } = useTranslation();
-  const { activeUserId, isActingOnBehalf } = useActiveUser();
+  const { activeUserId, isActingOnBehalf, hasWritePermission } =
+    useActiveUser();
   const location = useLocation();
   const navigate = useNavigate();
-  const { timezone, loggingLevel, energyUnit, convertEnergy } =
+  const { timezone, loggingLevel, energyUnit, convertEnergy, showNetCarbs } =
     usePreferences();
   const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
   const [editingFoodEntryMeal, setEditingFoodEntryMeal] =
@@ -113,6 +135,16 @@ const Diary = () => {
   >(null);
   const [toolbarContainer, setToolbarContainer] =
     useState<HTMLDivElement | null>(null);
+  const [viewMode, setViewMode] = useState<DiaryViewMode>(readDiaryViewMode);
+  // Time picked from the timeline (a slot or "now"), prefilled into the
+  // add dialogs in place of the meal type's default time.
+  const [timelineAddTime, setTimelineAddTime] = useState<string>('');
+
+  const handleViewModeChange = (mode: string) => {
+    const next: DiaryViewMode = mode === 'timeline' ? 'timeline' : 'meals';
+    setViewMode(next);
+    writeDiaryViewMode(next);
+  };
 
   const currentUserId = activeUserId;
   const { data: customNutrients, isLoading: customNutrientsLoading } =
@@ -156,6 +188,11 @@ const Diary = () => {
   const { mutateAsync: copyFoodEntries } = useCopyFoodEntriesMutation();
   const { mutate: copySingleFoodEntry } = useCopySingleFoodEntryMutation();
   const [copyingEntry, setCopyingEntry] = useState<FoodEntry | null>(null);
+  const { mutate: copyFoodEntryList } = useCopyFoodEntryListMutation();
+  // Foods picked in the timeline to copy together.
+  const [copyingEntries, setCopyingEntries] = useState<FoodEntry[] | null>(
+    null
+  );
   const { mutateAsync: deleteFoodEntryMeal } = useDeleteFoodEntryMealMutation();
 
   const foodEntries = fetchedFoodEntries
@@ -168,6 +205,39 @@ const Diary = () => {
     calculateDayTotals(foodEntries, foodEntryMeals),
     summaryData?.supplementTotals
   );
+
+  // Protein / carbs / fat against their goals for the glanceable bars in the
+  // Daily Energy Goal card; the Dashboard keeps the detailed view.
+  const macroGoals: DiaryMacroGoal[] | undefined = effectiveGoals
+    ? [
+        {
+          key: 'protein',
+          label: t('nutrition.protein', 'Protein'),
+          consumed: dayTotals.protein ?? 0,
+          goal: effectiveGoals.protein ?? 0,
+        },
+        {
+          key: 'carbs',
+          label: showNetCarbs
+            ? t('nutrition.netCarbs', 'Net Carbs')
+            : t('nutrition.carbs', 'Carbs'),
+          consumed: showNetCarbs
+            ? getNetCarbsValue(
+                dayTotals.carbs ?? 0,
+                dayTotals.dietary_fiber ?? 0
+              )
+            : (dayTotals.carbs ?? 0),
+          goal: effectiveGoals.carbs ?? 0,
+        },
+        {
+          key: 'fat',
+          label: t('nutrition.fat', 'Fat'),
+          consumed: dayTotals.fat ?? 0,
+          goal: effectiveGoals.fat ?? 0,
+        },
+      ]
+    : undefined;
+  const dayIsOver = compareDays(selectedDate, todayInZone(timezone)) < 0;
 
   // Handle navigation for opening food search dialog
   useEffect(() => {
@@ -188,7 +258,9 @@ const Diary = () => {
         `[Diary] Setting openFoodSearchForMealType to: ${mealType}`
       );
 
-      // Set which meal dialog should open
+      // Set which meal dialog should open. The request names a meal card, so
+      // show the meal cards for it (without changing the saved preference).
+      setViewMode('meals');
       setOpenFoodSearchForMealType(mealType);
 
       // Clear the navigation state for next render
@@ -228,6 +300,35 @@ const Diary = () => {
       // Copy into the diary being viewed, like adding a food does.
       user_id: currentUserId,
     });
+  };
+
+  const handleCopySelectedFoods = (
+    targetDate: string,
+    targetMealType: string,
+    quickTarget: CopyQuickTarget | null
+  ) => {
+    const entries = copyingEntries ?? [];
+    const mealTypeIdByName = (name: string) =>
+      availableMealTypes?.find(
+        (mt) => mt.name.toLowerCase() === name.toLowerCase()
+      )?.id;
+    const keepMeal = targetMealType === KEEP_SOURCE_MEAL;
+    const entryTime = quickTarget === 'now' ? clockInZone(timezone) : undefined;
+    const payloads = entries.flatMap((entry) => {
+      // "Same meal" keeps each food in the meal it was logged in.
+      const mealTypeId = keepMeal
+        ? (entry.meal_type_id ?? mealTypeIdByName(entry.meal_type))
+        : mealTypeIdByName(targetMealType);
+      return mealTypeId
+        ? [buildFoodEntryCopyPayload(entry, targetDate, mealTypeId, entryTime)]
+        : [];
+    });
+    if (payloads.length > 0 && currentUserId) {
+      // Copy into the diary being viewed, like adding a food does.
+      copyFoodEntryList(
+        payloads.map((payload) => ({ ...payload, user_id: currentUserId }))
+      );
+    }
   };
 
   const handleCopyFamilyClick = (mealType: string) => {
@@ -287,13 +388,36 @@ const Diary = () => {
     }
   };
 
+  // Adding from the timeline: the meal type follows the chosen time, and the
+  // unit dialog lets the user change either before saving.
+  const handleTimelineFoodSelect = (
+    item: Food | MealType,
+    time: string | null
+  ) => {
+    const slot = toHourMinute(time);
+    const reference = slot
+      ? { hour: Number(slot.slice(0, 2)), minute: Number(slot.slice(3, 5)) }
+      : userHourMinute(timezone);
+    const mealType = pickMealTypeForTime(visibleMealTypes, reference);
+    if (!mealType) return;
+    setTimelineAddTime(
+      slot ??
+        prefillEntryTime({
+          defaultTime: mealType.default_time,
+          isToday: selectedDate === todayInZone(timezone),
+          tz: timezone,
+        })
+    );
+    handleFoodSelect(item, mealType.name);
+  };
+
   const handleFoodUnitSelect = async (
     food: Food,
     quantity: number,
     unit: string,
     selectedVariant: FoodVariant,
     entryTime?: string | null,
-    _mealType?: string | null,
+    mealTypeName?: string | null,
     notes?: string | null,
     cookedQuantity?: number | null
   ) => {
@@ -307,12 +431,18 @@ const Diary = () => {
       selectedVariant,
       entryTime,
     });
+    // Only the timeline shows a meal type picker in the unit dialog.
+    const pickedMealType = mealTypeName
+      ? availableMealTypes?.find(
+          (type) => type.name.toLowerCase() === mealTypeName.toLowerCase()
+        )
+      : undefined;
     try {
       await createFoodEntry({
         user_id: currentUserId,
         food_id: food.id,
-        meal_type: selectedMealType,
-        meal_type_id: selectedMealTypeId,
+        meal_type: pickedMealType?.name ?? selectedMealType,
+        meal_type_id: pickedMealType?.id ?? selectedMealTypeId,
         quantity: quantity,
         unit: unit,
         variant_id: selectedVariant.id,
@@ -413,7 +543,13 @@ const Diary = () => {
         key: 'energy',
         title: t('diary.dailyEnergyGoal', 'Daily Energy Goal'),
         icon: Flame,
-        render: () => <DailyProgress selectedDate={selectedDate} />,
+        render: () => (
+          <DailyProgress
+            selectedDate={selectedDate}
+            macroGoals={macroGoals}
+            dayIsOver={dayIsOver}
+          />
+        ),
       },
       {
         key: 'nutrition',
@@ -458,7 +594,35 @@ const Diary = () => {
       ),
     });
 
-    for (const mealTypeObj of visibleMealTypes) {
+    list.push({
+      key: 'energyBalance',
+      title: t('diary.energyBalance.title', 'Expenditure & Balance'),
+      icon: Scale,
+      render: () => <EnergyBalanceCard date={selectedDate} />,
+    });
+
+    if (viewMode === 'timeline') {
+      list.push({
+        key: TIMELINE_WIDGET_KEY,
+        title: t('diary.timeline.title', 'Timeline'),
+        icon: Clock,
+        render: () => (
+          <DiaryTimeline
+            selectedDate={selectedDate}
+            foodEntries={foodEntries}
+            foodEntryMeals={foodEntryMeals ?? []}
+            mealTypes={visibleMealTypes}
+            onFoodSelect={handleTimelineFoodSelect}
+            onEditEntry={handleEditEntry}
+            onRemoveEntry={handleRemoveEntry}
+            getEntryNutrition={getEntryNutrition}
+            onCopyEntries={setCopyingEntries}
+          />
+        ),
+      });
+    }
+
+    for (const mealTypeObj of viewMode === 'timeline' ? [] : visibleMealTypes) {
       list.push({
         key: mealWidgetKey(mealTypeObj.id),
         title: mealTypeObj.name,
@@ -502,6 +666,20 @@ const Diary = () => {
         ),
       });
     }
+
+    list.push({
+      key: 'dayNote',
+      title: t('diary.dayNote.title', 'Day Note'),
+      icon: NotebookPen,
+      render: () => (
+        <DayNoteCard
+          key={`${activeUserId ?? 'current'}:${selectedDate}`}
+          date={selectedDate}
+          userId={activeUserId ?? undefined}
+          readOnly={!hasWritePermission('diary')}
+        />
+      ),
+    });
 
     list.push({
       key: 'exercise',
@@ -555,6 +733,11 @@ const Diary = () => {
     todaysHealthMetrics,
     loadingHealthMetrics,
     isActingOnBehalf,
+    activeUserId,
+    hasWritePermission,
+    viewMode,
+    macroGoals,
+    dayIsOver,
     t,
   ]);
 
@@ -562,7 +745,18 @@ const Diary = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b">
-        <div />
+        <Tabs value={viewMode} onValueChange={handleViewModeChange}>
+          <TabsList aria-label={t('diary.view.label', 'Diary view')}>
+            <TabsTrigger value="meals" className="gap-1.5">
+              <LayoutList className="h-4 w-4" />
+              {t('diary.view.meals', 'Meals')}
+            </TabsTrigger>
+            <TabsTrigger value="timeline" className="gap-1.5">
+              <Clock className="h-4 w-4" />
+              {t('diary.view.timeline', 'Timeline')}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:ml-auto">
           <div
             ref={setToolbarContainer}
@@ -583,6 +777,7 @@ const Diary = () => {
         <DiaryWidgetGrid
           widgets={widgets}
           toolbarContainer={toolbarContainer}
+          viewMode={viewMode}
         />
       )}
 
@@ -595,19 +790,31 @@ const Diary = () => {
           onSelect={handleFoodUnitSelect}
           showUnitSelector={true}
           showTimeInput={true}
+          showMealTypeSelect={viewMode === 'timeline'}
+          availableMealTypes={visibleMealTypes}
           showCookedWeight={true}
+          mealName={
+            selectedMealType
+              ? t(`common.${selectedMealType}`, selectedMealType)
+              : undefined
+          }
           defaultMealTime={
             availableMealTypes?.find(
               (t) => t.name.toLowerCase() === selectedMealType.toLowerCase()
             )?.default_time
           }
-          initialTime={prefillEntryTime({
-            defaultTime: availableMealTypes?.find(
-              (t) => t.name.toLowerCase() === selectedMealType.toLowerCase()
-            )?.default_time,
-            isToday: selectedDate === todayInZone(timezone),
-            tz: timezone,
-          })}
+          initialTime={
+            viewMode === 'timeline'
+              ? timelineAddTime
+              : prefillEntryTime({
+                  defaultTime: availableMealTypes?.find(
+                    (t) =>
+                      t.name.toLowerCase() === selectedMealType.toLowerCase()
+                  )?.default_time,
+                  isToday: selectedDate === todayInZone(timezone),
+                  tz: timezone,
+                })
+          }
         />
       )}
 
@@ -642,6 +849,27 @@ const Diary = () => {
         />
       )}
 
+      {copyingEntries && (
+        <CopyFoodEntryDialog
+          isOpen={true}
+          onClose={() => setCopyingEntries(null)}
+          onCopy={handleCopySelectedFoods}
+          sourceMealType={
+            copyingEntries.length === 1
+              ? copyingEntries[0]!.meal_type
+              : KEEP_SOURCE_MEAL
+          }
+          keepMealOption={copyingEntries.length > 1}
+          foodName={
+            copyingEntries.length === 1
+              ? (copyingEntries[0]!.food_name ?? '')
+              : t('diary.timeline.foodCount', '{{count}} foods', {
+                  count: copyingEntries.length,
+                })
+          }
+        />
+      )}
+
       {/* Edit Meal Food Entry Dialog */}
       {editingFoodEntryMeal && (
         <EditMealFoodEntryDialog
@@ -657,13 +885,17 @@ const Diary = () => {
         onOpenChange={setIsLogMealDialogOpen}
         date={selectedDate}
         mealType={selectedMealType}
-        initialEntryTime={prefillEntryTime({
-          defaultTime: availableMealTypes?.find(
-            (t) => t.name.toLowerCase() === selectedMealType.toLowerCase()
-          )?.default_time,
-          isToday: selectedDate === todayInZone(timezone),
-          tz: timezone,
-        })}
+        initialEntryTime={
+          viewMode === 'timeline'
+            ? timelineAddTime
+            : prefillEntryTime({
+                defaultTime: availableMealTypes?.find(
+                  (t) => t.name.toLowerCase() === selectedMealType.toLowerCase()
+                )?.default_time,
+                isToday: selectedDate === todayInZone(timezone),
+                tz: timezone,
+              })
+        }
       />
 
       {/* Convert to Meal Dialog */}

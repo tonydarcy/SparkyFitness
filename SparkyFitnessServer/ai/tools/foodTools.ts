@@ -12,6 +12,7 @@ import {
 } from '@workspace/shared';
 import { log } from '../../config/logging.js';
 import foodCoreService from '../../services/foodCoreService.js';
+import customNutrientService from '../../services/customNutrientService.js';
 import foodEntryService from '../../services/foodEntryService.js';
 import mealService from '../../services/mealService.js';
 import preferenceService from '../../services/preferenceService.js';
@@ -791,6 +792,52 @@ async function searchFoodInternal(
   return buildPaginatedResult(rows.map(projectFoodItem), totalCount, offset);
 }
 
+type CustomNutrientTotal = { amount: number; unit: string | null };
+
+// Units of the user's own nutrients, read only when a day in range logged one.
+async function getCustomNutrientUnits(
+  userId: string,
+  rows: { custom_nutrients?: unknown }[]
+): Promise<Map<string, string | null>> {
+  const units = new Map<string, string | null>();
+  const anyLogged = rows.some(
+    (row) =>
+      row.custom_nutrients &&
+      typeof row.custom_nutrients === 'object' &&
+      Object.keys(row.custom_nutrients).length > 0
+  );
+  if (!anyLogged) return units;
+  const defined = (await customNutrientService.getCustomNutrients(userId)) as {
+    name: string;
+    unit?: string | null;
+  }[];
+  for (const nutrient of defined) {
+    units.set(nutrient.name, nutrient.unit ?? null);
+  }
+  return units;
+}
+
+// A day's summed custom nutrients as { name: { amount, unit } }, or undefined
+// when the day logged none, so rows without them keep their old shape.
+function projectCustomNutrientTotals(
+  totals: unknown,
+  units: Map<string, string | null>
+): Record<string, CustomNutrientTotal> | undefined {
+  if (!totals || typeof totals !== 'object' || Array.isArray(totals)) {
+    return undefined;
+  }
+  const projected: Record<string, CustomNutrientTotal> = {};
+  for (const [name, value] of Object.entries(totals)) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) continue;
+    projected[name] = {
+      amount: Number(amount.toFixed(3)),
+      unit: units.get(name) ?? null,
+    };
+  }
+  return Object.keys(projected).length > 0 ? projected : undefined;
+}
+
 // Per-day nutrition totals with the user's energy-unit conversion applied —
 // MCP's getNutritionalSummary row shape (fiber/sugar aliases included).
 // Shared with the report tools.
@@ -809,6 +856,7 @@ export async function getNutritionalSummaryRows(
     startDate,
     endDate
   );
+  const customUnits = await getCustomNutrientUnits(userId, rows);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return rows.map((row: any) => {
     const calories = Number(row.calories || 0);
@@ -832,6 +880,10 @@ export async function getNutritionalSummaryRows(
       vitamin_c: Number(row.vitamin_c || 0),
       calcium: Number(row.calcium || 0),
       iron: Number(row.iron || 0),
+      custom_nutrients: projectCustomNutrientTotals(
+        row.custom_nutrients,
+        customUnits
+      ),
       nutrition_warning:
         Number(row.legacy_ambiguous_entry_count || 0) > 0
           ? 'Totals exclude legacy entries with ambiguous units. Correct those entries explicitly before treating this day as complete.'
@@ -1037,6 +1089,16 @@ Actions:
             }
             if (args.entry_id && args.entry_type) {
               return 'delete_entry';
+            }
+            // custom_nutrients is only accepted by update_food_variant. Check
+            // it before the food_name/meal/food_id branches: any of those
+            // would pick an action whose strict schema drops the nutrient
+            // edit (or, for a bare food_id, delete the food).
+            if (
+              (args.food_id || args.variant_id) &&
+              args.custom_nutrients !== undefined
+            ) {
+              return 'update_food_variant';
             }
             if (args.amount_ml) {
               return 'log_water';
@@ -2738,6 +2800,33 @@ Actions:
                   updates[dbField] = value;
                 }
               }
+              const customInput = (args as Record<string, unknown>)
+                .custom_nutrients as Record<string, number> | undefined;
+              if (customInput && Object.keys(customInput).length > 0) {
+                // Only the user's defined nutrients are kept, and the given
+                // amounts merge into the stored ones so setting one nutrient
+                // does not erase the others.
+                const defined = new Set(
+                  (
+                    (await customNutrientService.getCustomNutrients(
+                      userId
+                    )) as { name: string }[]
+                  ).map((n) => n.name)
+                );
+                const unknown = Object.keys(customInput).filter(
+                  (name) => !defined.has(name)
+                );
+                if (unknown.length > 0) {
+                  return ERRORS.VALIDATION(
+                    `Unknown custom nutrient(s): ${unknown.join(', ')}. Use list_custom_nutrients for the exact names.`
+                  );
+                }
+                updates.custom_nutrients = {
+                  ...((variant.custom_nutrients as Record<string, unknown>) ??
+                    {}),
+                  ...customInput,
+                };
+              }
               if (Object.keys(updates).length === 0) {
                 // MCP quirk: "at least one field" threw and surfaced as a
                 // DB error — ported as-is.
@@ -2871,6 +2960,17 @@ Actions:
                   text += `  Fiber: ${s.fiber}g | Sugar: ${s.sugar}g | Sodium: ${s.sodium}mg\n`;
                   if (s.saturated_fat || s.cholesterol || s.potassium) {
                     text += `  Other: SatFat: ${s.saturated_fat}g | Chol: ${s.cholesterol}mg | Potas: ${s.potassium}mg`;
+                  }
+                  if (s.custom_nutrients) {
+                    const custom = Object.entries(
+                      s.custom_nutrients as Record<string, CustomNutrientTotal>
+                    )
+                      .map(
+                        ([name, total]) =>
+                          `${name}: ${total.amount}${total.unit ? ` ${total.unit}` : ''}`
+                      )
+                      .join(' | ');
+                    text += `${text.endsWith('\n') ? '' : '\n'}  Custom: ${custom}`;
                   }
                   if (s.nutrition_warning) {
                     text += `\n  Warning: ${s.nutrition_warning}`;

@@ -37,6 +37,9 @@ vi.mock('../models/externalProviderRepository.js', () => ({
   },
 }));
 
+vi.mock('../integrations/googlesheets/googleSheetsService.js', () => ({
+  default: { syncGoogleSheets: vi.fn(), getSyncSettings: vi.fn() },
+}));
 vi.mock('../services/withingsService.js', () => ({
   default: {
     syncWithingsData: vi.fn(),
@@ -129,8 +132,8 @@ describe('providerSyncScheduler', () => {
     vi.useRealTimers();
   });
 
-  it('contains configurations for all 11 providers', () => {
-    expect(PROVIDER_SYNC_CONFIGS).toHaveLength(11);
+  it('contains configurations for all 12 providers', () => {
+    expect(PROVIDER_SYNC_CONFIGS).toHaveLength(12);
     const providerNames = PROVIDER_SYNC_CONFIGS.map((c) => c.name);
     expect(providerNames).toEqual([
       'Withings',
@@ -141,6 +144,7 @@ describe('providerSyncScheduler', () => {
       'Polar',
       'COROS',
       'Google Health',
+      'Google Sheets',
       'Hevy',
       'Liftosaur',
       'Intervals.icu',
@@ -818,8 +822,8 @@ describe('providerSyncScheduler', () => {
 
   it('registers cron jobs on startup for each configured provider', () => {
     const tasks = startProviderSyncSchedulers();
-    expect(tasks).toHaveLength(11);
-    expect(cron.schedule).toHaveBeenCalledTimes(11);
+    expect(tasks).toHaveLength(12);
+    expect(cron.schedule).toHaveBeenCalledTimes(12);
     expect(cron.schedule).toHaveBeenCalledWith(
       '0 * * * *',
       expect.any(Function),

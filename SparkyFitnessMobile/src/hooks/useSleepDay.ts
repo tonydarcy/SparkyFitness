@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { ApiError } from '../services/api/errors';
-import { fetchSleepEntries } from '../services/api/sleepApi';
 import type { SleepDayBuckets, SleepEntry } from '../types/sleep';
 import { addDays } from '../utils/dateUtils';
 import { compareByMainSleepRank } from '../utils/sleepSessions';
-import { sleepDayQueryKey } from './queryKeys';
+import { sleepDayQueryOptions } from './dayQueryOptions';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
 
 const EMPTY_BUCKETS: SleepDayBuckets = {
@@ -76,11 +75,8 @@ export function useSleepDay(
   day: string,
   { enabled = true }: UseSleepDayOptions = {}
 ) {
-  const windowEnd = addDays(day, 1);
-
   const query = useQuery({
-    queryKey: sleepDayQueryKey(day),
-    queryFn: () => fetchSleepEntries(day, windowEnd),
+    ...sleepDayQueryOptions(day),
     enabled,
     select: (entries: SleepEntry[]) => buildSleepDayBuckets(entries, day),
   });

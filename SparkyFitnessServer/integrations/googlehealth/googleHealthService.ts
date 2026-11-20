@@ -1,9 +1,7 @@
 import axios from 'axios';
-import { getSystemClient } from '../../db/poolManager.js';
-import { encrypt, decrypt, ENCRYPTION_KEY } from '../../security/encryption.js';
 import { log } from '../../config/logging.js';
 import { logRawResponse } from '../../utils/diagnosticLogger.js';
-import { withProviderTokenLock } from '../../models/externalProviderRepository.js';
+import * as googleOAuth from '../google/googleOAuth.js';
 import { isPermissionRejection } from '../../services/providerFetchResult.js';
 
 function anonymizeGoogleHealthData(data: unknown): unknown {
@@ -24,8 +22,6 @@ function anonymizeGoogleHealthData(data: unknown): unknown {
   return data;
 }
 
-const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
-const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 // v4 is the current production version of the Google Health API
 const GOOGLE_HEALTH_BASE_URL =
   'https://health.googleapis.com/v4/users/me/dataTypes';
@@ -91,366 +87,47 @@ function googleTimeToIso(t: unknown): string | null {
   return null;
 }
 
-async function getAuthorizationUrl(userId: string, redirectUri: string) {
-  const client = await getSystemClient();
-  try {
-    const result = await client.query(
-      `SELECT encrypted_app_id, app_id_iv, app_id_tag
-       FROM external_data_providers
-       WHERE user_id = $1 AND provider_type = 'googlehealth'`,
-      [userId]
-    );
-    if (result.rows.length === 0) {
-      throw new Error('Google Health client credentials not found for user.');
-    }
-    const { encrypted_app_id, app_id_iv, app_id_tag } = result.rows[0];
-    const clientId = await decrypt(
-      encrypted_app_id,
-      app_id_iv,
-      app_id_tag,
-      ENCRYPTION_KEY
-    );
-    const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: clientId as string,
-      redirect_uri: redirectUri,
-      scope: GOOGLE_HEALTH_SCOPES,
-      access_type: 'offline',
-      prompt: 'consent', // force refresh_token to always be returned
-      state: userId,
-    });
-    return `${GOOGLE_AUTH_URL}?${params.toString()}`;
-  } finally {
-    client.release();
-  }
+const GOOGLE_HEALTH_OAUTH = {
+  providerType: 'googlehealth',
+  label: 'Google Health',
+} as const;
+
+function getAuthorizationUrl(userId: string, redirectUri: string) {
+  return googleOAuth.getAuthorizationUrl(
+    GOOGLE_HEALTH_OAUTH,
+    userId,
+    redirectUri,
+    GOOGLE_HEALTH_SCOPES
+  );
 }
 
-async function exchangeCodeForTokens(
+function exchangeCodeForTokens(
   userId: string,
   code: string,
   redirectUri: string
 ) {
-  const client = await getSystemClient();
-  try {
-    const providerResult = await client.query(
-      `SELECT encrypted_app_id, app_id_iv, app_id_tag, encrypted_app_key, app_key_iv, app_key_tag
-       FROM external_data_providers
-       WHERE user_id = $1 AND provider_type = 'googlehealth'`,
-      [userId]
-    );
-    if (providerResult.rows.length === 0) {
-      throw new Error('Google Health client credentials not found for user.');
-    }
-    const {
-      encrypted_app_id,
-      app_id_iv,
-      app_id_tag,
-      encrypted_app_key,
-      app_key_iv,
-      app_key_tag,
-    } = providerResult.rows[0];
-    const clientId = await decrypt(
-      encrypted_app_id,
-      app_id_iv,
-      app_id_tag,
-      ENCRYPTION_KEY
-    );
-    const clientSecret = await decrypt(
-      encrypted_app_key,
-      app_key_iv,
-      app_key_tag,
-      ENCRYPTION_KEY
-    );
-
-    // Google uses POST body params (not HTTP Basic auth)
-    const params = new URLSearchParams();
-    params.append('grant_type', 'authorization_code');
-    params.append('code', code);
-    params.append('redirect_uri', redirectUri);
-    params.append('client_id', clientId as string);
-    params.append('client_secret', clientSecret as string);
-
-    const response = await axios.post(GOOGLE_TOKEN_URL, params, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
-
-    const { access_token, refresh_token, expires_in, scope } = response.data;
-    if (!access_token || !refresh_token) {
-      throw new Error(
-        'Missing access_token or refresh_token in Google OAuth response.'
-      );
-    }
-
-    const encryptedAccessToken = await encrypt(access_token, ENCRYPTION_KEY);
-    const encryptedRefreshToken = await encrypt(refresh_token, ENCRYPTION_KEY);
-    const expiresIn = Number(expires_in) || 3600;
-    const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
-
-    await client.query(
-      `UPDATE external_data_providers
-       SET encrypted_access_token = $1, access_token_iv = $2, access_token_tag = $3,
-           encrypted_refresh_token = $4, refresh_token_iv = $5, refresh_token_tag = $6,
-           scope = $7, token_expires_at = $8, external_user_id = $9, is_active = TRUE, updated_at = NOW()
-       WHERE user_id = $10 AND provider_type = 'googlehealth'`,
-      [
-        encryptedAccessToken.encryptedText,
-        encryptedAccessToken.iv,
-        encryptedAccessToken.tag,
-        encryptedRefreshToken.encryptedText,
-        encryptedRefreshToken.iv,
-        encryptedRefreshToken.tag,
-        scope,
-        tokenExpiresAt,
-        'google',
-        userId,
-      ]
-    );
-    return { success: true, externalUserId: 'google' };
-  } catch (error) {
-    log(
-      'error',
-      `Error exchanging code for Google Health tokens: ${(error as Error).message}`
-    );
-    throw error;
-  } finally {
-    client.release();
-  }
+  return googleOAuth.exchangeCodeForTokens(
+    GOOGLE_HEALTH_OAUTH,
+    userId,
+    code,
+    redirectUri
+  );
 }
 
-async function refreshAccessToken(userId: string) {
-  const client = await getSystemClient();
-  try {
-    return await withProviderTokenLock(client, async () => {
-      const providerResult = await client.query(
-        `SELECT encrypted_app_id, app_id_iv, app_id_tag, encrypted_app_key, app_key_iv, app_key_tag,
-              encrypted_refresh_token, refresh_token_iv, refresh_token_tag
-       FROM external_data_providers
-       WHERE user_id = $1 AND provider_type = 'googlehealth'
-       FOR UPDATE`,
-        [userId]
-      );
-      if (providerResult.rows.length === 0) {
-        throw new Error(
-          'Google Health credentials not found for token refresh.'
-        );
-      }
-      const {
-        encrypted_app_id,
-        app_id_iv,
-        app_id_tag,
-        encrypted_app_key,
-        app_key_iv,
-        app_key_tag,
-        encrypted_refresh_token,
-        refresh_token_iv,
-        refresh_token_tag,
-      } = providerResult.rows[0];
-
-      const clientId = await decrypt(
-        encrypted_app_id,
-        app_id_iv,
-        app_id_tag,
-        ENCRYPTION_KEY
-      );
-      const clientSecret = await decrypt(
-        encrypted_app_key,
-        app_key_iv,
-        app_key_tag,
-        ENCRYPTION_KEY
-      );
-      const refreshToken = await decrypt(
-        encrypted_refresh_token,
-        refresh_token_iv,
-        refresh_token_tag,
-        ENCRYPTION_KEY
-      );
-
-      const params = new URLSearchParams();
-      params.append('grant_type', 'refresh_token');
-      // @ts-expect-error TS(2345)
-      params.append('refresh_token', refreshToken);
-      params.append('client_id', clientId as string);
-      params.append('client_secret', clientSecret as string);
-
-      const response = await axios.post(GOOGLE_TOKEN_URL, params, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
-
-      const {
-        access_token,
-        refresh_token: newRefreshToken,
-        expires_in,
-        scope,
-      } = response.data;
-
-      const encryptedAccessToken = await encrypt(access_token, ENCRYPTION_KEY);
-      const expiresIn = Number(expires_in) || 3600;
-      const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
-
-      // Google may or may not return a new refresh token on each refresh
-      if (newRefreshToken) {
-        const encryptedNewRefreshToken = await encrypt(
-          newRefreshToken,
-          ENCRYPTION_KEY
-        );
-        await client.query(
-          `UPDATE external_data_providers
-         SET encrypted_access_token = $1, access_token_iv = $2, access_token_tag = $3,
-             encrypted_refresh_token = $4, refresh_token_iv = $5, refresh_token_tag = $6,
-             scope = $7, token_expires_at = $8, updated_at = NOW()
-         WHERE user_id = $9 AND provider_type = 'googlehealth'`,
-          [
-            encryptedAccessToken.encryptedText,
-            encryptedAccessToken.iv,
-            encryptedAccessToken.tag,
-            encryptedNewRefreshToken.encryptedText,
-            encryptedNewRefreshToken.iv,
-            encryptedNewRefreshToken.tag,
-            scope,
-            tokenExpiresAt,
-            userId,
-          ]
-        );
-      } else {
-        await client.query(
-          `UPDATE external_data_providers
-         SET encrypted_access_token = $1, access_token_iv = $2, access_token_tag = $3,
-             scope = $4, token_expires_at = $5, updated_at = NOW()
-         WHERE user_id = $6 AND provider_type = 'googlehealth'`,
-          [
-            encryptedAccessToken.encryptedText,
-            encryptedAccessToken.iv,
-            encryptedAccessToken.tag,
-            scope,
-            tokenExpiresAt,
-            userId,
-          ]
-        );
-      }
-      return access_token;
-    });
-  } catch (error) {
-    const googleError = (error as { response?: { data?: unknown } })?.response
-      ?.data;
-    const detail = googleError
-      ? ` — Google: ${JSON.stringify(googleError)}`
-      : '';
-    log(
-      'error',
-      `Error refreshing Google Health access token: ${(error as Error).message}${detail}`
-    );
-    throw error;
-  } finally {
-    client.release();
-  }
+function refreshAccessToken(userId: string) {
+  return googleOAuth.refreshAccessToken(GOOGLE_HEALTH_OAUTH, userId);
 }
 
-async function getValidAccessToken(userId: string) {
-  const client = await getSystemClient();
-  try {
-    const result = await client.query(
-      `SELECT encrypted_access_token, access_token_iv, access_token_tag, token_expires_at
-       FROM external_data_providers
-       WHERE user_id = $1 AND provider_type = 'googlehealth'`,
-      [userId]
-    );
-    if (result.rows.length === 0)
-      throw new Error('Google Health provider not found for user.');
-    const {
-      encrypted_access_token,
-      access_token_iv,
-      access_token_tag,
-      token_expires_at,
-    } = result.rows[0];
-    if (!encrypted_access_token) return null;
-    if (
-      !token_expires_at ||
-      new Date(token_expires_at) < new Date(Date.now() + 5 * 60 * 1000)
-    ) {
-      return await refreshAccessToken(userId);
-    }
-    return await decrypt(
-      encrypted_access_token,
-      access_token_iv,
-      access_token_tag,
-      ENCRYPTION_KEY
-    );
-  } finally {
-    client.release();
-  }
+function getValidAccessToken(userId: string) {
+  return googleOAuth.getValidAccessToken(GOOGLE_HEALTH_OAUTH, userId);
 }
 
-async function getStatus(userId: string) {
-  const client = await getSystemClient();
-  try {
-    const result = await client.query(
-      `SELECT is_active, last_sync_at, token_expires_at, external_user_id
-       FROM external_data_providers
-       WHERE user_id = $1 AND provider_type = 'googlehealth'`,
-      [userId]
-    );
-    if (result.rows.length === 0) return { connected: false, isActive: false };
-    const { is_active, last_sync_at, token_expires_at, external_user_id } =
-      result.rows[0];
-    return {
-      connected: !!external_user_id,
-      isActive: is_active,
-      lastSyncAt: last_sync_at,
-      tokenExpiresAt: token_expires_at,
-      externalUserId: external_user_id,
-    };
-  } finally {
-    client.release();
-  }
+function getStatus(userId: string) {
+  return googleOAuth.getStatus(GOOGLE_HEALTH_OAUTH, userId);
 }
 
-async function disconnectGoogleHealth(userId: string) {
-  const client = await getSystemClient();
-  try {
-    // Attempt to revoke the access token with Google before clearing DB tokens.
-    // Revocation failure is non-fatal — tokens are cleared regardless.
-    try {
-      const tokenResult = await client.query(
-        `SELECT encrypted_access_token, access_token_iv, access_token_tag
-         FROM external_data_providers
-         WHERE user_id = $1 AND provider_type = 'googlehealth'`,
-        [userId]
-      );
-      if (tokenResult.rows.length > 0) {
-        const { encrypted_access_token, access_token_iv, access_token_tag } =
-          tokenResult.rows[0];
-        if (encrypted_access_token) {
-          const accessToken = await decrypt(
-            encrypted_access_token,
-            access_token_iv,
-            access_token_tag,
-            ENCRYPTION_KEY
-          );
-          await axios.post(
-            `https://oauth2.googleapis.com/revoke?token=${accessToken}`
-          );
-          log('info', `Revoked Google Health access token for user ${userId}.`);
-        }
-      }
-    } catch (revokeError) {
-      log(
-        'warn',
-        `Failed to revoke Google Health token for user ${userId} (non-fatal): ${(revokeError as Error).message}`
-      );
-    }
-
-    await client.query(
-      `UPDATE external_data_providers
-       SET encrypted_access_token = NULL, access_token_iv = NULL, access_token_tag = NULL,
-           encrypted_refresh_token = NULL, refresh_token_iv = NULL, refresh_token_tag = NULL,
-           token_expires_at = NULL, external_user_id = NULL, is_active = FALSE, updated_at = NOW()
-       WHERE user_id = $1 AND provider_type = 'googlehealth'`,
-      [userId]
-    );
-    return { success: true };
-  } finally {
-    client.release();
-  }
+function disconnectGoogleHealth(userId: string) {
+  return googleOAuth.disconnect(GOOGLE_HEALTH_OAUTH, userId);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

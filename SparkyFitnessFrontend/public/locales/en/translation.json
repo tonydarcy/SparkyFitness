@@ -1651,7 +1651,12 @@
       "validationError": "Row {{rowNum}}: Missing required 'entry_date' or 'exercise_name'. Skipping row.",
       "copiedToClipboard": "'{{value}}' copied to clipboard.",
       "importError": "Failed to import exercise history. Please try again.",
-      "partialImportError": "Some entries could not be imported: {{details}}"
+      "partialImportError": "Some entries could not be imported: {{details}}",
+      "appExportsInfo": "You can also upload a workout export from FitNotes or Strong as it is. It is recognised by its columns, and weights and distances are converted to your units.",
+      "appRowSkipped": "Row {{row}}: no date or exercise name.",
+      "fitnotesDetected": "FitNotes export",
+      "strongDetected": "Strong export",
+      "appSessionsFound": "{{count}} exercise sessions ready to import."
     },
     "exerciseSearch": {
       "add": "Add",
@@ -1727,7 +1732,9 @@
       "volume": "Volume",
       "replaceExercise": "Replace exercise",
       "replaceExerciseNamed": "Replace {{name}}",
-      "sets": "{{completedSets}}/{{totalSets}} sets"
+      "sets": "{{completedSets}}/{{totalSets}} sets",
+      "useBackup": "Taken? Use {{name}}",
+      "backupExercise": "the backup"
     },
     "workoutFinishSummary": {
       "title": "Workout complete",
@@ -1760,6 +1767,16 @@
       "empty": "No alternatives found",
       "retry": "Retry",
       "catalogUnavailable": "Free Exercise DB is unavailable, so only your library is shown."
+    },
+    "video": {
+      "embedTitle": "{{name}} demonstration video",
+      "help": "A short demonstration clip. YouTube links play right in the workout.",
+      "invalid": "Enter a link starting with https://",
+      "label": "Video link",
+      "openOnVimeo": "Open on Vimeo",
+      "openOnYouTube": "Open on YouTube",
+      "placeholder": "https://youtube.com/shorts/…",
+      "watch": "Watch demonstration video"
     }
   },
   "workoutPresetsManager": {
@@ -1829,7 +1846,34 @@
     "scheduledWorkout": "Workout Session",
     "activePlanLabel": "Active plan: {{name}}",
     "failedToLoadActivePlan": "Failed to load active workout plan.",
-    "currentOfTotal": "({{current}} of {{total}})"
+    "currentOfTotal": "({{current}} of {{total}})",
+    "starterPlans": {
+      "title": "Starter plans",
+      "subtitle": "Add a ready-made plan as editable presets. It runs as a rotation: the next workout is the next one you have not done, whatever day it is.",
+      "add": "Add plan",
+      "adding": "Adding…",
+      "added": "Starter plan added. Its workouts are in your presets.",
+      "addFailed": "Could not add the starter plan.",
+      "fullBody": "Full Body",
+      "fullBodyDescription": "Two whole-body workouts, A and B, alternating. Good for 2 to 3 days a week.",
+      "fullBodyA": "Full Body A",
+      "fullBodyB": "Full Body B",
+      "upperLower": "Upper / Lower",
+      "upperLowerDescription": "Four workouts rotating upper and lower body. Good for 4 days a week.",
+      "upperA": "Upper A",
+      "lowerA": "Lower A",
+      "upperB": "Upper B",
+      "lowerB": "Lower B",
+      "pushPullLegs": "Push / Pull / Legs",
+      "pushPullLegsDescription": "Pushing, pulling and leg workouts in turn. Run it 3 or 6 days a week.",
+      "push": "Push",
+      "pull": "Pull",
+      "legs": "Legs",
+      "fiveByFive": "5×5",
+      "fiveByFiveDescription": "Three big barbell lifts per workout, 5 sets of 5, adding weight each time you complete them.",
+      "fiveByFiveA": "5×5 A",
+      "fiveByFiveB": "5×5 B"
+    }
   },
   "exerciseCard": {
     "workoutLocation": "Gym / Location",
@@ -1978,6 +2022,7 @@
     "noSavedFoodsOrMeals": "No saved foods or meals found.",
     "searchOnlineToImport": "Search to find foods from your online provider.",
     "onlineSearchFailed": "Failed to search the online provider.",
+    "onlineSearchFailedNamed": "Couldn't reach {{provider}}. Try again, or pick another source.",
     "loadMore": "Load more",
     "loadMoreFailed": "Failed to load more results.",
     "scannedProduct": "Scanned product",
@@ -2871,7 +2916,7 @@
         "title": "Exercise Database (CSV)"
       },
       "exerciseHistory": {
-        "description": "Import past workouts, sets, reps, and weights.",
+        "description": "Import past workouts, sets, reps, and weights, including FitNotes and Strong exports.",
         "title": "Workout History (CSV)"
       },
       "food": {
@@ -3382,6 +3427,7 @@
       "appIdLabel": "App ID:",
       "appKeyLabel": "App Key:",
       "syncLabel": "Sync:",
+      "openGoogleSheet": "Open the export spreadsheet",
       "mcpServerToolCount_one": "Chat may use {{count}} tool",
       "mcpServerToolCount_other": "Chat may use {{count}} tools",
       "mcpServerSendsUserId": "Tells the server who is chatting"
@@ -3621,6 +3667,18 @@
       "labResults": {
         "description": "Record blood tests and follow each marker over time."
       }
+    },
+    "googleSheetsSetup": {
+      "title": "Set up the export (about 5 minutes, once)",
+      "reuseGoogleHealth": "You already use Google Health, so you can skip making a new client: leave the Client ID and Client Secret blank to use the Google Health one. Do step 1 in the project that holds that client, then open <cloud>your Google Health client</cloud> and add the redirect URI from step 3 to it.",
+      "step1": "Turn on the <cloud>Google Sheets API</cloud>. If Google asks, create a project first (any name).",
+      "step2": "If you have not before, set up the <cloud>Google Auth Platform</cloud> (app name, your email, audience External). Then on <audience>Audience</audience>, click <strong>Publish app</strong>, so the connection does not expire after 7 days. No Google review is needed.",
+      "step3": "<cloud>Create an OAuth client</cloud> of type <strong>Web application</strong>, with this <strong>Authorized redirect URI</strong>:",
+      "step4Add": "Paste the Client ID and Client Secret here and click Add Provider. Google opens so you can allow access, and your spreadsheet fills in about a minute.",
+      "step4Edit": "Paste the Client ID and Client Secret here and save. Then on the provider card click Connect, or Disconnect and then Connect if it is already linked.",
+      "copy": "Copy",
+      "defaultName": "Google Sheets export",
+      "copyManually": "Select the text and copy it by hand."
     }
   },
   "admin": {
@@ -3634,7 +3692,7 @@
       "mcpOAuthAccessWarning": "Approving an application gives it full MCP access, including tools that can write or delete data. Only approve applications you trust.",
       "mcpOAuthHttpsRequired": "Remote MCP OAuth requires public HTTPS. Plain HTTP is supported only for loopback development.",
       "mcpOAuthRedirectAllowlist": "Allowed OAuth redirect URIs",
-      "mcpOAuthRedirectAllowlistDescription": "Enter one exact URI or loopback pattern per line. Use http://localhost:*, http://127.0.0.1:*, or http://[::1]:* to allow desktop clients on any local callback port.",
+      "mcpOAuthRedirectAllowlistDescription": "Enter one exact URI or pattern per line. Use http://localhost:*, http://127.0.0.1:*, or http://[::1]:* to allow desktop clients on any local callback port. An HTTPS URI ending in /* allows any path below it on that host, as Gemini needs (https://oauth-redirect.googleusercontent.com/r/*).",
       "saveMcpOAuthRedirects": "Save OAuth redirect allowlist",
       "mcpOAuthRedirectsUpdated": "OAuth redirect allowlist updated successfully.",
       "mcpOAuthRedirectsFailed": "Failed to save the OAuth redirect allowlist.",
@@ -4110,6 +4168,29 @@
     "nutritionSummary": "Nutrition Summary",
     "dailyEnergyGoal": "Daily Energy Goal",
     "waterIntake": "Water Intake",
+    "dayNote": {
+      "title": "Day Note",
+      "placeholder": "How did today go? Anything worth remembering about what you ate.",
+      "hint": "Saves when you click away. Clear the text to delete it.",
+      "saving": "Saving...",
+      "saved": "Saved",
+      "failedToLoad": "Failed to load the day's note.",
+      "failedToSave": "Failed to save the day's note.",
+      "retry": "Retry",
+      "empty": "No note for this day."
+    },
+    "energyBalance": {
+      "title": "Expenditure & Balance",
+      "unavailable": "Your expenditure estimate is not available right now.",
+      "deficit": "Avg daily deficit",
+      "surplus": "Avg daily surplus",
+      "balance": "Avg daily balance",
+      "tdee": "TDEE",
+      "avgIntake": "Avg intake",
+      "perDay": "{{unit}}/day",
+      "adaptiveNote": "Averages over the {{days}} logged days behind this estimate, against your weight trend.",
+      "formulaNote": "Formula estimate from your profile and activity level. Log food and weigh in regularly for a few weeks to learn your real expenditure."
+    },
     "caffeine": {
       "title": "Caffeine Kinetics",
       "activeCaffeine": "Active Caffeine",
@@ -4178,6 +4259,25 @@
       "restore": "Restore",
       "hide": "Hide",
       "layoutErrorNotice": "The customizable layout hit an error, so a simple view is shown. Your saved layout is kept."
+    },
+    "view": {
+      "label": "Diary view",
+      "meals": "Meals",
+      "timeline": "Timeline"
+    },
+    "timeline": {
+      "title": "Timeline",
+      "addFood": "Add food",
+      "addAt": "Add food at {{time}}",
+      "addDescription": "Pick a food or meal. You can adjust the time and meal next.",
+      "noTime": "No time",
+      "macros": "P {{p}} · C {{c}} · F {{f}}",
+      "select": "Select",
+      "selectFood": "Select {{food}}",
+      "selectedCount": "{{count}} selected",
+      "copySelected": "Copy",
+      "foodCount_one": "{{count}} food",
+      "foodCount_other": "{{count}} foods"
     },
     "nutrientLabels": {
       "cal": "cal",
@@ -4535,6 +4635,14 @@
       "stepFloor": "Held at your safety floor; the other days give up the difference.",
       "pausedWeeklyPlan": "Calorie cycling is paused today: a weekly goal plan sets this day.",
       "pausedEarnBack": "Calorie cycling is paused: exercise calories are added back to your goal."
+    },
+    "copyFoodsSuccess": "Foods copied.",
+    "copyFoodsError": "Failed to copy some foods. Check the target day before trying again.",
+    "macroGoal": {
+      "low": "Low",
+      "high": "High",
+      "grams": "{{consumed}}g",
+      "ofGoal": "{{consumed}} / {{goal}}g"
     }
   },
   "nutrientGoalDirection": {
@@ -4656,7 +4764,10 @@
     "noFoodsAddedYet": "No foods added yet"
   },
   "mealCard": {
+    "addFood": "Add food",
     "addFoodToMeal": "Add Food to {{mealName}}",
+    "moreActions": "More actions",
+    "moreActionsFor": "More actions for {{mealName}}",
     "copyFood": "Copy food",
     "searchFoodsForMeal": "Search for foods to add to your {{mealName}}.",
     "addFoodTo": "Add Food to",
@@ -5381,7 +5492,12 @@
     "timeCapLabel": "Time Cap (minutes)",
     "rampLabel": "Add per set (this workout, {{unit}})",
     "rampPlaceholder": "Off",
-    "rampHint": "Each working set after the first pre-fills this much heavier in the same workout; use a negative number to ramp down. Warm-up and drop sets are skipped."
+    "rampHint": "Each working set after the first pre-fills this much heavier in the same workout; use a negative number to ramp down. Warm-up and drop sets are skipped.",
+    "backupExercise": "Backup exercise",
+    "backupExerciseHint": "Swap it in during a workout when this one is taken; the sets stay the same.",
+    "backupChosen": "Chosen",
+    "backupNone": "None, pick one",
+    "clearBackupExercise": "Remove backup exercise"
   },
   "addWorkoutPlanDialog": {
     "editTitle": "Edit Workout Plan",
@@ -6122,7 +6238,11 @@
     "notOnFigure": "Not on the figure",
     "figure": "Body figure",
     "male": "Male",
-    "female": "Female"
+    "female": "Female",
+    "view": "Heat map view",
+    "trained": "Trained",
+    "untrained": "Untrained",
+    "untrainedHint": "Highlighted muscles had no working sets in this range"
   },
   "muscleGroupRecovery": {
     "title": "Muscle Group Recovery",
@@ -7652,7 +7772,8 @@
     },
     "title": "Copy Food Entries",
     "titleAll": "Copy Entire Day",
-    "titleFood": "Copy {{food}}"
+    "titleFood": "Copy {{food}}",
+    "keepMeal": "Same meal"
   },
   "customNutrients": {
     "failedToAddNutrient": "Failed to add nutrient.",
@@ -7870,7 +7991,23 @@
     "withingsCallback": {
       "withingsOAuthError": "Withings OAuth Error",
       "missingOAuthCodeOrState": "Missing OAuth code or state in callback."
-    }
+    },
+    "googleSheetsLinkError": "Failed to link Google Sheets.",
+    "googleSheetsLinkSuccess": "Google Sheets linked. Your export spreadsheet is ready.",
+    "googleSheetsExportError": "Google Sheets export did not finish.",
+    "googleSheetsExportSuccess": "Google Sheets export updated.",
+    "googleSheetsCallback": {
+      "missingAuthorizationCodeInCallback": "Missing authorization code in callback.",
+      "processing": "Processing Google Sheets authorization...",
+      "linked": "Google Sheets linked. Your first export is running.",
+      "failed": "Error linking Google Sheets.",
+      "apiDisabled": "Google Sheets is linked, but the Google Sheets API is turned off in your Google Cloud project. Turn it on, wait a minute, then press the refresh button on the Google Sheets provider in Settings.",
+      "turnOnApi": "Turn on the Google Sheets API",
+      "backToSettings": "Back to Settings"
+    },
+    "syncStillRunning": "It may still be running, or it failed on the server. Check back in a few minutes.",
+    "googleSheetsAuthorizeError": "Failed to get Google Sheets authorization URL.",
+    "googleSheetsDisconnectConfirm": "Disconnect Google Sheets? The export stops, and the spreadsheet already in your Drive is kept."
   },
   "mealCreation": {
     "convertToMeal": "Create Meal from Diary",
@@ -8363,11 +8500,14 @@
     "entryNotes": "Note for this entry (optional)"
   },
   "release": {
+    "checkFailed": "GitHub could not be reached. Try again later.",
+    "checkFailedTitle": "Couldn't check for updates",
     "whatsNew": "What's New"
   },
   "foodUnitSelector": {
     "editTitle": "Edit {{name}}",
     "addTitle": "Add {{name}} to Meal",
+    "addToMealTitle": "Add {{name}} to {{mealName}}",
     "editDescription": "Edit the quantity and unit for {{name}}.",
     "addDescription": "Select the quantity and unit for your food entry.",
     "loadingUnits": "Loading units...",
@@ -9732,7 +9872,15 @@
       "supersetA": "SUPERSET A",
       "supersetB": "SUPERSET B",
       "supersetC": "SUPERSET C",
-      "supersetD": "SUPERSET D"
+      "supersetD": "SUPERSET D",
+      "doubleProgression": "Double Progression (Rep Range)",
+      "tripleProgression": "Triple Progression (Reps, Sets, Load)",
+      "repRangeTop": "Top of Rep Range",
+      "repRangeBottom": "Bottom of Rep Range",
+      "doubleTripleGuideTitle": "Double and Triple Progression (Rep Range)",
+      "doubleGuideBody": "Set a rep range per set, such as 8 to 12. Keep the load while reps climb. Once every working set reaches the top of the range, the load goes up by your increment and reps drop back to the bottom.",
+      "tripleGuideBody": "Triple progression adds a set before adding load: up to two sets more than planned. Once those are all at the top, the load goes up and you go back to the planned sets.",
+      "deloadGuideBody": "• Any mode that adds weight suggests a deload of about 10% (in whole increments) after three sessions in a row miss the goal at the same load."
     },
     "workoutPlansManager": {
       "openMenu": "Open menu"
@@ -10737,7 +10885,33 @@
     "failedToSave": "Failed to save plates and bars.",
     "failedToReset": "Failed to reset plates and bars.",
     "saved": "Plates and bars saved.",
-    "reset": "Plates and bars reset."
+    "reset": "Plates and bars reset.",
+    "dumbbells": "Dumbbells",
+    "dumbbellsHeading": "Dumbbells ({{unit}})",
+    "dumbbellsHint": "Each size you have, separated by spaces. Leave empty if you have none.",
+    "machines": "Machines",
+    "machinesHeading": "Machine weight stacks ({{unit}})",
+    "machinesHint": "List the pin settings a machine really has, odd steps included. Progression rounds to them for that exercise.",
+    "machineUnnamed": "Machine",
+    "removeMachine": "Remove {{name}}",
+    "addMachine": "Add machine",
+    "pickMachine": "Pick the exercise you do on this machine.",
+    "gym": {
+      "heading": "Gym",
+      "name": "Name",
+      "namePlaceholder": "Home, work, hotel…",
+      "hint": "Each gym keeps its own equipment. Workouts use the active gym, and progression rounds to the dumbbells and machine stacks it has.",
+      "add": "Add gym",
+      "added": "Gym added.",
+      "newName": "Gym {{number}}",
+      "unnamed": "Gym {{number}}",
+      "switched": "Gym switched.",
+      "delete": "Delete gym",
+      "deleted": "Gym deleted.",
+      "deleteTitle": "Delete this gym?",
+      "deleteDescription": "Its plates, bars, dumbbells and machine stacks are removed. Another gym becomes active.",
+      "changeFailed": "Could not change gyms"
+    }
   },
   "heartRate": {
     "exerciseSession": "Exercise Session",
@@ -10985,6 +11159,29 @@
     "valueInvalid": "Enter a marker and a numeric result.",
     "historyCutOff": "History shows at most the newest {{count}} results.",
     "dateInvalid": "Enter the date of the test."
+  },
+  "strengthBalance": {
+    "title": "Strength balance",
+    "subtitle": "All-time bests, estimated one-rep max",
+    "lifetimeVolume": "Lifetime volume",
+    "lifetimeSets": "Sets",
+    "lifetimeSessions": "Sessions",
+    "bodyweightMultiple": "{{value}}× body weight",
+    "noKeyLifts": "Log a squat, bench press, deadlift, overhead press or row to see how they compare.",
+    "ratios": "Ratios",
+    "noBodyweight": "Log your body weight to see lifts as a multiple of it.",
+    "lifts": {
+      "squat": "Squat",
+      "bench": "Bench press",
+      "deadlift": "Deadlift",
+      "overheadPress": "Overhead press",
+      "row": "Row"
+    },
+    "status": {
+      "low": "Below range",
+      "high": "Above range",
+      "balanced": "Balanced"
+    }
   },
   "oralCare": {
     "title": "Oral care",

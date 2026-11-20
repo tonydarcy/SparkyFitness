@@ -170,6 +170,12 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
   const setTrainingLoadCardVisible = useAppPreferencesStore(
     (s) => s.setTrainingLoadCardVisible
   );
+  const energyBalanceCardVisible = useAppPreferencesStore(
+    (s) => s.energyBalanceCardVisible
+  );
+  const setEnergyBalanceCardVisible = useAppPreferencesStore(
+    (s) => s.setEnergyBalanceCardVisible
+  );
 
   const dashboardCardOrder = useAppPreferencesStore(
     (s) => s.dashboardCardOrder
@@ -202,6 +208,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
     oralCare: oralCareCardVisible,
     labResults: labResultsCardVisible,
     trainingLoad: trainingLoadCardVisible,
+    energyBalance: energyBalanceCardVisible,
   };
 
   const setCardVisibility = useCallback(
@@ -261,6 +268,9 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
         case 'trainingLoad':
           setTrainingLoadCardVisible(isVisible);
           break;
+        case 'energyBalance':
+          setEnergyBalanceCardVisible(isVisible);
+          break;
       }
     },
     [
@@ -282,6 +292,7 @@ const DashboardSettingsScreen: React.FC<DashboardSettingsScreenProps> = ({
       setOralCareCardVisible,
       setLabResultsCardVisible,
       setTrainingLoadCardVisible,
+      setEnergyBalanceCardVisible,
     ]
   );
 

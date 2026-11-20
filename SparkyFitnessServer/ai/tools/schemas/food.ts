@@ -17,6 +17,16 @@ import {
 // union members and the flat published input schema so both carry the same
 // bound as the editors on web and mobile.
 const notesSchema = z.string().max(NOTES_MAX_LENGTH).optional();
+// z.coerce.number() turns null and '' into 0, which would silently zero a
+// stored custom nutrient amount. Map them to undefined so coercion yields NaN
+// and the parse fails instead.
+const customNutrientAmount = z.preprocess(
+  (value) =>
+    value === null || (typeof value === 'string' && value.trim() === '')
+      ? undefined
+      : value,
+  z.coerce.number().min(0)
+);
 
 // Keep barcode as a string so leading zeroes survive. This matches the existing
 // barcode lookup contract rather than assuming a single barcode standard.
@@ -599,6 +609,12 @@ const updateFoodVariantSchema = z
     gi: giIndexEnum
       .optional()
       .describe('Updated Glycemic Index classification'),
+    custom_nutrients: z
+      .record(z.string(), customNutrientAmount)
+      .optional()
+      .describe(
+        'Custom nutrient amounts per serving_size, keyed by the exact custom nutrient name (see list_custom_nutrients). Merged into the stored values: only the names given change.'
+      ),
     update_existing_entries: z.coerce
       .boolean()
       .optional()
@@ -958,6 +974,12 @@ export const manageFoodInput = z.object({
       'Water content (ml) — for create_food/update_food_variant, per serving_size. Skip when the food is logged in a volume unit (ml, l, fl oz); that logged volume is already credited as water automatically.'
     ),
   gi: giIndexEnum.optional().describe('Glycemic index classification'),
+  custom_nutrients: z
+    .record(z.string(), customNutrientAmount)
+    .optional()
+    .describe(
+      'For update_food_variant: custom nutrient amounts per serving_size, keyed by the exact custom nutrient name. Merged into the stored values.'
+    ),
   // entry / diary management
   entry_id: uuidSchema.optional().describe('Diary entry UUID'),
   entry_type: entryTypeEnum.optional().describe('food_entry | food_entry_meal'),

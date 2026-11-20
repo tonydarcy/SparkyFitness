@@ -28,6 +28,7 @@ import MarkdownNotesField from '../components/MarkdownNotesField';
 import { NoteMarkdown } from '../components/NoteMarkdown';
 import { usableFoodImages } from '../utils/foodImages';
 import BottomSheetPicker from '../components/BottomSheetPicker';
+import MealTypeChips from '../components/MealTypeChips';
 import IngredientQuantityModal from '../components/IngredientQuantityModal';
 import {
   FoodNutritionHeader,
@@ -1762,9 +1763,9 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
   const carbsGoalPct = goalPercent(scaled(carbsForGoal), goals?.carbs);
   const fatGoalPct = goalPercent(scaled(displayValues.fat), goals?.fat);
 
-  const mealPickerOptions = mealTypes.map((mealType) => ({
+  const mealChipOptions = mealTypes.map((mealType) => ({
     label: getMealTypeDisplayLabel(mealType, t),
-    value: mealType.id,
+    id: mealType.id,
   }));
 
   const isActionPending =
@@ -2288,34 +2289,14 @@ const FoodEntryAddScreen: React.FC<FoodEntryAddScreenProps> = ({
             </View>
 
             {selectedMealType ? (
-              <View className="flex-row items-center mt-2">
-                <Text className="text-text-secondary text-base">
+              <View className="mt-3">
+                <Text className="text-text-secondary text-base mb-2">
                   {t('foodEntryAdd.labels.meal', { defaultValue: 'Meal' })}
                 </Text>
-                <BottomSheetPicker
-                  value={effectiveMealId!}
-                  options={mealPickerOptions}
+                <MealTypeChips
+                  options={mealChipOptions}
+                  selectedId={effectiveMealId}
                   onSelect={setSelectedMealId}
-                  title={t('foodEntryAdd.pickers.selectMeal', {
-                    defaultValue: 'Select Meal',
-                  })}
-                  renderTrigger={({ onPress }) => (
-                    <TouchableOpacity
-                      onPress={onPress}
-                      activeOpacity={0.7}
-                      className="flex-row items-center"
-                    >
-                      <Text className="text-text-primary text-base font-medium mx-1.5">
-                        {getMealTypeDisplayLabel(selectedMealType, t)}
-                      </Text>
-                      <Icon
-                        name="chevron-down"
-                        size={12}
-                        color={textPrimary}
-                        weight="medium"
-                      />
-                    </TouchableOpacity>
-                  )}
                 />
               </View>
             ) : null}

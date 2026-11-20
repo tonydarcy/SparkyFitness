@@ -39,6 +39,7 @@ BEGIN
     'family_access',
     'food_entries',
     'food_entry_meals',
+    'food_diary_notes',
     'food_favorites',
     'food_variants',
     'foods',
@@ -796,6 +797,7 @@ WITH CHECK (
   )
 );
 SELECT create_diary_policy('food_entry_meals');
+SELECT create_diary_policy('food_diary_notes');
 SELECT create_checkin_policy('sleep_entries');
 SELECT create_checkin_policy('sleep_entry_stages');
 SELECT create_diary_policy('water_intake');

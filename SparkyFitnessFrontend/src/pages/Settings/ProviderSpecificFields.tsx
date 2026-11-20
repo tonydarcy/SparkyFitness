@@ -16,6 +16,7 @@ import { RoutingProviderFields } from './RoutingProviderFields';
 import { McpServerFields } from './McpServerFields';
 import { MCP_SERVER_PROVIDER_TYPE } from '@workspace/shared';
 import { WeatherProviderFields } from './WeatherProviderFields';
+import { GoogleSheetsSetupGuide } from './GoogleSheetsSetupGuide';
 
 // Developer dashboards where each OAuth provider's Client ID/Secret and callback
 // URL are configured. Kept in sync with the per-provider text in EditProviderForm.
@@ -39,6 +40,10 @@ const OAUTH_PROVIDER_DASHBOARDS: Record<
     url: 'https://developer.ouraring.com/applications',
   },
   googlehealth: {
+    labelKey: `${OAUTH_DASHBOARD_LABELS}.googlehealth`,
+    url: 'https://console.cloud.google.com/apis/credentials',
+  },
+  googlesheets: {
     labelKey: `${OAUTH_DASHBOARD_LABELS}.googlehealth`,
     url: 'https://console.cloud.google.com/apis/credentials',
   },
@@ -76,6 +81,7 @@ export const ProviderSpecificFields = ({
     'fitbit',
     'oura',
     'googlehealth',
+    'googlesheets',
     'strava',
     'polar',
     'intervals',
@@ -91,6 +97,7 @@ export const ProviderSpecificFields = ({
     'fitbit',
     'oura',
     'googlehealth',
+    'googlesheets',
     'strava',
     'polar',
     'hevy',
@@ -203,6 +210,7 @@ export const ProviderSpecificFields = ({
               'fitbit',
               'oura',
               'googlehealth',
+              'googlesheets',
               'strava',
               'polar',
               'fatsecret',
@@ -245,6 +253,7 @@ export const ProviderSpecificFields = ({
               'fitbit',
               'oura',
               'googlehealth',
+              'googlesheets',
               'strava',
               'polar',
               'fatsecret',
@@ -574,6 +583,10 @@ export const ProviderSpecificFields = ({
             />
           </div>
         </>
+      )}
+
+      {provider.provider_type === 'googlesheets' && (
+        <GoogleSheetsSetupGuide mode="add" onCopy={onCopy} />
       )}
 
       {['withings', 'fitbit', 'oura', 'googlehealth', 'polar'].includes(

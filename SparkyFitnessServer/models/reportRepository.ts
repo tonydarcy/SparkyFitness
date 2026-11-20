@@ -6,6 +6,7 @@ import { MAIN_SLEEP_ORDER_SQL } from './sleepRepository.js';
 import {
   doseScale,
   supplementCountable,
+  supplementCustomUnion,
   supplementFixedSubquery,
 } from './supplementSql.js';
 async function getNutritionData(
@@ -736,6 +737,27 @@ async function getDailyNutritionTotalsRange(
     ).join(',\n              ');
     const legacyAmbiguousEntryCount = String.raw`COUNT(fe.id) FILTER (WHERE fe.unit ~ '^\s*[0-9]+(?:\.[0-9]+)?\s+\S') AS legacy_ambiguous_entry_count`;
     rangeSelects += `,\n              ${legacyAmbiguousEntryCount}`;
+    // User-defined nutrients live in each entry's custom_nutrients JSON, so they are summed
+    // per name (food plus dose-scaled supplements) into one object per day; {} when none.
+    const customNutrientTotals = `COALESCE(
+          (
+            SELECT jsonb_object_agg(key, value)
+            FROM (
+              SELECT key, SUM(scaled) AS value
+              FROM (
+                SELECT key, public.sf_try_numeric(value) * fe2.quantity / NULLIF(fe2.serving_size, 0) AS scaled
+                FROM food_entries fe2
+                CROSS JOIN LATERAL jsonb_each_text(fe2.custom_nutrients)
+                WHERE fe2.user_id = $1 AND fe2.entry_date = d.entry_date
+                  AND jsonb_typeof(fe2.custom_nutrients) = 'object'${supplementCustomUnion('$1', 'd.entry_date')}
+              ) combined
+              WHERE scaled IS NOT NULL
+              GROUP BY key
+            ) custom_agg
+          ),
+          '{}'::jsonb
+        ) AS custom_nutrients`;
+    rangeSelects += `,\n              ${customNutrientTotals}`;
     const result = await client.query(
       `SELECT d.entry_date,
               ${rangeSelects}
@@ -972,13 +994,18 @@ interface ReadinessVitals {
   hrvBaseline: number | null;
   /** Nights the HRV baseline is the median of. */
   hrvBaselineNights: number;
+  respiratoryRate: number | null;
+  respiratoryRateBaseline: number | null;
+  /** Nights the breathing rate baseline is the median of. */
+  respiratoryRateBaselineNights: number;
 }
 
 const toNumberOrNull = (value: string | number | null | undefined) =>
   value === null || value === undefined ? null : Number(value);
 
 /** The sleep_entries columns the readiness vitals read. */
-type SleepVitalColumn = 'resting_heart_rate' | 'avg_overnight_hrv';
+type SleepVitalColumn =
+  'resting_heart_rate' | 'avg_overnight_hrv' | 'average_respiration_value';
 
 /**
  * The newest reading of one sleep vital (nights ending `today` or the day
@@ -1063,6 +1090,14 @@ async function getReadinessVitals(
       yesterday,
       baselineStart
     );
+    const respiration = await getSleepVital(
+      client,
+      'average_respiration_value',
+      userId,
+      today,
+      yesterday,
+      baselineStart
+    );
     return {
       sleepHours: toNumberOrNull(latest.rows[0]?.sleep_hours),
       restingHeartRate: rhr.value,
@@ -1071,6 +1106,9 @@ async function getReadinessVitals(
       hrv: hrv.value,
       hrvBaseline: hrv.baseline,
       hrvBaselineNights: hrv.nights,
+      respiratoryRate: respiration.value,
+      respiratoryRateBaseline: respiration.baseline,
+      respiratoryRateBaselineNights: respiration.nights,
     };
   } finally {
     client.release();

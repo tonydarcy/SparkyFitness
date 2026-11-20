@@ -85,7 +85,7 @@ describe('useDatabaseFoodSearchQuery', () => {
       'all',
       2,
       10,
-      'name:asc'
+      'usage:desc'
     );
   });
 
@@ -121,7 +121,7 @@ describe('useDatabaseFoodSearchQuery', () => {
       'mine',
       1,
       10,
-      'name:asc'
+      'usage:desc'
     );
   });
 });

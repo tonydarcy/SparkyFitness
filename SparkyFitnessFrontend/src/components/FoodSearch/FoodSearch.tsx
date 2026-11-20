@@ -493,6 +493,10 @@ const EnhancedFoodSearch = ({
 
   const [hasOnlineSearchBeenPerformed, setHasOnlineSearchBeenPerformed] =
     useState(false);
+  // The last single-provider search failed (as opposed to finding nothing), and
+  // a counter the Retry button bumps to run that search again.
+  const [onlineSearchFailed, setOnlineSearchFailed] = useState(false);
+  const [onlineRetryCount, setOnlineRetryCount] = useState(0);
 
   // Aggregated "All Providers" mode: offered only when more than one food
   // provider is active. selectedFoodDataProvider holds the sentinel while it is
@@ -867,6 +871,7 @@ const EnhancedFoodSearch = ({
     // this timeout firing, reading as if they belong to the new term. The
     // < 3 char / no-provider guards above already prevent a spurious spinner.
     setIsOnlineLoading(true);
+    setOnlineSearchFailed(false);
     const handler = setTimeout(async () => {
       setSearchProviderId(provider.id);
       setHasOnlineSearchBeenPerformed(true);
@@ -885,6 +890,7 @@ const EnhancedFoodSearch = ({
         if (active) {
           setExternalResults([]);
           setExternalHasMore(false);
+          setOnlineSearchFailed(true);
           toast({
             title: t('common.error'),
             description: t(
@@ -909,6 +915,7 @@ const EnhancedFoodSearch = ({
     searchHandlers,
     t,
     ownershipFilter,
+    onlineRetryCount,
   ]);
 
   // Fetch the next page for the current single-provider search and append it to
@@ -1078,7 +1085,10 @@ const EnhancedFoodSearch = ({
     try {
       onFoodSelect(foodData, 'food');
 
+      // Close whichever form saved it (edit or Custom Food), so the filled-in
+      // form is not left on screen looking unsaved behind the quantity dialog.
       setShowEditDialog(false);
+      setShowAddFoodDialog(false);
       setEditingProduct(null);
 
       toast({
@@ -1581,14 +1591,34 @@ const EnhancedFoodSearch = ({
                 )}
                 {!isOnlineLoading &&
                   hasOnlineSearchBeenPerformed &&
-                  externalResults.length === 0 && (
+                  externalResults.length === 0 &&
+                  (onlineSearchFailed ? (
+                    <div
+                      role="alert"
+                      className="text-center py-6 text-sm text-destructive space-y-2"
+                    >
+                      <p>
+                        {t('enhancedFoodSearch.onlineSearchFailedNamed', {
+                          provider: selectedProviderName,
+                          defaultValue: `Couldn't reach ${selectedProviderName}. Try again, or pick another source.`,
+                        })}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setOnlineRetryCount((n) => n + 1)}
+                      >
+                        {t('common.retry', 'Retry')}
+                      </Button>
+                    </div>
+                  ) : (
                     <div className="text-center py-6 text-gray-500">
                       {t(
                         'enhancedFoodSearch.noFoodsFoundOnline',
                         'No foods found from the selected online provider.'
                       )}
                     </div>
-                  )}
+                  ))}
               </>
             )}
 

@@ -1,11 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  buildDailySummary,
-  loadDailySummaryRawData,
-} from '../services/dailySummaryService';
+import { buildDailySummary } from '../services/dailySummaryService';
 
 import { useRefetchOnFocus } from './useRefetchOnFocus';
-import { dailySummaryQueryKey } from './queryKeys';
+import { dailySummaryQueryOptions } from './dayQueryOptions';
 
 export type { DailySummaryRawData } from '../services/dailySummaryService';
 
@@ -19,8 +16,7 @@ export function useDailySummary({
   enabled = true,
 }: UseDailySummaryOptions) {
   const query = useQuery({
-    queryKey: dailySummaryQueryKey(date),
-    queryFn: () => loadDailySummaryRawData(date),
+    ...dailySummaryQueryOptions(date),
     select: (raw) => buildDailySummary(date, raw),
     enabled,
   });

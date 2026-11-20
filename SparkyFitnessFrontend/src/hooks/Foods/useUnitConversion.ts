@@ -8,6 +8,10 @@ import {
   type AiConfidence,
 } from '@workspace/shared';
 
+/** Plural spellings the picker folds into their singular unit. */
+const PLURAL_UNIT_ALIASES: Record<string, string> = { lbs: 'lb', cups: 'cup' };
+const pickerUnit = (unit: string): string => PLURAL_UNIT_ALIASES[unit] ?? unit;
+
 /** AI estimate accepted by the user — drives both the conversion factor and the
  *  provenance metadata stamped onto the variant POST body. */
 export interface AiEstimateData {
@@ -142,11 +146,17 @@ export function useUnitConversion({
   const convertibleUnits = useMemo(() => {
     const existingUnits = new Set(
       variants
-        .map((v) => (v.serving_unit ? v.serving_unit.toLowerCase() : ''))
+        .map((v) =>
+          v.serving_unit ? pickerUnit(v.serving_unit.toLowerCase()) : ''
+        )
         .filter(Boolean)
     );
+    // The conversion table keeps plural spellings (lbs, cups) so stored units
+    // still convert; the picker offers each unit once.
     return ALL_CONVERSION_UNITS.filter(
-      (u) => !existingUnits.has(u.toLowerCase())
+      (u) =>
+        !(u.toLowerCase() in PLURAL_UNIT_ALIASES) &&
+        !existingUnits.has(u.toLowerCase())
     );
   }, [variants]);
 

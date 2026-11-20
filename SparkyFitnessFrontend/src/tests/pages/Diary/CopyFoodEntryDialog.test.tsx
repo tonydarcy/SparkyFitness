@@ -66,4 +66,31 @@ describe('CopyFoodEntryDialog', () => {
       'tomorrow'
     );
   });
+
+  it('picks the target meal with one click', () => {
+    const onCopy = renderDialog('Coffee');
+    expect(screen.getByRole('radio', { name: 'Lunch' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Breakfast' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tomorrow' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(onCopy).toHaveBeenCalledWith(
+      expect.any(String),
+      'breakfast',
+      'tomorrow'
+    );
+  });
+
+  it('moves the meal with the arrow keys from a single tab stop', () => {
+    renderDialog('Coffee');
+    const lunch = screen.getByRole('radio', { name: 'Lunch' });
+    const breakfast = screen.getByRole('radio', { name: 'Breakfast' });
+    expect(lunch).toHaveAttribute('tabindex', '0');
+    expect(breakfast).toHaveAttribute('tabindex', '-1');
+    fireEvent.keyDown(lunch, { key: 'ArrowRight' });
+    expect(breakfast).toHaveAttribute('aria-checked', 'true');
+    expect(breakfast).toHaveFocus();
+  });
 });

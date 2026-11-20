@@ -1,14 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import {
-  fetchLatestCheckInMeasurementsOnOrBefore,
-  fetchMeasurements,
-} from '../services/api/measurementsApi';
+import { fetchLatestCheckInMeasurementsOnOrBefore } from '../services/api/measurementsApi';
 import { addLog } from '../services/LogService';
 import { useRefetchOnFocus } from './useRefetchOnFocus';
-import {
-  latestMeasurementsOnOrBeforeQueryKey,
-  measurementsQueryKey,
-} from './queryKeys';
+import { measurementsQueryOptions } from './dayQueryOptions';
+import { latestMeasurementsOnOrBeforeQueryKey } from './queryKeys';
 
 interface UseMeasurementsOptions {
   date: string;
@@ -20,8 +15,7 @@ export function useMeasurements({
   enabled = true,
 }: UseMeasurementsOptions) {
   const query = useQuery({
-    queryKey: measurementsQueryKey(date),
-    queryFn: () => fetchMeasurements(date),
+    ...measurementsQueryOptions(date),
     enabled,
   });
 

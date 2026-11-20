@@ -7,6 +7,7 @@ export const DASHBOARD_CARD_KEYS = [
   'macros',
   'exercise',
   'trainingLoad',
+  'energyBalance',
   'hydration',
   'caffeine',
   'bloodAlcohol',
@@ -49,6 +50,10 @@ export const DASHBOARD_CARD_TITLES: Record<
     t('dashboardSettings.exercise', { defaultValue: 'Exercise Progress' }),
   trainingLoad: (t) =>
     t('dashboardSettings.trainingLoad', { defaultValue: 'Training Load' }),
+  energyBalance: (t) =>
+    t('dashboardSettings.energyBalance', {
+      defaultValue: 'Expenditure & Balance',
+    }),
   hydration: (t) =>
     t('dashboardSettings.hydration', { defaultValue: 'Hydration' }),
   caffeine: (t) =>
@@ -105,6 +110,11 @@ export const DASHBOARD_CARD_SUBTITLES: Record<
     t('dashboardSettings.trainingLoadSubtitle', {
       defaultValue:
         'Show this week against your usual training, with a nudge to rest',
+    }),
+  energyBalance: (t) =>
+    t('dashboardSettings.energyBalanceSubtitle', {
+      defaultValue:
+        'Show your estimated TDEE and average daily deficit or surplus',
     }),
   hydration: (t) =>
     t('dashboardSettings.hydrationSubtitle', {

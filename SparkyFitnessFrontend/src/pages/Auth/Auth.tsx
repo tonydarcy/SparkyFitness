@@ -66,6 +66,9 @@ const Auth = () => {
     useState(false);
   const [isDemoDisclaimerOpen, setIsDemoDisclaimerOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Controlled so the chosen tab survives the loading screen unmounting it:
+  // a failed sign-up returns to the Sign Up form, not Sign In.
+  const [activeTab, setActiveTab] = useState('signin');
   const oauthContinuationStartedRef = useRef(false);
 
   const queryClient = useQueryClient();
@@ -350,23 +353,29 @@ const Auth = () => {
 
     setLoading(true);
 
-    const data: AuthResponse = await registerUser({
-      email,
-      password,
-      fullName,
-    });
-    info(loggingLevel, 'Auth: Sign up successful.');
-    signIn(
-      data.userId,
-      data.userId,
-      email,
-      data.role || 'user',
-      true,
-      fullName
-    );
-
-    setLoading(false);
-    debug(loggingLevel, 'Auth: Sign up loading state set to false.');
+    try {
+      const data: AuthResponse = await registerUser({
+        email,
+        password,
+        fullName,
+      });
+      info(loggingLevel, 'Auth: Sign up successful.');
+      signIn(
+        data.userId,
+        data.userId,
+        email,
+        data.role || 'user',
+        true,
+        fullName
+      );
+    } catch {
+      // The mutation's meta already shows the error toast; returning to the
+      // form (fields kept) is all that is left to do.
+      info(loggingLevel, 'Auth: Sign up failed.');
+    } finally {
+      setLoading(false);
+      debug(loggingLevel, 'Auth: Sign up loading state set to false.');
+    }
   };
 
   const handleRequestMagicLink = async (dialogEmail: string) => {
@@ -523,7 +532,11 @@ const Auth = () => {
                 </Alert>
               )}
               {(loginSettings?.email?.enabled ?? true) ? (
-                <Tabs defaultValue="signin" className="w-full">
+                <Tabs
+                  value={loginSettings?.signup_disabled ? 'signin' : activeTab}
+                  onValueChange={setActiveTab}
+                  className="w-full"
+                >
                   {!loginSettings?.signup_disabled && (
                     <TabsList className="h-10 grid w-full grid-cols-2">
                       <TabsTrigger

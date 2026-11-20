@@ -185,7 +185,7 @@ describe('foodsApi', () => {
       expect(url.searchParams.get('searchTerm')).toBe('banana');
       expect(url.searchParams.get('currentPage')).toBe('1');
       expect(url.searchParams.get('itemsPerPage')).toBe('20');
-      expect(url.searchParams.get('sortBy')).toBe('name:asc');
+      expect(url.searchParams.get('sortBy')).toBe('usage:desc');
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({ method: 'GET' })

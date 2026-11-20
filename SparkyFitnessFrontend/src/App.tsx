@@ -22,6 +22,7 @@ import AnnouncementDialog, {
 } from '@/components/AnnouncementDialog';
 import AppSetup from '@/components/AppSetup';
 import { Toaster } from '@/components/ui/toaster';
+import { toast } from '@/hooks/use-toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   createBrowserRouter,
@@ -37,7 +38,7 @@ import { FeatureRoute } from '@/components/FeatureRoute';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import {
   useCurrentVersionQuery,
-  useInvalidateGithubVersion,
+  useRefreshGithubVersion,
 } from './hooks/useGeneralQueries';
 import {
   RootErrorBoundary,
@@ -108,6 +109,9 @@ const OuraCallback = lazyWithChunkRecovery(
 );
 const GoogleHealthCallback = lazyWithChunkRecovery(
   () => import('@/pages/Integrations/GoogleHealthCallback')
+);
+const GoogleSheetsCallback = lazyWithChunkRecovery(
+  () => import('@/pages/Integrations/GoogleSheetsCallback')
 );
 const PolarCallback = lazyWithChunkRecovery(
   () => import('@/pages/Integrations/PolarCallback')
@@ -182,11 +186,25 @@ const Root = () => {
   const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false);
   const { data: appVersion } = useCurrentVersionQuery();
   const navigate = useNavigate();
-  const invalidateGithubVersion = useInvalidateGithubVersion();
+  const refreshGithubVersion = useRefreshGithubVersion();
 
-  const handleShowNewReleaseDialog = () => {
-    invalidateGithubVersion();
-    setShowNewReleaseDialog(true);
+  const handleShowNewReleaseDialog = async () => {
+    // The background check is silent when GitHub can't be reached, so a
+    // manual "What's New" waits for a fresh check and says when it failed.
+    try {
+      const release = await refreshGithubVersion();
+      setLatestRelease(release);
+      setShowNewReleaseDialog(true);
+    } catch {
+      toast({
+        title: t('release.checkFailedTitle', "Couldn't check for updates"),
+        description: t(
+          'release.checkFailed',
+          'GitHub could not be reached. Try again later.'
+        ),
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDismissRelease = (version: string) => {
@@ -401,6 +419,11 @@ const router = createBrowserRouter([
       {
         path: '/googlehealth/callback',
         Component: GoogleHealthCallback,
+        ErrorBoundary: RootErrorBoundary,
+      },
+      {
+        path: '/googlesheets/callback',
+        Component: GoogleSheetsCallback,
         ErrorBoundary: RootErrorBoundary,
       },
       {

@@ -26,17 +26,26 @@ import {
 } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
-import { useActiveWorkoutBarPadding } from '../components/ActiveWorkoutBar';
+import {
+  useActiveWorkoutBarPadding,
+  useTabScreenFloatingBottom,
+} from '../components/ActiveWorkoutBar';
+import {
+  FoodSelectionBar,
+  useDiaryFoodSelection,
+} from '../components/DiaryFoodSelection';
 import { addSheetRef } from '../components/AddSheet';
 import CalendarSheet, {
   type CalendarSheetRef,
 } from '../components/CalendarSheet';
 import CheckInPhotosSummary from '../components/CheckInPhotosSummary';
 import DateNavigator from '../components/DateNavigator';
+import DayNoteCard from '../components/DayNoteCard';
 import DiaryCalorieMacroSummary from '../components/DiaryCalorieMacroSummary';
 import EmptyDayIllustration from '../components/EmptyDayIllustration';
 import ExerciseSummary from '../components/ExerciseSummary';
 import FoodSummary from '../components/FoodSummary';
+import { getDefaultMealTypeId } from '../constants/meals';
 import MeasurementsSummary from '../components/MeasurementsSummary';
 import ServingAdjustSheet, {
   type ServingAdjustSheetRef,
@@ -73,9 +82,11 @@ import { useExerciseImageSource } from '../hooks/useExerciseImageSource';
 import { useDateColumnCollapsed } from '../hooks/useDateColumnCollapsed';
 import { crossfadeHeaderColumn } from '../../modules/side-bar-metrics';
 import { useHeaderActionColors } from '../hooks/useHeaderActionColors';
+import { useFoodDiaryNote } from '../hooks/useFoodDiaryNote';
 import { useMeasurements } from '../hooks/useMeasurements';
 import { usePreferences } from '../hooks/usePreferences';
 import { useSleepDay } from '../hooks/useSleepDay';
+import { usePrefetchAdjacentDays } from '../hooks/usePrefetchAdjacentDays';
 import { useNativeIOSTabsActive } from '../services/nativeTabBarPreference';
 import { useVerticalBar } from '../hooks/useVerticalBar';
 import { useActiveWorkoutStore } from '../stores/activeWorkoutStore';
@@ -111,6 +122,10 @@ type DiaryScreenProps = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Diary'>,
   NativeStackScreenProps<RootStackParamList>
 >;
+
+const NO_FOOD_ENTRIES: FoodEntry[] = [];
+/** Room kept under the list for the floating Cancel / Copy bar. */
+const SELECTION_BAR_CLEARANCE = 64;
 
 const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
   const { t, i18n: translationI18n } = useTranslation();
@@ -337,6 +352,10 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
     date: selectedDate,
     enabled: isConnected,
   });
+  usePrefetchAdjacentDays({
+    date: selectedDate,
+    enabled: isConnected && summary !== undefined,
+  });
   const { measurements, refetch: refetchMeasurements } = useMeasurements({
     date: selectedDate,
     enabled: isConnected,
@@ -533,6 +552,28 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
 
   const [refreshing, setRefreshing] = useState(false);
   const activeWorkoutBarPadding = useActiveWorkoutBarPadding();
+  // Picking foods to copy. The Cancel / Copy bar floats over the list so it
+  // stays in reach however far the day is scrolled.
+  const foodSelection = useDiaryFoodSelection(
+    selectedDate,
+    summary?.foodEntries ?? NO_FOOD_ENTRIES,
+    mealTypes
+  );
+  const floatingBottom = useTabScreenFloatingBottom();
+  const selectionBar = foodSelection.selectionMode ? (
+    <View
+      pointerEvents="box-none"
+      style={{
+        position: 'absolute',
+        left: 16,
+        right: 16,
+        bottom: floatingBottom,
+      }}
+    >
+      <FoodSelectionBar selection={foodSelection} />
+    </View>
+  ) : null;
+  const { refetch: refetchDayNote } = useFoodDiaryNote(selectedDate);
   const onRefresh = useCallback(async () => {
     if (!isConnected) return;
     setRefreshing(true);
@@ -547,6 +588,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         refetchCustomNutrients(),
         refetchNutrientPrefs(),
         refetchSleep(),
+        refetchDayNote(),
       ]);
     } finally {
       setRefreshing(false);
@@ -559,6 +601,7 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
     refetchCustomNutrients,
     refetchNutrientPrefs,
     refetchSleep,
+    refetchDayNote,
   ]);
 
   const isRefreshing = refreshing;
@@ -754,7 +797,10 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
           // Beside a vertical bar the gap under the large title is 12 pt, the
           // same as Dashboard, Library and Settings.
           paddingTop: usesNativeTabs && verticalBar ? 12 : 8,
-          paddingBottom: 80 + activeWorkoutBarPadding,
+          paddingBottom:
+            80 +
+            activeWorkoutBarPadding +
+            (foodSelection.selectionMode ? SELECTION_BAR_CLEARANCE : 0),
         }}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
@@ -807,10 +853,22 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
               onAddFood={() =>
                 navigation.navigate('FoodSearch', { date: selectedDate })
               }
+              onAddFoodAt={(time) =>
+                navigation.navigate('FoodSearch', {
+                  date: selectedDate,
+                  mealTypeId:
+                    getDefaultMealTypeId(
+                      mealTypes.filter((mt) => mt.is_visible),
+                      { hour: Number(time.slice(0, 2)), minute: 0 }
+                    ) ?? undefined,
+                  entryTime: time,
+                })
+              }
               onAdjustServing={(entry) =>
                 servingSheetRef.current?.present(entry)
               }
               onPressMealType={openMealTypeDetail}
+              selection={foodSelection}
             />
             <ExerciseSummary
               exerciseEntries={mergeWaitingWorkouts(
@@ -879,6 +937,11 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
             />
           </>
         )}
+        {/* One slot for both branches, so the editor is not remounted (and
+            its draft sent early) when the day turns out to be empty. */}
+        <View className={isDayEmpty ? 'mt-4' : undefined}>
+          <DayNoteCard key={selectedDate} date={selectedDate} />
+        </View>
       </ScrollView>
     );
   };
@@ -891,8 +954,10 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         <GestureDetector gesture={swipeGesture}>
           <View collapsable={false} className="flex-1">
             {renderedContent ?? <View className="flex-1 bg-background" />}
+            {selectionBar}
           </View>
         </GestureDetector>
+        {foodSelection.copySheet}
         <CalendarSheet
           ref={calendarRef}
           selectedDate={selectedDate}
@@ -939,6 +1004,8 @@ const DiaryScreen: React.FC<DiaryScreenProps> = ({ navigation }) => {
         )
       )}
       {renderedContent}
+      {selectionBar}
+      {foodSelection.copySheet}
       <CalendarSheet
         ref={calendarRef}
         selectedDate={selectedDate}

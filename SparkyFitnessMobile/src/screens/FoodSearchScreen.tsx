@@ -119,6 +119,7 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
     route.params?.pickerMode ??
     (recipeImportTarget ? 'meal-builder' : 'log-entry');
   const mealTypeId = route.params?.mealTypeId;
+  const entryTime = route.params?.entryTime;
   const mealPlanTarget = route.params?.mealPlanTarget;
   const isMealBuilderMode = pickerMode === 'meal-builder';
   const selectionPickerMode = isFoodSelectionMode(pickerMode)
@@ -459,12 +460,14 @@ const FoodSearchScreen: React.FC<FoodSearchScreenProps> = ({
         // picker modes keep their existing depth-2 return past this screen.
         returnDepth: basketTapReturnDepth,
         mealTypeId,
+        entryTime,
         mealPlanTarget,
       });
     },
     [
       navigation,
       date,
+      entryTime,
       mealPlanTarget,
       mealTypeId,
       selectionPickerMode,

@@ -65,6 +65,8 @@ export {
   useCreateWorkoutPlan,
   useUpdateWorkoutPlan,
   useDeleteWorkoutPlan,
+  useStarterWorkoutPlans,
+  useAddStarterWorkoutPlan,
 } from './useWorkoutPlans';
 export { useMealSearch } from './useMealSearch';
 export {

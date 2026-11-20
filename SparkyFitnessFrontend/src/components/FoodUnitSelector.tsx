@@ -79,6 +79,7 @@ const getValidAiConfidence = (
   return result.success ? result.data : null;
 };
 
+import { MealTypeButtons } from '@/components/MealTypeButtons';
 import { AiEstimateSection } from '@/components/FoodUnitSelector/AiEstimateSection';
 import {
   CookedWeightSection,
@@ -124,6 +125,8 @@ interface FoodUnitSelectorProps {
    * but store no cooked weight.
    */
   showCookedWeight?: boolean;
+  /** The meal being added to, named in the title when the meal is fixed. */
+  mealName?: string;
 }
 
 const FoodUnitSelector = ({
@@ -142,6 +145,7 @@ const FoodUnitSelector = ({
   showMealTypeSelect,
   availableMealTypes,
   showCookedWeight = false,
+  mealName,
 }: FoodUnitSelectorProps) => {
   const { t } = useTranslation();
   const {
@@ -206,8 +210,19 @@ const FoodUnitSelector = ({
         availableMealTypes &&
         availableMealTypes.length > 0
       ) {
-        const nowTime = userHourMinute(timezone);
-        const matched = defaultMealTypeForTime(availableMealTypes, nowTime);
+        // Follow the prefilled time when there is one (the Diary timeline
+        // opens this at a chosen slot), else the current time.
+        const prefilled = toHourMinute(initialTime);
+        const referenceTime = prefilled
+          ? {
+              hour: Number(prefilled.slice(0, 2)),
+              minute: Number(prefilled.slice(3, 5)),
+            }
+          : userHourMinute(timezone);
+        const matched = defaultMealTypeForTime(
+          availableMealTypes,
+          referenceTime
+        );
         setMealType(matched);
       }
     }
@@ -768,10 +783,16 @@ const FoodUnitSelector = ({
                     name: food?.name,
                     defaultValue: `Edit ${food?.name}`,
                   })
-                : t('foodUnitSelector.addTitle', {
-                    name: food?.name,
-                    defaultValue: `Add ${food?.name} to Meal`,
-                  })}
+                : mealName && !showMealTypeSelect
+                  ? t('foodUnitSelector.addToMealTitle', {
+                      name: food?.name,
+                      mealName,
+                      defaultValue: `Add ${food?.name} to ${mealName}`,
+                    })
+                  : t('foodUnitSelector.addTitle', {
+                      name: food?.name,
+                      defaultValue: `Add ${food?.name} to Meal`,
+                    })}
             </span>
             {/* Only persisted local/saved foods can be favorited (external
                 provider search results are not saved yet, so they have no
@@ -939,26 +960,18 @@ const FoodUnitSelector = ({
                 availableMealTypes &&
                 availableMealTypes.length > 0 && (
                   <div className="space-y-1">
-                    <Label htmlFor="mealType">
+                    <Label id="mealType-label">
                       {t('foodUnitSelector.meal', 'Meal')}
                     </Label>
-                    <Select value={mealType} onValueChange={setMealType}>
-                      <SelectTrigger id="mealType" className="w-full text-sm">
-                        <SelectValue
-                          placeholder={t(
-                            'foodUnitSelector.selectMeal',
-                            'Select meal'
-                          )}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableMealTypes.map((t) => (
-                          <SelectItem key={t.id} value={t.name}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <MealTypeButtons
+                      labelledBy="mealType-label"
+                      options={availableMealTypes.map((type) => ({
+                        value: type.name,
+                        label: type.name,
+                      }))}
+                      value={mealType}
+                      onChange={setMealType}
+                    />
                   </div>
                 )}
 

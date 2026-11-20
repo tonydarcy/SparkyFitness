@@ -1684,7 +1684,9 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
         <CopyMealSheet
           ref={copySheetRef}
           isPending={isCopyPending}
-          onCopy={(payload, { targetMealTypeId, quickTarget }) =>
+          onCopy={([payload], { targetMealTypeId, quickTarget }) => {
+            // A single food is always copied to one day and one meal.
+            if (!payload || !targetMealTypeId) return;
             copyFood({
               entry,
               targetDate: payload.targetDate,
@@ -1694,8 +1696,8 @@ const FoodEntryViewScreen: React.FC<FoodEntryViewScreenProps> = ({
               ...(quickTarget === 'now'
                 ? { entryTime: clockInZone(getDeviceTimezone()) }
                 : {}),
-            })
-          }
+            });
+          }}
         />
       )}
       {isEditing && (
