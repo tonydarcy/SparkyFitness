@@ -153,6 +153,7 @@ async function getDailyReport(
       carbs: r.carbs,
       fat: r.fat,
       fiber: r.fiber,
+      custom_nutrients: r.custom_nutrients,
       nutrition_warning: r.nutrition_warning,
     })),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
