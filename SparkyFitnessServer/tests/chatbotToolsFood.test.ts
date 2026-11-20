@@ -5410,6 +5410,57 @@ describe('get_nutritional_summary', () => {
   });
 });
 
+describe('custom nutrients in nutrition summaries', () => {
+  it("lists the day's custom nutrient totals with their units", async () => {
+    vi.mocked(customNutrientService.getCustomNutrients).mockResolvedValue([
+      { name: 'Vitamin D', unit: 'mcg' },
+      { name: 'Magnesium', unit: 'mg' },
+    ]);
+    vi.mocked(reportRepository.getDailyNutritionTotalsRange).mockResolvedValue([
+      {
+        entry_date: new Date(2026, 5, 1),
+        calories: 1000,
+        protein: 80,
+        carbs: 100,
+        fat: 30,
+        sodium: 1500,
+        fiber: 20,
+        sugar: 25,
+        custom_nutrients: { 'Vitamin D': '12.34567', Magnesium: 310 },
+      },
+      {
+        entry_date: new Date(2026, 5, 2),
+        calories: 500,
+        custom_nutrients: {},
+      },
+    ]);
+
+    const text = await tools.sparky_manage_food.execute!(
+      {
+        action: 'get_nutritional_summary',
+        start_date: '2026-06-01',
+        end_date: '2026-06-02',
+      },
+      opts
+    );
+    expect(text).toContain(
+      '  Fiber: 20g | Sugar: 25g | Sodium: 1500mg\n  Custom: Vitamin D: 12.346 mcg | Magnesium: 310 mg\n'
+    );
+
+    const json = JSON.parse(
+      (await tools.sparky_get_nutrition_summary.execute!(
+        { start_date: '2026-06-01', end_date: '2026-06-02' },
+        opts
+      )) as string
+    );
+    expect(json[0].custom_nutrients).toEqual({
+      'Vitamin D': { amount: 12.346, unit: 'mcg' },
+      Magnesium: { amount: 310, unit: 'mg' },
+    });
+    expect(json[1]).not.toHaveProperty('custom_nutrients');
+  });
+});
+
 describe('get_water_history', () => {
   it('renders daily totals in ml', async () => {
     vi.mocked(

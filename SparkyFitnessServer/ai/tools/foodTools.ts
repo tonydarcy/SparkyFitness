@@ -792,6 +792,52 @@ async function searchFoodInternal(
   return buildPaginatedResult(rows.map(projectFoodItem), totalCount, offset);
 }
 
+type CustomNutrientTotal = { amount: number; unit: string | null };
+
+// Units of the user's own nutrients, read only when a day in range logged one.
+async function getCustomNutrientUnits(
+  userId: string,
+  rows: { custom_nutrients?: unknown }[]
+): Promise<Map<string, string | null>> {
+  const units = new Map<string, string | null>();
+  const anyLogged = rows.some(
+    (row) =>
+      row.custom_nutrients &&
+      typeof row.custom_nutrients === 'object' &&
+      Object.keys(row.custom_nutrients).length > 0
+  );
+  if (!anyLogged) return units;
+  const defined = (await customNutrientService.getCustomNutrients(userId)) as {
+    name: string;
+    unit?: string | null;
+  }[];
+  for (const nutrient of defined) {
+    units.set(nutrient.name, nutrient.unit ?? null);
+  }
+  return units;
+}
+
+// A day's summed custom nutrients as { name: { amount, unit } }, or undefined
+// when the day logged none, so rows without them keep their old shape.
+function projectCustomNutrientTotals(
+  totals: unknown,
+  units: Map<string, string | null>
+): Record<string, CustomNutrientTotal> | undefined {
+  if (!totals || typeof totals !== 'object' || Array.isArray(totals)) {
+    return undefined;
+  }
+  const projected: Record<string, CustomNutrientTotal> = {};
+  for (const [name, value] of Object.entries(totals)) {
+    const amount = Number(value);
+    if (!Number.isFinite(amount)) continue;
+    projected[name] = {
+      amount: Number(amount.toFixed(3)),
+      unit: units.get(name) ?? null,
+    };
+  }
+  return Object.keys(projected).length > 0 ? projected : undefined;
+}
+
 // Per-day nutrition totals with the user's energy-unit conversion applied —
 // MCP's getNutritionalSummary row shape (fiber/sugar aliases included).
 // Shared with the report tools.
@@ -810,6 +856,7 @@ export async function getNutritionalSummaryRows(
     startDate,
     endDate
   );
+  const customUnits = await getCustomNutrientUnits(userId, rows);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return rows.map((row: any) => {
     const calories = Number(row.calories || 0);
@@ -833,6 +880,10 @@ export async function getNutritionalSummaryRows(
       vitamin_c: Number(row.vitamin_c || 0),
       calcium: Number(row.calcium || 0),
       iron: Number(row.iron || 0),
+      custom_nutrients: projectCustomNutrientTotals(
+        row.custom_nutrients,
+        customUnits
+      ),
       nutrition_warning:
         Number(row.legacy_ambiguous_entry_count || 0) > 0
           ? 'Totals exclude legacy entries with ambiguous units. Correct those entries explicitly before treating this day as complete.'
@@ -2909,6 +2960,17 @@ Actions:
                   text += `  Fiber: ${s.fiber}g | Sugar: ${s.sugar}g | Sodium: ${s.sodium}mg\n`;
                   if (s.saturated_fat || s.cholesterol || s.potassium) {
                     text += `  Other: SatFat: ${s.saturated_fat}g | Chol: ${s.cholesterol}mg | Potas: ${s.potassium}mg`;
+                  }
+                  if (s.custom_nutrients) {
+                    const custom = Object.entries(
+                      s.custom_nutrients as Record<string, CustomNutrientTotal>
+                    )
+                      .map(
+                        ([name, total]) =>
+                          `${name}: ${total.amount}${total.unit ? ` ${total.unit}` : ''}`
+                      )
+                      .join(' | ');
+                    text += `${text.endsWith('\n') ? '' : '\n'}  Custom: ${custom}`;
                   }
                   if (s.nutrition_warning) {
                     text += `\n  Warning: ${s.nutrition_warning}`;
