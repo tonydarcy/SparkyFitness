@@ -14,12 +14,19 @@ export const MCP_OAUTH_LOOPBACK_REDIRECT_PATTERNS = [
 ] as const;
 
 /**
- * Google's OAuth callbacks for Gemini custom MCP apps. Each Gemini integration
- * gets its own path below these prefixes, so they are path-prefix patterns.
+ * Google's OAuth callbacks for Gemini custom MCP apps, as listed in Google's
+ * MCP OAuth guide. Each Gemini integration gets its own path below these
+ * prefixes, so they are path-prefix patterns. Gemini registers the production,
+ * sandbox and test hosts together, and registration is refused unless every
+ * one of them is allowed.
  */
 export const MCP_OAUTH_GEMINI_REDIRECT_PATTERNS = [
   'https://oauth-redirect.googleusercontent.com/r/*',
+  'https://oauth-redirect-sandbox.googleusercontent.com/r/*',
+  'https://oauth-redirect-test.googleusercontent.com/r/*',
   'https://oauth-redirect.googleusercontent.com/a/*',
+  'https://oauth-redirect-sandbox.googleusercontent.com/a/*',
+  'https://oauth-redirect-test.googleusercontent.com/a/*',
 ] as const;
 
 const MCP_OAUTH_LOOPBACK_HOSTNAMES = new Set([

@@ -59,7 +59,7 @@ Everything in upstream SparkyFitness, plus:
 
 ### AI and integrations
 
-- **Remote MCP with OAuth 2.1**, so Claude and **Gemini** can connect to your server without an API key (off by default: Admin → Authentication Settings → Login Management → Remote MCP OAuth; needs public HTTPS).
+- **Remote MCP with OAuth 2.1**, so Claude and **Gemini** can connect to your server without an API key (off by default: Admin → Authentication Settings → Login Management → Remote MCP OAuth; needs public HTTPS). The Gemini web app works as a custom app: all six of Google's Gemini callback addresses (production, sandbox and test) are allowed out of the box, and on an existing install the first restart after upgrading adds the missing sandbox and test patterns, but only to an allowlist that still holds both production Gemini patterns. Setup: [Connect Gemini](docs/src/features/mcp-server.md#connect-gemini).
 
 The fork's own instance runs on [Railway](https://railway.com), deployed from `tdmain`.
 

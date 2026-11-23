@@ -10,6 +10,7 @@ import {
 import { createMcpOAuthAuthGate } from '../middleware/mcpOAuthAuthInterceptor.js';
 import {
   classifyMcpOAuthMetadataPath,
+  DEFAULT_MCP_OAUTH_ALLOWED_REDIRECT_URIS,
   createMcpOAuthAuthorizationRedirectValidator,
   getMcpOAuthAvailability,
   getMcpLoopbackJwksUrl,
@@ -117,6 +118,29 @@ describe('MCP OAuth URLs', () => {
     ]) {
       expect(isMcpOAuthRedirectUriAllowed(uri, allowed)).toBe(false);
     }
+  });
+
+  it('ships every Google Gemini callback host in the default allowlist', () => {
+    for (const host of [
+      'oauth-redirect',
+      'oauth-redirect-sandbox',
+      'oauth-redirect-test',
+    ]) {
+      for (const path of ['r', 'a']) {
+        expect(
+          isMcpOAuthRedirectUriAllowed(
+            `https://${host}.googleusercontent.com/${path}/my-project`,
+            DEFAULT_MCP_OAUTH_ALLOWED_REDIRECT_URIS
+          )
+        ).toBe(true);
+      }
+    }
+    expect(
+      isMcpOAuthRedirectUriAllowed(
+        'https://oauth-redirect-evil.googleusercontent.com/r/my-project',
+        DEFAULT_MCP_OAUTH_ALLOWED_REDIRECT_URIS
+      )
+    ).toBe(false);
   });
 
   it('accepts only well-formed path-prefix patterns in the allowlist', () => {

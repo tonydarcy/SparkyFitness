@@ -109,7 +109,7 @@ Approving an OAuth application gives it the full MCP tool set for your account, 
 
 - Your SparkyFitness instance must be reachable by the remote client over **public HTTPS** with a valid certificate. Plain HTTP is supported only for loopback development addresses such as `localhost` and `127.0.0.1`.
 - `BETTER_AUTH_URL` should be the same public origin users and MCP clients open, for example `https://fitness.example.com`. If it is unset, SparkyFitness uses `SPARKY_FITNESS_FRONTEND_URL`.
-- The client's OAuth callback must be in the administrator's redirect allowlist. SparkyFitness ships with Anthropic's documented callbacks (`https://claude.ai/api/mcp/auth_callback` and `https://claude.com/api/mcp/auth_callback`), Google's Gemini callbacks (`https://oauth-redirect.googleusercontent.com/r/*` and `https://oauth-redirect.googleusercontent.com/a/*`), and explicit loopback-any-port patterns for desktop clients such as Gemini CLI.
+- The client's OAuth callback must be in the administrator's redirect allowlist. SparkyFitness ships with Anthropic's documented callbacks (`https://claude.ai/api/mcp/auth_callback` and `https://claude.com/api/mcp/auth_callback`), Google's six Gemini callback patterns (`/r/*` and `/a/*` on `oauth-redirect`, `oauth-redirect-sandbox` and `oauth-redirect-test` `.googleusercontent.com`), and explicit loopback-any-port patterns for desktop clients such as Gemini CLI.
 
 If the configured public URL is missing, invalid, or plain HTTP on a non-loopback host, SparkyFitness keeps API-key MCP access working but does not install or advertise the OAuth endpoints. The Admin page shows the reason next to the switch.
 
@@ -130,7 +130,18 @@ If the configured public URL is missing, invalid, or plain HTTP on a non-loopbac
 
 ### Connect Gemini
 
-Gemini registers itself through dynamic client registration and uses the same login and consent screens. Its callbacks are allowed by default on new installs, and on existing installs that still use the shipped allowlist. If you edited the allowlist, add `https://oauth-redirect.googleusercontent.com/r/*` and `https://oauth-redirect.googleusercontent.com/a/*` yourself.
+Gemini registers itself through dynamic client registration and uses the same login and consent screens. It registers all six of Google's callback addresses at once, and SparkyFitness refuses the registration unless every one is allowed. If even one is missing, Gemini's **Connect** button does nothing and clears the URL, with no error shown. The six patterns are:
+
+```text
+https://oauth-redirect.googleusercontent.com/r/*
+https://oauth-redirect-sandbox.googleusercontent.com/r/*
+https://oauth-redirect-test.googleusercontent.com/r/*
+https://oauth-redirect.googleusercontent.com/a/*
+https://oauth-redirect-sandbox.googleusercontent.com/a/*
+https://oauth-redirect-test.googleusercontent.com/a/*
+```
+
+They are allowed by default on new installs. On an existing install, the first server restart after upgrading adds the sandbox and test patterns once, and only to an allowlist that still holds both production Gemini patterns. Later restarts do not add them again. If you removed Gemini from your allowlist, or remove any of the six later, paste all six back in yourself.
 
 - **Gemini app:** add a custom MCP app with your public MCP URL, `https://<your-host>/mcp`, and choose OAuth when asked.
 - **Gemini CLI:** add the server to `settings.json` with `"httpUrl": "https://<your-host>/mcp"`. The CLI discovers OAuth on its own and uses a loopback callback, which the loopback patterns allow. Run `/mcp auth` if it does not open the login page.
