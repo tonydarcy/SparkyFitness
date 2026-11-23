@@ -26,6 +26,7 @@ describe('buildWidgetKeys', () => {
       'meal:b',
       'dayNote',
       'exercise',
+      'challenges',
       'caffeine',
       'bloodAlcohol',
     ]);

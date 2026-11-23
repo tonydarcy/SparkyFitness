@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useOnChange } from '@/hooks/useOnChange';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useActiveUser } from '@/contexts/ActiveUserContext';
@@ -14,6 +15,7 @@ import CaffeineCard from './CaffeineCard';
 import DayNoteCard from './DayNoteCard';
 import BloodAlcoholCard from './BloodAlcoholCard';
 import EnergyBalanceCard from './EnergyBalanceCard';
+import ChallengeStandingsCard from './ChallengeStandingsCard';
 import MealCard from './MealCard';
 import DiaryTimeline from './DiaryTimeline';
 import ExerciseCard from './ExerciseCard';
@@ -38,6 +40,7 @@ import {
   Dumbbell,
   HeartPulse,
   Scale,
+  Trophy,
 } from 'lucide-react';
 import { DailyHealthMetricsCard } from '@/components/Health/DailyHealthMetricsCard';
 import { useDailyHealthMetrics } from '@/hooks/useGenericHealth';
@@ -81,6 +84,7 @@ import {
 } from '@/hooks/Diary/useFoodEntries';
 import {
   buildFoodEntryCopyPayload,
+  challengeStateNow,
   clockInZone,
   prefillEntryTime,
   todayInZone,
@@ -89,6 +93,10 @@ import {
   userHourMinute,
 } from '@workspace/shared';
 import { useDailySummary } from '@/hooks/Diary/useDailyProgress';
+import {
+  useChallenges,
+  useChallengesAvailable,
+} from '@/hooks/Challenges/useChallenges';
 import { useNutrientGoalPreferences } from '@/hooks/Settings/useNutrientGoalPreferences';
 import { getCalorieBudget } from '@/utils/calorieBudget';
 
@@ -240,35 +248,41 @@ const Diary = () => {
   const dayIsOver = compareDays(selectedDate, todayInZone(timezone)) < 0;
 
   // Handle navigation for opening food search dialog
+  const requestedMealType =
+    (location.state as { openFoodSearchForMeal?: string } | null)
+      ?.openFoodSearchForMeal &&
+    availableMealTypes &&
+    availableMealTypes.length > 0
+      ? (location.state as { openFoodSearchForMeal: string })
+          .openFoodSearchForMeal
+      : null;
+
+  // Set which meal dialog should open. The request names a meal card, so show
+  // the meal cards for it (without changing the saved preference).
+  useOnChange([requestedMealType], () => {
+    if (!requestedMealType) return;
+    setViewMode('meals');
+    setOpenFoodSearchForMealType(requestedMealType);
+  });
+
   useEffect(() => {
-    const state = location.state as { openFoodSearchForMeal?: string };
-    debug(loggingLevel, '[Diary] Location state:', state);
-    if (
-      state?.openFoodSearchForMeal &&
-      availableMealTypes &&
-      availableMealTypes.length > 0
-    ) {
-      const mealType = state.openFoodSearchForMeal;
+    debug(loggingLevel, '[Diary] Location state:', location.state);
+    if (requestedMealType) {
       info(
         loggingLevel,
-        `Diary: Opening food search for meal type: ${mealType}`
+        `Diary: Opening food search for meal type: ${requestedMealType}`
       );
       debug(
         loggingLevel,
-        `[Diary] Setting openFoodSearchForMealType to: ${mealType}`
+        `[Diary] Setting openFoodSearchForMealType to: ${requestedMealType}`
       );
-
-      // Set which meal dialog should open. The request names a meal card, so
-      // show the meal cards for it (without changing the saved preference).
-      setViewMode('meals');
-      setOpenFoodSearchForMealType(mealType);
 
       // Clear the navigation state for next render
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [
     location.state,
-    availableMealTypes,
+    requestedMealType,
     loggingLevel,
     navigate,
     location.pathname,
@@ -514,9 +528,10 @@ const Diary = () => {
     );
   };
 
-  const visibleMealTypes = useMemo(
-    () => (availableMealTypes ?? []).filter((meal) => meal.is_visible),
-    [availableMealTypes]
+  // Not wrapped in useMemo: the React Compiler memoizes it, and a manual memo
+  // here is one it cannot preserve.
+  const visibleMealTypes = (availableMealTypes ?? []).filter(
+    (meal) => meal.is_visible
   );
 
   // Some Garmin sync fields (e.g. lactate_threshold, fitness_age) can create a
@@ -532,6 +547,17 @@ const Diary = () => {
   // single-provider by design -- it badges metrics.source_provider -- so this
   // selects one row rather than merging several, which would mislabel the badge.
   const todaysHealthMetrics = selectDisplayableHealthMetrics(healthMetricsData);
+
+  // Challenge standings: owner-only, and only read while the admin switch is on.
+  const { available: challengesAvailable } = useChallengesAvailable();
+  const { data: challengeList } = useChallenges(challengesAvailable);
+  const myChallenges = useMemo(
+    () =>
+      challengesAvailable
+        ? (challengeList ?? []).filter((c) => challengeStateNow(c) !== 'ended')
+        : [],
+    [challengesAvailable, challengeList]
+  );
 
   // Build the ordered widget registry: energy, nutrition, water, one card per
   // visible meal type, then exercise. Keys match buildWidgetKeys() so the saved
@@ -694,6 +720,17 @@ const Diary = () => {
       ),
     });
 
+    // Only for someone in a challenge, on their own account, while the admin
+    // switch is on; everyone else never sees an empty tile for it.
+    if (myChallenges.length > 0) {
+      list.push({
+        key: 'challenges',
+        title: t('challenges.widget.title', 'Challenge standings'),
+        icon: Trophy,
+        render: () => <ChallengeStandingsCard challenges={myChallenges} />,
+      });
+    }
+
     // Last in the registry to match its default tile, which sits below
     // exercise; the grid positions by layout, but keeping the two in the same
     // order stops the next reader wondering which one is authoritative.
@@ -738,6 +775,7 @@ const Diary = () => {
     viewMode,
     macroGoals,
     dayIsOver,
+    myChallenges,
     t,
   ]);
 

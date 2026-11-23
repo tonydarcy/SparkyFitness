@@ -8,6 +8,7 @@ import Animated from 'react-native-reanimated';
 import { DeleteRowAction } from './SwipeableDeleteRow';
 import { useRowCollapse } from '../hooks/useRowCollapse';
 import { useDeleteFoodEntry } from '../hooks/useDeleteFoodEntry';
+import { isPendingEntryId } from '../offline/foodEntryHandOver';
 import { useDeleteFoodEntryMeal } from '../hooks/useDeleteFoodEntryMeal';
 import { usePreferences } from '../hooks/usePreferences';
 import { useEnergyUnit } from '../hooks/useEnergyUnit';
@@ -56,6 +57,9 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
   );
 
   const isMealComponent = !!entry.food_entry_meal_id;
+  // A waiting entry is not on the server, so there is no detail to open. The
+  // amount can still be changed and the entry (or its whole logged meal)
+  // deleted: both are kept on the phone and upload later.
   // A logged meal shows as one row and is picked, and copied, as a whole meal.
   const isSelectable = !!onToggleSelect;
   const [accentPrimary, textMuted] = useCSSVariable([
@@ -121,7 +125,16 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
     t('foodRow.unknownFood', { defaultValue: 'Unknown food' });
   const timeLabel = formatTimeLabel(entry.entry_time, preferences?.time_format);
 
+  // A waiting entry has no server copy to open. A logged meal's components
+  // open the meal, which the phone keeps for the last week.
+  const detailAvailable = !isPendingEntryId(entry.id);
+
   const handlePress = () => {
+    if (!detailAvailable) {
+      // No detail screen here; the row opens the amount sheet instead.
+      if (canQuickAdjust) onAdjustServing!(entry);
+      return;
+    }
     if (isMealComponent && entry.food_entry_meal_id) {
       navigation.navigate('EditLoggedMeal', {
         foodEntryMealId: entry.food_entry_meal_id,
@@ -228,7 +241,9 @@ const SwipeableFoodRow: React.FC<SwipeableFoodRowProps> = ({
                   ? isSelectable
                     ? () => onToggleSelect!(entry)
                     : undefined
-                  : handlePress
+                  : detailAvailable || canQuickAdjust
+                    ? handlePress
+                    : undefined
               }
               onLongPress={selectionMode ? undefined : handleLongPress}
               disabled={selectionMode && !isSelectable}
