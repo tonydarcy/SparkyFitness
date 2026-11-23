@@ -10,6 +10,8 @@ This is the repo-root monorepo guide for SparkyFitness. Use it to choose the rig
 - `architecture-permissions.md` — Permission types and RLS patterns
 - Plus 5 more guides for migrations, data flow, anti-patterns, new features, and planning
 
+**On the tonydarcy fork, read `agent-docs/fork-workflow.md` before any work.** It holds the branch rules, the split of work between agents, and the finish rule every agent follows. It applies to every agent (Claude, Antigravity/Gemini, any other).
+
 Package-level guides win. For work inside a package, follow that package's `AGENTS.md` when present, otherwise its `CLAUDE.md`.
 
 ## Scope

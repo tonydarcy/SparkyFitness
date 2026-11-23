@@ -1,6 +1,6 @@
 # Fork workflow (tonydarcy/SparkyFitness)
 
-Fork-only guide, loaded from the root `CLAUDE.md`. It covers how work moves through this fork and how to keep a fix cheap to make. Repo rules in `AGENTS.md` still apply; where this file is more specific, it wins.
+Fork-only guide, loaded from the root `CLAUDE.md` and linked from the top of the root `AGENTS.md`, so every agent reads it. It covers how work moves through this fork and how to keep a fix cheap to make. Repo rules in `AGENTS.md` still apply; where this file is more specific, it wins.
 
 ## Branches
 
@@ -9,6 +9,33 @@ Fork-only guide, loaded from the root `CLAUDE.md`. It covers how work moves thro
 - One branch per fix or feature, started from `origin/main` (`git fetch origin main && git checkout -b fix/<topic> origin/main`), so the same branch can be sent upstream unchanged. Name it `fix/<topic>` or `feat/<topic>`.
 - If a session was handed a pre-named branch, start that branch from `origin/main` the same way for code fixes. Only fork-only changes (like this file) start from `origin/tdmain`.
 - Never mix two fixes on one branch, and never merge `tdmain` into a fix branch. If a fix depends on another unmerged fix, say so instead of stacking it.
+
+## Two agents (Claude and Antigravity)
+
+Tony uses Google Antigravity (Gemini) for small tasks and Claude for the rest. Both follow this file and `AGENTS.md`; neither can see the other's chat history or memory, so anything that must carry over goes in the repo or the PR.
+
+- Antigravity takes: wording and copy changes, docs, small self-contained UI tweaks, mechanical edits (renames, moving a prop), explaining code, running the dev server or emulator.
+- Claude takes: migrations and RLS, auth, date and time logic ("Now", "Today", day boundaries), the mobile offline store and outbox, changes under `shared/`, anything that needs a new test, upstream PR text, and review-bot rounds (CodeRabbit).
+- If an "easy" task turns out to touch any item on Claude's list, stop, commit what is done to the branch, and hand off.
+
+### Finish rule (every agent)
+
+Work is not done until the checks have run and passed:
+
+1. Run the narrow test for what changed, then the package's `pnpm run validate` (see Working cheaply below).
+2. Open a PR to `tdmain` (a draft if anything is unfinished) with this block in the body, using real command output, not a summary:
+
+   ```
+   ## Handoff
+   Done:
+   Tested: <commands run and their pass/fail result>
+   Not tested: <what still needs a device, a server restart, or a human>
+   Open questions:
+   ```
+
+3. Never say a check passed without having run it. If a check could not run, write that under "Not tested".
+
+The next agent picks up from the PR: read its Handoff block and the diff, not the whole codebase.
 
 ## Upstream
 
