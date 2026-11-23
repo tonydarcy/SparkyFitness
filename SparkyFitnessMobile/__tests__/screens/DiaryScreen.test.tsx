@@ -56,6 +56,8 @@ import { useOfflineDiaryDay } from '../../src/hooks/useOfflineDiaryDay';
 
 jest.mock('../../src/hooks/useOfflineDiaryDay', () => ({
   useOfflineDiaryDay: jest.fn(() => ({ saved: null, waiting: [] })),
+}));
+
 jest.mock('../../src/hooks/usePrefetchAdjacentDays', () => ({
   usePrefetchAdjacentDays: jest.fn(),
 }));
@@ -776,6 +778,51 @@ describe('DiaryScreen sleep cards', () => {
       saved: null,
       waiting: [],
     });
+  });
+
+  test('while offline the day shows the food kept on the phone, with no way to change it', () => {
+    mockUseServerConnection.mockReturnValue({
+      isConnected: false,
+      isLoading: false,
+      status: 'unreachable',
+      refetch: jest.fn(),
+    } as unknown as ReturnType<typeof useServerConnection>);
+    (useOfflineDiaryDay as jest.Mock).mockReturnValue({
+      saved: null,
+      waiting: [],
+      deleted: [],
+      savedFood: [{ id: 'e1', meal_type: 'Lunch', entry_date: '2026-06-15' }],
+      waitingFood: [
+        { id: 'pending-x', meal_type: '', entry_date: '2026-06-15' },
+      ],
+    });
+
+    const { getByTestId, queryByTestId } = renderScreen();
+
+    expect(getByTestId('diary-offline-note')).toBeTruthy();
+    expect(getByTestId('food-summary')).toBeTruthy();
+    expect(queryByTestId('status-view')).toBeNull();
+    (useOfflineDiaryDay as jest.Mock).mockReturnValue({
+      saved: null,
+      waiting: [],
+    });
+  });
+
+  test("while offline the calorie summary is shown from the phone's copy of the day", () => {
+    mockUseServerConnection.mockReturnValue({
+      isConnected: false,
+      isLoading: false,
+      status: 'unreachable',
+      refetch: jest.fn(),
+    } as unknown as ReturnType<typeof useServerConnection>);
+
+    renderScreen();
+
+    // The day's totals are read with the server away too (from the phone's
+    // copy and what is waiting to upload).
+    expect(mockUseDailySummary).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true })
+    );
   });
 
   test('a nap alone is enough to keep the day non-empty', () => {

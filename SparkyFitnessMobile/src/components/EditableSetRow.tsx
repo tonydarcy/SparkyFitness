@@ -6,10 +6,10 @@ import {
   Alert,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   InputAccessoryView,
   Platform,
+  type TextInputInstance,
 } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useCSSVariable } from 'uniwind';
@@ -112,10 +112,10 @@ function EditableSetRow({
       : ('weight' as const);
 
   const setKey = `${exerciseClientId}:${setClientId}`;
-  const weightInputRef = useRef<TextInput>(null);
-  const repsInputRef = useRef<TextInput>(null);
-  const durationInputRef = useRef<TextInput>(null);
-  const distanceInputRef = useRef<TextInput>(null);
+  const weightInputRef = useRef<TextInputInstance>(null);
+  const repsInputRef = useRef<TextInputInstance>(null);
+  const durationInputRef = useRef<TextInputInstance>(null);
+  const distanceInputRef = useRef<TextInputInstance>(null);
 
   const handleActivateWeight = useCallback(() => {
     onActivateSet(setKey, 'weight');
@@ -445,8 +445,8 @@ function EditableSetRow({
       rightThreshold={40}
       // A clear sideways drag before the row moves, so a slightly diagonal
       // scroll through the log doesn't open copy or delete.
-      dragOffsetFromLeftEdge={SET_ROW_SWIPE_OFFSET}
-      dragOffsetFromRightEdge={SET_ROW_SWIPE_OFFSET}
+      dragOffsetFromLeft={SET_ROW_SWIPE_OFFSET}
+      dragOffsetFromRight={SET_ROW_SWIPE_OFFSET}
     >
       <View className="flex-row items-center py-3 bg-background">
         <Text className="text-base text-text-muted w-10 text-center">

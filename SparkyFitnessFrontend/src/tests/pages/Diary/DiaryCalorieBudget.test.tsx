@@ -54,6 +54,10 @@ jest.mock('@/hooks/Foods/useCustomNutrients', () => ({
 jest.mock('@/hooks/Diary/useMealTypes', () => ({
   useMealTypes: () => ({ data: [] }),
 }));
+jest.mock('@/hooks/Challenges/useChallenges', () => ({
+  useChallengesAvailable: () => ({ available: false, isLoading: false }),
+  useChallenges: () => ({ data: undefined }),
+}));
 jest.mock('@/hooks/useGenericHealth', () => ({
   useDailyHealthMetrics: () => ({ data: [] }),
 }));

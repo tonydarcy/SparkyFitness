@@ -31,6 +31,7 @@ const SCHEDULED_PROVIDER_TYPES = new Set([
   'hevy',
   'liftosaur',
   'intervals',
+  'zeppbridge',
 ]);
 
 export function ProviderSyncFrequencyFields({

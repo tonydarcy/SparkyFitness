@@ -88,9 +88,16 @@ describe('getDailyNutritionTotalsRange select list', () => {
             : field
       ),
       'legacy_ambiguous_entry_count',
+      // The per-day custom nutrient totals: the inner aliases of its subquery,
+      // then the JSON column itself.
+      'value',
+      'scaled',
+      'scaled',
+      'custom_nutrients',
     ];
     expect(aliases).toEqual(expected);
-    expect(new Set(aliases).size).toBe(aliases.length);
+    const outer = aliases.slice(0, aliases.indexOf('value'));
+    expect(new Set(outer).size).toBe(outer.length);
   });
 
   // Two fields are published under a different name than their column, and the consumers read
