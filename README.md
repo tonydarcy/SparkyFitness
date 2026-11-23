@@ -30,36 +30,39 @@
 
 Everything in upstream SparkyFitness, plus:
 
-### Food diary
+### Food diary & dashboard
 
-- **Timeline view.** Show the Diary by time of day instead of by meal, on web and mobile.
-- **Copy a logged food.** Copy one food to Now, Today, Tomorrow or a picked date, on web and mobile.
-- **Select several foods and copy them together.** Tick foods in the Diary (or timeline) and copy them in one go.
-- **Copy a meal to several days**, and set one time for every food in a multi-add.
-- **Smarter local food search.** Your own foods are ranked by how often and how recently you log them (with a new `food_entries` index to keep it fast).
-- **Custom nutrient fixes.** Custom nutrient amounts save correctly on foods, converted units and "save as new", and the AI and MCP tools can update them.
+- **Timeline view** ([upstream PR #3529](https://github.com/CodeWithCJ/SparkyFitness/pull/3529)). Show the Diary by time of day instead of by meal, on web and mobile (with its own widget layout on web).
+- **Multi-select copy, meal chips & multi-day meal copy.** Tick several foods in the Diary (or timeline) and copy them together from a pinned copy bar, copy whole logged meals across multiple days, use quick meal-type chips, and set one shared time for every food in a multi-add.
+- **Daily food diary notes.** Add a per-day note card on the Diary, on web and mobile.
+- **Diary macro goal bars.** Show protein, carbs and fat progress against daily goals in the Diary summary, on web and mobile.
+- **Energy Balance dashboard card.** Show adaptive TDEE and rolling average daily calorie deficit or surplus on the Dashboard, on web and mobile.
+- **Usage-ranked local food search.** Rank local food search results by how often and how recently you log them (with a `food_entries` index to keep it fast).
+- **Web logging, onboarding & sign-up polish.** Smoother unit input and conversion, food search, onboarding, and sign-up/sign-in flow on web.
 
 ### Workouts (mobile and web)
 
-- **Focus view** for the active workout: one exercise at a time with a media card, set editor, chips, RPE and Swap.
 - **Double and triple progression** with rep ranges and automatic deloads when you stall.
-- **Gym profiles** with your own plates, dumbbells and machine weight stacks for the plate calculator.
+- **Gym profiles** with your own plates, dumbbells and machine weight stacks for the plate calculator and live weight rounding.
 - **Backup exercise** for each preset slot, for when the machine is taken.
 - **Starter workout plans** to get going quickly.
 - **Strength balance card** and an untrained-muscle heat map.
 - **Import FitNotes and Strong** workout exports.
 - **Demonstration video links** on exercises.
-- **Rest timer screen flash** and swipe to copy or undo a set.
+- **Rest timer screen flash** and swipe to copy or undo a set on mobile.
 
 ### Mobile app
 
-- **iPad support** with readable-width layouts.
+- **iPad readable-width layouts & Android tablet rotation** ([upstream PR #3739](https://github.com/CodeWithCJ/SparkyFitness/pull/3739)). Centered readable-width screens with full tablet orientation support on iPad and Android tablets.
+- **Faster diary day switching.** Prefetches adjacent diary days and keeps visited days cached longer.
 - **GPS on Android without Google Play Services** (for example GrapheneOS and other de-Googled phones).
-- **Readiness** flags a raised overnight breathing rate.
+- **Readiness breathing rate warning.** Flags a raised overnight breathing rate as an early sign of illness and caps readiness below high.
 
 ### AI and integrations
 
-- **Remote MCP with OAuth 2.1**, so Claude and **Gemini** can connect to your server without an API key (off by default: Admin → Authentication Settings → Login Management → Remote MCP OAuth; needs public HTTPS). The Gemini web app works as a custom app: all six of Google's Gemini callback addresses (production, sandbox and test) are allowed out of the box, and on an existing install the first restart after upgrading adds the missing sandbox and test patterns, but only to an allowlist that still holds both production Gemini patterns. Setup: [Connect Gemini](docs/src/features/mcp-server.md#connect-gemini).
+- **Google Sheets export.** Export food logs and health data to Google Sheets with scheduled sync and an in-app setup guide ([Google Sheets guide](docs/src/features/settings/google-sheets.md)).
+- **Gemini Remote MCP OAuth 2.1** ([upstream PR #3727](https://github.com/CodeWithCJ/SparkyFitness/pull/3727)). Allows the Gemini web app to connect via Remote MCP OAuth (off by default: Admin → Authentication Settings → Login Management → Remote MCP OAuth; needs public HTTPS) with path-prefix redirect patterns for all six Google Gemini callback addresses (production, sandbox and test). Setup: [Connect Gemini](docs/src/features/mcp-server.md#connect-gemini).
+- **Custom nutrients in MCP & AI tools.** Include custom nutrients in MCP/AI nutrition summaries and daily reports, update custom nutrients on food variants and merge goal updates without wiping existing ones, and harden auto-adding new custom nutrients to existing goals and presets.
 
 The fork's own instance runs on [Railway](https://railway.com), deployed from `tdmain`.
 
