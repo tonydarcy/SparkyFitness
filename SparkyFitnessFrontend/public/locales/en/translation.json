@@ -3702,6 +3702,9 @@
         "setupHint": "Answer a few questions to finish setting it up.",
         "setupAction": "Set up"
       },
+      "medications": {
+        "description": "Medications, supplements and GLP-1 tracking. Supplement nutrients still count in your totals."
+      },
       "labResults": {
         "description": "Record blood tests and follow each marker over time."
       }
@@ -4808,6 +4811,8 @@
   },
   "mealCard": {
     "addFood": "Add food",
+    "fromTime": "from {{time}}",
+    "nothingLogged": "Nothing logged yet, add food",
     "addFoodToMeal": "Add Food to {{mealName}}",
     "moreActions": "More actions",
     "moreActionsFor": "More actions for {{mealName}}",
@@ -5693,7 +5698,7 @@
       "caloriesBurned": "Calories Burned",
       "sets": "Sets",
       "reps": "Reps",
-      "weight": "Weight",
+      "weight": "Weight ({{unit}})",
       "notes": "Notes",
       "category": "Category",
       "equipment": "Equipment",

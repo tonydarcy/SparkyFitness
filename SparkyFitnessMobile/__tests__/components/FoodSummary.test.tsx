@@ -77,6 +77,10 @@ jest.mock('../../src/components/CopyMealSheet', () => {
   };
 });
 
+jest.mock('../../src/hooks/usePreferences', () => ({
+  usePreferences: () => ({ preferences: { time_format: 'HH:mm' } }),
+}));
+
 const mealTypes: MealType[] = [
   {
     id: 'sys-b',
@@ -382,5 +386,17 @@ describe('FoodSummary', () => {
     // Tapping again with the whole section picked drops it.
     fireEvent.press(getByLabelText('Select all of Lunch'));
     expect(getByText('0 selected')).toBeTruthy();
+  });
+
+  it("shows the meal type's start time under its name", () => {
+    const { getByText } = render(
+      <FoodSummary
+        foodEntries={[entry('e5', 'sys-b', 'breakfast')]}
+        mealTypes={mealTypes.map((mt) =>
+          mt.id === 'sys-b' ? { ...mt, default_time: '07:30:00' } : mt
+        )}
+      />
+    );
+    expect(getByText('from 07:30')).toBeTruthy();
   });
 });
