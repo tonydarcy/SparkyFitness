@@ -18,10 +18,12 @@ import {
 } from '@/components/ui/select';
 
 import { prettifySource } from '@/utils/sourceLabels';
+import { useActiveUser } from '@/contexts/ActiveUserContext';
 import { GoogleSheetsAppsScriptCard } from './GoogleSheetsAppsScriptCard';
 
 export const DataManagementSettings = () => {
   const { t, i18n } = useTranslation();
+  const { activeUserId } = useActiveUser();
   const [delimiter, setDelimiter] = useState<string>(';');
   const { toast } = useToast();
   const { mutateAsync: exportDiary, isPending: isExporting } =
@@ -146,7 +148,7 @@ export const DataManagementSettings = () => {
         </div>
       </div>
 
-      <GoogleSheetsAppsScriptCard />
+      <GoogleSheetsAppsScriptCard key={activeUserId ?? 'anonymous'} />
 
       <div className="flex flex-col gap-2 border-t pt-6">
         <h3 className="text-lg font-medium">

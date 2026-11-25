@@ -24,6 +24,7 @@ const PROP_LAST_SYNC_AT = 'SPARKYFITNESS_LAST_SYNC_AT';
 const TAB_METADATA_KEY = 'sparkyfitness-tab';
 const HEADER_BACKGROUND = '#edf0f5';
 const ROWS_PER_WRITE = 5000;
+const LOCK_WAIT_MS = 30000;
 const SYNC_HANDLER = 'syncSparkyFitness';
 
 function onOpen() {
@@ -213,9 +214,25 @@ function runSync_(interactive) {
     throw new Error('SparkyFitness returned no export tabs.');
   }
 
-  writeExportTabs_(tabs);
-  props.setProperty(PROP_LAST_SYNC_AT, new Date().toISOString());
-  return tabs.length;
+  const lock = LockService.getDocumentLock();
+  if (!lock) {
+    throw new Error(
+      'This script must be bound to a Google Sheet (open it via Extensions -> Apps Script inside your spreadsheet).'
+    );
+  }
+  if (!lock.tryLock(LOCK_WAIT_MS)) {
+    throw new Error(
+      'Another SparkyFitness sync is already running. Please try again in a moment.'
+    );
+  }
+
+  try {
+    writeExportTabs_(tabs);
+    props.setProperty(PROP_LAST_SYNC_AT, new Date().toISOString());
+    return tabs.length;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function writeExportTabs_(tabs) {
@@ -232,15 +249,6 @@ function writeExportTabs_(tabs) {
       ownedByTab[exportKey] = sheet;
     }
   }
-
-  // Delete the default blank starter sheet once export tabs exist.
-  var starterSheet =
-    existingSheets.length === 1 &&
-    Object.keys(ownedByTab).length === 0 &&
-    existingSheets[0].getLastRow() === 0 &&
-    existingSheets[0].getLastColumn() === 0
-      ? existingSheets[0]
-      : null;
 
   var wanted = {};
   for (var t = 0; t < tabs.length; t++) {
@@ -268,15 +276,13 @@ function writeExportTabs_(tabs) {
     writeTabContents_(targetSheet, tab.rows || []);
   }
 
-  // Remove export tabs that no longer have data (user-created tabs stay).
+  // Remove export tabs that no longer have data; untagged tabs are always kept.
   var remaining = ss.getSheets();
   for (var r = 0; r < remaining.length; r++) {
     var candidate = remaining[r];
     if (ss.getSheets().length <= 1) break;
     var key = getExportTabKey_(candidate);
-    var isStaleExport = key && !wanted[key];
-    var isBlankStarter = starterSheet && candidate.getSheetId() === starterSheet.getSheetId();
-    if (isStaleExport || isBlankStarter) {
+    if (key && !wanted[key]) {
       ss.deleteSheet(candidate);
     }
   }

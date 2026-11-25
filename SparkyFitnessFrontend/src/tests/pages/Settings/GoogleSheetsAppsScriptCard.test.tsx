@@ -50,6 +50,10 @@ describe('GoogleSheetsAppsScriptCard', () => {
       'function setupSparkyFitness()'
     );
     expect(GOOGLE_SHEETS_APPS_SCRIPT).toContain('function syncSparkyFitness()');
+    expect(GOOGLE_SHEETS_APPS_SCRIPT).toContain(
+      'LockService.getDocumentLock()'
+    );
+    expect(GOOGLE_SHEETS_APPS_SCRIPT).not.toContain('starterSheet');
   });
 
   it('generates a read-only never-expiring API key and displays it', async () => {
@@ -75,6 +79,41 @@ describe('GoogleSheetsAppsScriptCard', () => {
     });
 
     expect(await screen.findByText('sf_readonly_secret_value')).toBeTruthy();
+  });
+
+  it('clears the generated key and ignores late resolutions when remounted for a new account', async () => {
+    let resolveKey: ((value: { id: string; key: string }) => void) | undefined;
+    mockCreateKey.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveKey = resolve;
+        })
+    );
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <GoogleSheetsAppsScriptCard key="user-a" />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Generate read-only API key' })
+    );
+
+    rerender(
+      <MemoryRouter>
+        <GoogleSheetsAppsScriptCard key="user-b" />
+      </MemoryRouter>
+    );
+
+    resolveKey?.({ id: 'key-a', key: 'sf_user_a_secret' });
+
+    await waitFor(() => {
+      expect(screen.queryByText('sf_user_a_secret')).toBeNull();
+    });
+    expect(
+      screen.getByRole('button', { name: 'Generate read-only API key' })
+    ).toBeTruthy();
   });
 
   it('toggles the Apps Script preview', () => {

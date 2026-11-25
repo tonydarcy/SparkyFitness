@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import {
@@ -38,6 +38,18 @@ export const GoogleSheetsAppsScriptCard = () => {
   const [showManualSteps, setShowManualSteps] = useState(
     !GOOGLE_SHEETS_TEMPLATE_URL
   );
+  const mountedRef = useRef(true);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
 
   const serverUrl = window.location.origin;
 
@@ -48,9 +60,15 @@ export const GoogleSheetsAppsScriptCard = () => {
   ) => {
     try {
       await navigator.clipboard.writeText(value);
+      if (!mountedRef.current) return;
       setCopiedField(field);
-      setTimeout(() => {
-        setCopiedField((current) => (current === field ? null : current));
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          setCopiedField((current) => (current === field ? null : current));
+        }
       }, 2000);
       toast({
         title: t('settings.googleSheetsAppsScript.copiedTitle', 'Copied'),
@@ -61,6 +79,7 @@ export const GoogleSheetsAppsScriptCard = () => {
         ),
       });
     } catch {
+      if (!mountedRef.current) return;
       toast({
         title: t(
           'settings.googleSheetsAppsScript.copyFailedTitle',
@@ -85,7 +104,7 @@ export const GoogleSheetsAppsScriptCard = () => {
         expiresIn: null,
         scope: 'read',
       });
-      if (created?.key) {
+      if (mountedRef.current && created?.key) {
         setGeneratedKey(created.key);
       }
     } catch {
