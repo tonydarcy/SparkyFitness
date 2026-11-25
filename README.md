@@ -32,7 +32,7 @@ Everything in upstream SparkyFitness, plus:
 
 ### Food diary & dashboard
 
-- **Timeline view** ([upstream PR #3529](https://github.com/CodeWithCJ/SparkyFitness/pull/3529)). Show the Diary by time of day instead of by meal, on web and mobile (with its own widget layout on web).
+- **By-time timeline view.** A Meals / Timeline toggle to show the Diary strictly by time of day instead of grouped by meal, on web and mobile (with its own widget layout on web), alongside upstream's restyled meal timeline view.
 - **Multi-select copy, meal chips & multi-day meal copy.** Tick several foods in the Diary (or timeline) and copy them together from a pinned copy bar, copy whole logged meals across multiple days, use quick meal-type chips, and set one shared time for every food in a multi-add.
 - **Daily food diary notes.** Add a per-day note card on the Diary, on web and mobile.
 - **Diary macro goal bars.** Show protein, carbs and fat progress against daily goals in the Diary summary, on web and mobile.
@@ -61,7 +61,6 @@ Everything in upstream SparkyFitness, plus:
 ### AI and integrations
 
 - **Google Sheets export.** Export food logs and health data to Google Sheets with scheduled sync and an in-app setup guide ([Google Sheets guide](docs/src/features/settings/google-sheets.md)).
-- **Gemini Remote MCP OAuth 2.1** ([upstream PR #3727](https://github.com/CodeWithCJ/SparkyFitness/pull/3727)). Allows the Gemini web app to connect via Remote MCP OAuth (off by default: Admin → Authentication Settings → Login Management → Remote MCP OAuth; needs public HTTPS) with path-prefix redirect patterns for all six Google Gemini callback addresses (production, sandbox and test). Setup: [Connect Gemini](docs/src/features/mcp-server.md#connect-gemini).
 - **Custom nutrients in MCP & AI tools.** Include custom nutrients in MCP/AI nutrition summaries and daily reports, update custom nutrients on food variants and merge goal updates without wiping existing ones, and harden auto-adding new custom nutrients to existing goals and presets.
 
 The fork's own instance runs on [Railway](https://railway.com), deployed from `tdmain`.
