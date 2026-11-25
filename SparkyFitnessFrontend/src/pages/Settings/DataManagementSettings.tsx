@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 
 import { prettifySource } from '@/utils/sourceLabels';
+import { GoogleSheetsAppsScriptCard } from './GoogleSheetsAppsScriptCard';
 
 export const DataManagementSettings = () => {
   const { t, i18n } = useTranslation();
@@ -144,6 +145,8 @@ export const DataManagementSettings = () => {
           </Button>
         </div>
       </div>
+
+      <GoogleSheetsAppsScriptCard />
 
       <div className="flex flex-col gap-2 border-t pt-6">
         <h3 className="text-lg font-medium">

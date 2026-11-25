@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { Clipboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,23 @@ export const GoogleSheetsSetupGuide = ({
 
   return (
     <div className="col-span-2 rounded-md border bg-muted/40 p-3 text-sm space-y-2">
+      {mode === 'add' && (
+        <p className="rounded border bg-background/80 p-2 text-xs text-muted-foreground">
+          <Trans
+            i18nKey="settings.googleSheetsSetup.appsScriptAlternative"
+            defaults="<strong>Want a simpler setup without Google Cloud?</strong> If your SparkyFitness server is reachable from the internet, try the <link>Apps Script quick setup in Data Management</link> instead. Use the OAuth setup below if your server runs on a private local network."
+            components={{
+              strong: <strong className="text-foreground" />,
+              link: (
+                <Link
+                  to="/settings?section=data-management"
+                  className={linkClass}
+                />
+              ),
+            }}
+          />
+        </p>
+      )}
       <p className="font-medium">
         {t(
           'settings.googleSheetsSetup.title',

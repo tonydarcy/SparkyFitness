@@ -33,6 +33,23 @@ Times are shown in the timezone set in your profile.
 
 ## Setup
 
+There are two ways to connect your spreadsheet. Both write the exact same tabs and formatting:
+
+- **Quick Setup (Apps Script)** — recommended if your SparkyFitness server is reachable from the internet. No Google Cloud project, OAuth client, or redirect URI is needed.
+- **Direct OAuth Sync (Google Cloud)** — use this if your SparkyFitness server only runs on a private local network (LAN / Tailscale) that Google cannot reach directly.
+
+### Option 1: Quick Setup with Apps Script (recommended)
+
+Go to **Settings → Profile & Account → Data Management → Google Sheets Export (Quick Setup)**:
+
+1. Copy your **Server URL** and click **Generate read-only API key** (this creates a key that can only read your data, never change it; you can revoke it anytime under **Developer & Integrations → API Key Management**).
+2. Click **Copy template spreadsheet** (if configured on your instance) to save a ready-made copy into your Google Drive — or click **Open new Google Sheet**, click **Copy Apps Script**, open **Extensions → Apps Script**, replace the default code with the copied script, save, and reload the spreadsheet tab.
+3. In the spreadsheet menu bar, click **SparkyFitness → Connect / Settings...** and paste your Server URL and read-only API key. The first time you run it, Google asks you to approve the script for that spreadsheet (if Google shows an unverified warning, choose **Advanced → Go to...**).
+
+The sheet fills straight away and installs a daily automatic sync at 6 AM. Use the **SparkyFitness** menu inside the spreadsheet anytime to **Sync now**, switch between **Daily** and **Hourly**, **Pause automatic sync**, or **Disconnect**.
+
+### Option 2: Direct OAuth Sync (Google Cloud — works on private networks)
+
 The add form walks you through these steps with direct links to each Google Cloud page, and shows the redirect URI with a copy button. It takes about five minutes, once.
 
 1. Turn on the [Google Sheets API](https://console.cloud.google.com/apis/library/sheets.googleapis.com). If Google asks, create a project first (any name), or reuse the one you made for Google Health.
