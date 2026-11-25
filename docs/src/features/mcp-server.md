@@ -141,7 +141,7 @@ https://oauth-redirect-sandbox.googleusercontent.com/a/*
 https://oauth-redirect-test.googleusercontent.com/a/*
 ```
 
-They are allowed by default on new installs. On an existing install, the first server restart after upgrading adds the sandbox and test patterns once, and only to an allowlist that still holds both production Gemini patterns. Later restarts do not add them again. If you removed Gemini from your allowlist, or remove any of the six later, paste all six back in yourself.
+They are allowed by default on new installs. On an existing install, the first server restart after upgrading adds them only if the allowlist was never edited. If you changed the list, paste all six in yourself.
 
 - **Gemini app:** add a custom MCP app with your public MCP URL, `https://<your-host>/mcp`, and choose OAuth when asked.
 - **Gemini CLI:** add the server to `settings.json` with `"httpUrl": "https://<your-host>/mcp"`. The CLI discovers OAuth on its own and uses a loopback callback, which the loopback patterns allow. Run `/mcp auth` if it does not open the login page.
