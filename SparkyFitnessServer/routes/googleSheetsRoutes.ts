@@ -3,6 +3,7 @@ import { z } from 'zod/v4';
 import googleSheetsService, {
   SheetsApiDisabledError,
 } from '../integrations/googlesheets/googleSheetsService.js';
+import { buildExportTabs } from '../integrations/googlesheets/googleSheetsExport.js';
 import { GoogleClientMissingError } from '../integrations/google/googleOAuth.js';
 import { log } from '../config/logging.js';
 import authMiddleware from '../middleware/authMiddleware.js';
@@ -245,6 +246,47 @@ router.get(
     try {
       res.status(200).json(await googleSheetsService.getStatus(req.userId));
     } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /integrations/googlesheets/data:
+ *   get:
+ *     summary: Return the formatted Google Sheets export tabs as JSON
+ *     description: >
+ *       Returns the same tabs and rows that the Google Sheets OAuth sync writes,
+ *       so a Google Apps Script bound to the user's spreadsheet can pull them
+ *       using a read-only API key without setting up a Google Cloud project.
+ *     tags: [External Integrations]
+ *     security:
+ *       - cookieAuth: []
+ *       - apiKeyAuth: []
+ *     responses:
+ *       200:
+ *         description: Formatted export tabs.
+ *       403:
+ *         description: Delegated family access cannot export the owner's account.
+ */
+router.get(
+  '/data',
+  authMiddleware.authenticate,
+  requireSelfActor,
+  async (req, res, next) => {
+    try {
+      const tabs = await buildExportTabs(req.userId);
+      res.set('Cache-Control', 'no-store');
+      res.status(200).json({
+        generatedAt: new Date().toISOString(),
+        tabs,
+      });
+    } catch (error) {
+      log(
+        'error',
+        `Error building Google Sheets export data for user ${req.userId}: ${describeError(error)}`
+      );
       next(error);
     }
   }
