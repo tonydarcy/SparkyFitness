@@ -20,7 +20,10 @@ import {
   MCP_SERVER_PROVIDER_TYPE,
   getFoodProviderMetadata,
 } from '@workspace/shared';
-import { isProviderTypeOffered } from '@/utils/settings';
+import {
+  getProviderBaseUrlExample,
+  isProviderTypeOffered,
+} from '@/utils/settings';
 import { GoogleSheetsSetupGuide } from './GoogleSheetsSetupGuide';
 import { Trans, useTranslation } from 'react-i18next';
 import type { ExternalDataProvider } from './ExternalProviderSettings';
@@ -315,22 +318,7 @@ export const EditProviderForm = ({
                   base_url: e.target.value,
                 }))
               }
-              placeholder={
-                editData.provider_type === 'norish'
-                  ? t(
-                      'settings.editProviderForm.eGHttpsNorishYour',
-                      'e.g., https://norish.your-domain.com'
-                    )
-                  : editData.provider_type === 'tandoor'
-                    ? t(
-                        'settings.editProviderForm.eGHttpYourTandoor',
-                        'e.g., http://your-tandoor-instance.com'
-                      )
-                    : t(
-                        'settings.editProviderForm.eGHttpYourMealie',
-                        'e.g., http://your-mealie-instance.com'
-                      )
-              }
+              placeholder={getProviderBaseUrlExample(editData.provider_type)}
               autoComplete="off"
             />
           </div>
