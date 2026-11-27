@@ -1,4 +1,5 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { useCoachUnread } from '../hooks/useCoaches';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -39,6 +40,9 @@ import FastingGoalReconciler from '../components/FastingGoalReconciler';
 import HydrationReminderReconciler from '../components/HydrationReminderReconciler';
 import HealthTrendsPager from '../components/HealthTrendsPager';
 import HydrationGauge from '../components/HydrationGauge';
+import CustomWaterAmountSheet, {
+  type CustomWaterAmountSheetRef,
+} from '../components/CustomWaterAmountSheet';
 import CaffeineCard from '../components/CaffeineCard';
 import BloodAlcoholCard from '../components/BloodAlcoholCard';
 import { useBackgroundWaterSync } from '../hooks/useBackgroundWaterSync';
@@ -180,6 +184,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
   const [trendsRange, setTrendsRange] = useState<HealthTrendDateRange>('7d');
   const scrollViewRef = useRef<ScrollViewInstance>(null);
   const calendarRef = useRef<CalendarSheetRef>(null);
+  const customAmountSheetRef = useRef<CustomWaterAmountSheetRef>(null);
 
   // Only reset to today when the calendar day has actually changed (midnight rollover)
   useFocusEffect(
@@ -342,6 +347,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     containers: waterContainers,
     quickAddPresets: waterQuickAddPresets,
     logPreset: logWaterPreset,
+    logCustomAmount: logCustomWaterAmount,
     activeContainer: activeWaterContainer,
     selectContainer: selectWaterContainer,
   } = useWaterIntakeMutation({
@@ -485,6 +491,13 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
     isLoading: isBloodAlcoholLoading,
   } = useBloodAlcohol(selectedDate, bloodAlcoholCardVisible);
   const askSparkyVisible = useAppPreferencesStore((s) => s.askSparkyVisible);
+  // Unread coach messages (#2013) show on the Ask Sparky card, which opens on
+  // the coach with the newest one.
+  const { data: coachUnread } = useCoachUnread();
+  const coachUnreadTotal = coachUnread?.total ?? 0;
+  const newestCoachId = [...(coachUnread?.by_coach ?? [])].sort((a, b) =>
+    b.latest_at.localeCompare(a.latest_at)
+  )[0]?.coach_id;
   const medicationsCardVisible = useAppPreferencesStore(
     (s) => s.medicationsCardVisible
   );
@@ -625,6 +638,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
       onQuickAdd={
         isContainersLoaded ? (id: number) => logWaterPreset(id) : undefined
       }
+      onCustomAmount={() => customAmountSheetRef.current?.present()}
     />
   );
 
@@ -794,7 +808,12 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                 return askSparkyVisible ? (
                   <Pressable
                     key="askSparky"
-                    onPress={() => navigation.navigate('Chat')}
+                    onPress={() =>
+                      navigation.navigate(
+                        'Chat',
+                        newestCoachId ? { coachId: newestCoachId } : undefined
+                      )
+                    }
                     className="flex-row items-center bg-surface rounded-lg px-4 py-3 mb-3 shadow-sm"
                   >
                     <Icon name="sparkles" size={18} color={accentColor} />
@@ -803,6 +822,21 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
                         defaultValue: 'Ask Sparky…',
                       })}
                     </Text>
+                    {coachUnreadTotal > 0 && (
+                      <View
+                        testID="ask-sparky-unread"
+                        className="ml-auto h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1"
+                        accessibilityLabel={t('coaches.thread.unread', {
+                          defaultValue: '{{count}} unread',
+                          defaultValue_one: '{{count}} unread',
+                          count: coachUnreadTotal,
+                        })}
+                      >
+                        <Text className="text-white text-xs font-semibold">
+                          {coachUnreadTotal > 9 ? '9+' : coachUnreadTotal}
+                        </Text>
+                      </View>
+                    )}
                   </Pressable>
                 ) : null;
               case 'macros':
@@ -1182,6 +1216,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
           onSelectDate={handleCalendarSelect}
           markedDates={photoDates}
         />
+        <CustomWaterAmountSheet
+          ref={customAmountSheetRef}
+          unit={waterDisplayUnit}
+          onSubmit={(waterMl) => logCustomWaterAmount(waterMl)}
+        />
       </>
     );
   }
@@ -1205,6 +1244,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigation }) => {
         selectedDate={selectedDate}
         onSelectDate={handleCalendarSelect}
         markedDates={photoDates}
+      />
+      <CustomWaterAmountSheet
+        ref={customAmountSheetRef}
+        unit={waterDisplayUnit}
+        onSubmit={(waterMl) => logCustomWaterAmount(waterMl)}
       />
     </View>
   );
